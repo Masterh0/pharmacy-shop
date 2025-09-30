@@ -1,0 +1,16 @@
+{
+    "[prisma]": {
+        "editor.defaultFormatter": "Prisma.prisma"
+    },
+    "editor.formatOnSave": true,
+    "files.associations": {
+        "*.prisma": "prisma"
+    },
+    "prisma.languageServer.trace": "off",
+    "tailwindCSS.includeLanguages": {
+        "plaintext": "html",
+        "javascript": "javascript",
+        "typescript": "typescriptreact",
+        "typescriptreact": "typescriptreact"
+    }
+}
