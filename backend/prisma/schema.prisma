@@ -57,98 +57,112 @@ enum PrescriptionStatus {
 }
 
 // ============ Core Models ============
+
 model User {
-  id               Int        @id @default(autoincrement())
-  email            String     @unique
-  phone            String?    @unique
-  password         String
-  role             Role       @default(CUSTOMER)
-  isActive         Boolean    @default(true)
-  emailVerifiedAt  DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id              Int       @id @default(autoincrement())
+  email           String?   @unique
+  phone           String    @unique
+  password        String
+  role            Role      @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  isVerified      Boolean   @default(false)
 
   // Relations
-  orders           Order[]
-  comments         Comment[]
-  addresses        Address[]
-  carts            Cart[]
-  prescriptions    Prescription[]
-  reviewedPrescriptions Prescription[] @relation("PrescriptionReviewer")
-  discountRedemptions DiscountRedemption[]
-  
+  orders                Order[]
+  comments              Comment[]
+  addresses             Address[]
+  carts                 Cart[]
+  prescriptions         Prescription[]
+  reviewedPrescriptions Prescription[]       @relation("PrescriptionReviewer")
+  discountRedemptions   DiscountRedemption[]
+  refreshTokens         RefreshToken[]       @relation("UserRefreshTokens")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    Int
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation("UserRefreshTokens", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Category {
-  id             Int        @id @default(autoincrement())
-  name           String
-  slug           String
-  parentId       Int?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String
+  parentId  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  parent         Category?  @relation("SubCategory", fields: [parentId], references: [id])
-  subCategories  Category[] @relation("SubCategory")
-  products       Product[]
+  parent        Category?  @relation("SubCategory", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategory")
+  products      Product[]
 
   @@unique([parentId, name])
   @@unique([slug])
 }
 
 model Brand {
-  id         Int       @id @default(autoincrement())
-  name       String    @unique
-  slug       String    @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  products   Product[]
+  products Product[]
 }
 
 model Product {
-  id                     Int              @id @default(autoincrement())
-  sku                    String           @unique
-  slug                   String           @unique
-  name                   String
-  description            String
-  price                  Decimal          @db.Decimal(12,2)
-  stock                  Int              @default(0)
-  minStock               Int              @default(0)
-  expiryDate             DateTime?
-  categoryId             Int
-  brandId                Int
-  imageUrl               String?
-  dosageForm             String?
-  strength               String?
-  unit                   String?
-  packSize               String?
-  isPrescriptionRequired Boolean          @default(false)
-  barcode                String?
-  gtin                   String?
-  originCountry          String?
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
-
-  category               Category         @relation(fields: [categoryId], references: [id])
-  brand                  Brand            @relation(fields: [brandId], references: [id])
-  packageProducts        PackageProduct[]
-  comments               Comment[]
-  inventoryLogs          InventoryLog[]
-  orderItems             OrderItem[]
-  cartItems              CartItem[]
+  id              Int              @id @default(autoincrement())
+  sku             String           @unique
+  slug            String           @unique
+  name            String
+  description     String
+  expiryDate      DateTime?
+  categoryId      Int
+  brandId         Int
+  imageUrl        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  isBlock         Boolean          @default(false)
+  category        Category         @relation(fields: [categoryId], references: [id])
+  brand           Brand            @relation(fields: [brandId], references: [id])
+  packageProducts PackageProduct[]
+  comments        Comment[]
+  inventoryLogs   InventoryLog[]
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+  variants        ProductVariant[]
 
   @@index([name])
   @@index([categoryId])
   @@index([brandId])
-  @@index([isPrescriptionRequired])
   @@index([expiryDate])
+}
+
+model ProductVariant {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  packageQuantity Int // تعداد در بسته (مثلا 30 یا 60)
+  packageType     String? // مثلا "قوطی پلاستیکی" یا "بلیستر"
+  price           Decimal  @db.Decimal(12, 2) // قیمت اصلی
+  discountPrice   Decimal? @db.Decimal(12, 2) // قیمت تخفیفی، اگر وجود داشت
+
+  stock      Int       @default(0) // موجودی این بسته‌بندی
+  expiryDate DateTime?
+
+  product Product @relation(fields: [productId], references: [id])
 }
 
 model Package {
   id              Int              @id @default(autoincrement())
   name            String
   description     String
-  price           Decimal          @db.Decimal(12,2)
+  price           Decimal          @db.Decimal(12, 2)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   packageProducts PackageProduct[]
@@ -158,61 +172,61 @@ model PackageProduct {
   packageId Int
   productId Int
   quantity  Int
-  package   Package  @relation(fields: [packageId], references: [id])
-  product   Product  @relation(fields: [productId], references: [id])
+  package   Package @relation(fields: [packageId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 
   @@id([packageId, productId])
 }
 
 // ============ Cart & Order ============
 model Cart {
-  id         Int        @id @default(autoincrement())
-  userId     Int?
-  sessionId  String?    @unique
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user       User?      @relation(fields: [userId], references: [id])
-  items      CartItem[]
+  user  User?      @relation(fields: [userId], references: [id])
+  items CartItem[]
 
   @@index([userId])
 }
 
 model CartItem {
-  id         Int      @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   cartId     Int
   productId  Int
-  quantity   Int      @default(1)
-  priceAtAdd Decimal  @db.Decimal(12,2)
+  quantity   Int     @default(1)
+  priceAtAdd Decimal @db.Decimal(12, 2)
 
-  cart       Cart     @relation(fields: [cartId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
+  cart    Cart    @relation(fields: [cartId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@unique([cartId, productId])
 }
 
 model Order {
-  id            Int          @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   userId        Int?
   addressId     Int?
-  status        OrderStatus  @default(PENDING)
-  subtotal      Decimal      @db.Decimal(12,2)
-  discountTotal Decimal      @default(0) @db.Decimal(12,2)
-  taxAmount     Decimal      @default(0) @db.Decimal(12,2)
-  shippingFee   Decimal      @default(0) @db.Decimal(12,2)
-  finalTotal    Decimal      @db.Decimal(12,2)
+  status        OrderStatus @default(PENDING)
+  subtotal      Decimal     @db.Decimal(12, 2)
+  discountTotal Decimal     @default(0) @db.Decimal(12, 2)
+  taxAmount     Decimal     @default(0) @db.Decimal(12, 2)
+  shippingFee   Decimal     @default(0) @db.Decimal(12, 2)
+  finalTotal    Decimal     @db.Decimal(12, 2)
   discountCode  String?
   trackingCode  String?
   paidAt        DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  user          User?        @relation(fields: [userId], references: [id])
-  address       Address?     @relation(fields: [addressId], references: [id])
-  orderItems    OrderItem[]
-  payments      Payment[]
-  shipment      Shipment?
-  prescription  Prescription?
+  user                User?                @relation(fields: [userId], references: [id])
+  address             Address?             @relation(fields: [addressId], references: [id])
+  orderItems          OrderItem[]
+  payments            Payment[]
+  shipment            Shipment?
+  prescription        Prescription?
   discountRedemptions DiscountRedemption[]
 
   @@index([status])
@@ -220,15 +234,15 @@ model Order {
 }
 
 model OrderItem {
-  id         Int      @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   orderId    Int
   productId  Int
   quantity   Int
-  unitPrice  Decimal  @db.Decimal(12,2)
-  totalPrice Decimal  @db.Decimal(12,2)
+  unitPrice  Decimal @db.Decimal(12, 2)
+  totalPrice Decimal @db.Decimal(12, 2)
 
-  order      Order    @relation(fields: [orderId], references: [id])
-  product    Product  @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@unique([orderId, productId])
 }
@@ -244,12 +258,12 @@ model Shipment {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  order        Order     @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 }
 
 // ============ Addresses & Comments ============
 model Address {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   userId     Int
   fullName   String
   phone      String
@@ -259,28 +273,28 @@ model Address {
   postalCode String
   lat        Float?
   lng        Float?
-  isDefault  Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user       User      @relation(fields: [userId], references: [id])
-  orders     Order[]
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
 
   @@index([userId])
 }
 
 model Comment {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   productId  Int
   userId     Int?
   content    String
   rating     Int?
-  isApproved Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  product    Product   @relation(fields: [productId], references: [id])
-  user       User?     @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
 
   @@index([productId])
   @@index([createdAt])
@@ -296,7 +310,7 @@ model InventoryLog {
   referenceType String?
   createdAt     DateTime        @default(now())
 
-  product       Product         @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 
   @@index([productId])
   @@index([reason])
@@ -307,7 +321,7 @@ model InventoryLog {
 model Payment {
   id         Int           @id @default(autoincrement())
   orderId    Int
-  amount     Decimal       @db.Decimal(12,2)
+  amount     Decimal       @db.Decimal(12, 2)
   method     PaymentMethod
   status     PaymentStatus
   gatewayRef String?
@@ -315,7 +329,7 @@ model Payment {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  order      Order         @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 
   @@index([orderId])
   @@index([status])
@@ -325,9 +339,9 @@ model Discount {
   id         Int          @id @default(autoincrement())
   code       String       @unique
   type       DiscountType
-  value      Decimal      @db.Decimal(12,2)
-  maxValue   Decimal?     @db.Decimal(12,2)
-  minOrder   Decimal?     @db.Decimal(12,2)
+  value      Decimal      @db.Decimal(12, 2)
+  maxValue   Decimal?     @db.Decimal(12, 2)
+  minOrder   Decimal?     @db.Decimal(12, 2)
   usageLimit Int?
   usedCount  Int          @default(0)
   isActive   Boolean      @default(true)
@@ -346,9 +360,9 @@ model DiscountRedemption {
   orderId    Int?
   createdAt  DateTime @default(now())
 
-  discount   Discount @relation(fields: [discountId], references: [id])
-  user       User?    @relation(fields: [userId], references: [id])
-  order      Order?   @relation(fields: [orderId], references: [id])
+  discount Discount @relation(fields: [discountId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
 
   @@index([discountId])
   @@index([userId])
@@ -357,19 +371,29 @@ model DiscountRedemption {
 
 // ============ Prescription ============
 model Prescription {
-  id          Int               @id @default(autoincrement())
-  userId      Int
-  orderId     Int?     @unique
-  imageUrl    String
-  status      PrescriptionStatus @default(UPLOADED)
-  reviewedBy  Int?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id         Int                @id @default(autoincrement())
+  userId     Int
+  orderId    Int?               @unique
+  imageUrl   String
+  status     PrescriptionStatus @default(UPLOADED)
+  reviewedBy Int?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
 
-  user        User               @relation(fields: [userId], references: [id])
-  order       Order?             @relation(fields: [orderId], references: [id])
-  reviewer    User?              @relation("PrescriptionReviewer", fields: [reviewedBy], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+  order    Order? @relation(fields: [orderId], references: [id])
+  reviewer User?  @relation("PrescriptionReviewer", fields: [reviewedBy], references: [id])
 
   @@index([userId])
   @@index([status])
+}
+
+model Otp {
+  id         Int      @id @default(autoincrement())
+  phone      String
+  code       String
+  expiresAt  DateTime
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  used       Boolean  @default(false)
 }

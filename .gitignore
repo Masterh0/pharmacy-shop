@@ -1,2 +1,89 @@
-"node_modules/" 
-".env" 
+# ==============================
+# 🌐 Global & system
+# ==============================
+node_modules/
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log
+*.local
+*.cache
+*.tmp
+*.swp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================
+# 🧩 Frontend (Next.js)
+# ==============================
+.next/
+out/
+.vercel/
+public/uploads/
+public/temp/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+frontend/public/uploads/
+frontend/public/temp/
+
+# ==============================
+# ⚙️ Backend (Node.js + Prisma)
+# ==============================
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/uploads/
+backend/package-lock.json
+
+# Databases
+backend/prisma/*.db
+backend/prisma/*.sqlite
+backend/prisma/dev.db
+
+# Migrations — keep only SQL migration files
+backend/prisma/migrations/**/steps.json
+backend/prisma/migrations/**/migration_lock.toml
+!backend/prisma/migrations/**/migration.sql
+
+# ==============================
+# 🧰 Compiled / Generated
+# ==============================
+coverage/
+.tmp/
+.cache/
+build/
+dist/
+
+# ==============================
+# 🛠️ Editors / OS
+# ==============================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ==============================
+# 🧑‍💻 Miscellaneous
+# ==============================
+*.iml
+*.db
+*.pid
+*.seed
+*.tsbuildinfo
+
+# ==============================
+# ✅ Keep explicit
+# ==============================
+!backend/prisma/migrations/
+!backend/src/
+!frontend/src/
+!package.json
+!backend/package.json
+!tsconfig.json
+!backend/tsconfig.json
+!README.md
