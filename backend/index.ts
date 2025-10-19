@@ -25,7 +25,7 @@ import {
 import path from "path";
 const app = express();
 const prisma = new PrismaClient();
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(cors());
 app.use(express.json());
 
