@@ -25,8 +25,10 @@ import {
 import path from "path";
 const app = express();
 const prisma = new PrismaClient();
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-app.use(cors());
+const uploadsPath = path.join(__dirname, "../uploads");
+
+// ✅ سرو فایل‌های استاتیک از این مسیر
+app.use("/uploads", express.static(uploadsPath)); app.use(cors());
 app.use(express.json());
 
 // -----------------------------

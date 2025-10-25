@@ -8,6 +8,12 @@ module.exports = {
   ],
   theme: {
     extend: {
+      colors: {
+        primary: "#00B4D8",
+        secondary: "#0077B6",
+        grayLight: "#D6D6D6",
+        grayDark: "#656565",
+      },
       fontFamily: {
         iranYekan: ["IRANYekan", "sans-serif"],
       },

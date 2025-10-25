@@ -1,65 +1,73 @@
 import api from "../axios";
 import { Product } from "../types/product";
-const API_URL = "/categories";
+
 export interface Category {
   id: number;
   name: string;
   slug: string;
   parentId?: number | null;
+  parent?: Category | null;
   subCategories?: Category[];
+  products?: Product[];
 }
 
 export interface CreateCategoryDTO {
   name: string;
   parentId?: number | null;
+  slug?: string;
 }
 
+const API_URL = "/categories";
+
 export const categoryApi = {
+  // ✅ همه کتگوری‌ها سطح بالا
   getAll: async (): Promise<Category[]> => {
-    try {
-      const res = await api.get(API_URL);
-
-      console.log("CATEGORY API RESPONSE:", res.data);
-
-      // اطمینان از برگشت آرایه صحیح
-      if (Array.isArray(res.data)) {
-        return res.data;
-      }
-      if (Array.isArray(res.data.data)) {
-        return res.data.data;
-      }
-
-      // اگر ساختار با انتظار ما فرق داشت
-      return [];
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      // در صورت خطا هرگز undefined برنگردون
-      return [];
-    }
+    const res = await api.get(API_URL);
+    return res.data || [];
   },
+
+  // ✅ همه کتگوری‌ها همراه زیردسته‌ها (در دو سطح)
   getAllWithChildren: async (): Promise<Category[]> => {
-    const res = await api.get(`${API_URL}/getAllWithChildren`);
-    return res.data;
+    const res = await api.get(`${API_URL}/children`);
+    return res.data || [];
   },
-  create: async (data: CreateCategoryDTO) => {
+
+  // ✅ دریافت محصولات یک کتگوری و زیردسته‌ها
+  getProductsByCategory: async (id: number, sort?: string): Promise<Product[]> => {
+    if (!id || isNaN(id)) return [];
+    const res = await api.get(`${API_URL}/${id}/products`, { params: { sort } });
+    return res.data || [];
+  },
+
+  // ✅ دریافت یک کتگوری خاص
+  getById: async (id: number): Promise<Category | null> => {
+    if (!id || isNaN(id)) return null;
+    const res = await api.get(`${API_URL}/${id}`);
+    return res.data || null;
+  },
+
+  // ✅ ساخت کتگوری جدید
+  create: async (data: CreateCategoryDTO): Promise<Category> => {
     const res = await api.post(API_URL, data);
     return res.data;
   },
-  search: async (q: string): Promise<Category[]> => {
-    const query = q?.trim();
-    if (!query) return [];
-    const res = await api.get(
-      `${API_URL}/search?q=${encodeURIComponent(query)}`
-    );
+
+  // ✅ ویرایش کتگوری
+  update: async (id: number, data: CreateCategoryDTO): Promise<Category> => {
+    const res = await api.put(`${API_URL}/${id}`, data);
     return res.data;
   },
-  getProductsByCategory: async (categoryId: number): Promise<Product[]> => {
-    try {
-      const res = await api.get(`${API_URL}/${categoryId}/products`);
-      return res.data;
-    } catch (error) {
-      console.error("Error fetching category products:", error);
-      return [];
-    }
+
+  // ✅ حذف کتگوری
+  remove: async (id: number): Promise<void> => {
+    await api.delete(`${API_URL}/${id}`);
+  },
+
+  // ✅ جستجو در کتگوری‌ها
+  search: async (q: string): Promise<Category[]> => {
+    const text = q?.trim();
+    if (!text) return [];
+    const res = await api.get(`${API_URL}/search?q=${encodeURIComponent(text)}`);
+    return res.data || [];
   },
 };

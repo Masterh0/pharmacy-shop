@@ -10,16 +10,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="fa" dir="rtl">
       <head>
-        {/* فونت فارسی ایران یکان (نسخه رایگان از CDN) */}
+        {/* فونت فارسی ایران‌یکان (نسخه رایگان از CDN) */}
         <link
           rel="stylesheet"
           href="https://cdn.fontcdn.ir/Font/Persian/IranYekan.css"
         />
       </head>
-      <body className="relative">
+      <body className="relative font-[IRANYekanX] bg-white text-[#242424]">
         <Providers>
+          {/* 🔹 هدر ثابت در بالا صفحه */}
           <Header />
-          <main >{children}</main>
+
+          {/* 🔹 فاصله از پایین هدر — ارتفاع هدر مثلاً 104px */}
+          <main className="pt-[210px] min-h-screen">{children}</main>
         </Providers>
       </body>
     </html>

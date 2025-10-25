@@ -19,17 +19,26 @@ pnpm-debug.log*
 # ==============================
 # 🧩 Frontend (Next.js)
 # ==============================
+# Build & temp
 .next/
 out/
 .vercel/
-public/uploads/
-public/temp/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/.vercel/
+
+# Ignore only temp/upload folders inside public
 frontend/public/uploads/
 frontend/public/temp/
+
+# Keep other public assets
+!frontend/public/
+!frontend/public/**
+
+# Keep source
+!frontend/src/
+!frontend/src/**
 
 # ==============================
 # ⚙️ Backend (Node.js + Prisma)
@@ -49,6 +58,10 @@ backend/prisma/dev.db
 backend/prisma/migrations/**/steps.json
 backend/prisma/migrations/**/migration_lock.toml
 !backend/prisma/migrations/**/migration.sql
+
+# Keep backend source
+!backend/src/
+!backend/src/**
 
 # ==============================
 # 🧰 Compiled / Generated
@@ -79,9 +92,6 @@ dist/
 # ==============================
 # ✅ Keep explicit
 # ==============================
-!backend/prisma/migrations/
-!backend/src/
-!frontend/src/
 !package.json
 !backend/package.json
 !tsconfig.json

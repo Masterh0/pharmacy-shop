@@ -1,3 +1,4 @@
+
 import { Request, Response } from "express";
 import { categoryService } from "../services/categoryService";
 
@@ -18,7 +19,23 @@ export const search = async (req: Request, res: Response) => {
   }
 };
 export const getById = async (req: Request, res: Response) => {
-  res.json(await categoryService.getById(Number(req.params.id)));
+  const id = Number(req.params.id);
+
+  // 👇 چک مقدار و اعتبار عدد
+  if (!id || isNaN(id)) {
+    return res.status(400).json({ message: "شناسه معتبر نیست یا وجود ندارد." });
+  }
+
+  try {
+    const category = await categoryService.getById(id);
+    if (!category) {
+      return res.status(404).json({ message: "دسته‌بندی یافت نشد." });
+    }
+    res.json(category);
+  } catch (error) {
+    console.error("SERVER ERROR:", error);
+    res.status(500).json({ error: "خطای سرور در دریافت دسته‌بندی." });
+  }
 };
 
 export const create = async (req: Request, res: Response) => {
@@ -32,4 +49,21 @@ export const update = async (req: Request, res: Response) => {
 export const remove = async (req: Request, res: Response) => {
   await categoryService.delete(Number(req.params.id));
   res.status(204).send();
+
+};
+export const getCategoryProducts = async (req: Request, res: Response) => {
+  try {
+    const categoryId = Number(req.params.id);
+    if (isNaN(categoryId)) {
+      return res.status(400).json({ message: "شناسه دسته معتبر نیست" });
+    }
+
+    const sort = req.query.sort as string | undefined;
+    const products = await categoryService.getAllProductsByCategory(categoryId, sort);
+
+    res.json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "خطا در دریافت محصولات دسته‌بندی" });
+  }
 };

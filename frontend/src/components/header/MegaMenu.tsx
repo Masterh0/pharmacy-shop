@@ -3,7 +3,7 @@ import Link from "next/link";
 interface MegaMenuProps {
   categories: Category[];
 }
-const category="categories"
+const category = "categories"
 export default function MegaMenu({ categories }: MegaMenuProps) {
   return (
     <div
