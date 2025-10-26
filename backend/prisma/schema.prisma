@@ -40,7 +40,7 @@ model RefreshToken {
 model Category {
   id            Int        @id @default(autoincrement())
   name          String
-  slug          String     @unique
+  slug          String?    @unique
   parentId      Int?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -82,7 +82,8 @@ model Product {
   brand           Brand            @relation(fields: [brandId], references: [id])
   category        Category         @relation(fields: [categoryId], references: [id])
   variants        ProductVariant[]
-  price        Int?
+  price           Int?
+
   @@index([name])
   @@index([categoryId])
   @@index([brandId])

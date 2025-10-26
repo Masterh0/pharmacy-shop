@@ -15,7 +15,7 @@ module.exports = {
         grayDark: "#656565",
       },
       fontFamily: {
-        iranYekan: ["IRANYekan", "sans-serif"],
+        vazir: ["Vazirmatn Variable", "sans-serif"],
       },
     },
   },

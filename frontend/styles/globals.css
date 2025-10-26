@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+@import "@fontsource-variable/vazirmatn";
 body {
-  font-family: 'IRANYekan', sans-serif;
+  font-family: "Vazirmatn Variable", sans-serif;
 }

@@ -34,7 +34,7 @@ export default function HeaderMenu() {
   return (
     <nav
       className="
-        absolute left-1/2 -translate-x-1/2 top-[152px]
+        absolute left-1/2 -translate-x-1/2 top-[122px]
         flex flex-row justify-center items-start gap-[8px]
         w-[1180px] h-[52px]
       "
@@ -58,23 +58,23 @@ export default function HeaderMenu() {
               `}
             >
               <ChevronDown
-                className={`w-[20px] h-[20px] ${isActive ? "text-[#0077B6]" : "text-[#434343]"
-                  }`}
+                className={`w-[20px] h-[20px] ${
+                  isActive ? "text-[#0077B6]" : "text-[#434343]"
+                }`}
               />
               <span
-                className={`font-iranYekan text-[16px] leading-[180%] ${isActive ? "text-[#0077B6]" : "text-[#434343]"
-                  }`}
+                className={`font-iranYekan text-[16px] leading-[180%] ${
+                  isActive ? "text-[#0077B6]" : "text-[#434343]"
+                }`}
               >
                 {cat.name}
               </span>
             </Link>
 
             {/* Dropdown sub-levels */}
-            {isActive &&
-              cat.subCategories &&
-              cat.subCategories.length > 0 && (
-                <MegaMenu categories={cat.subCategories} />
-              )}
+            {isActive && cat.subCategories && cat.subCategories.length > 0 && (
+              <MegaMenu categories={cat.subCategories} />
+            )}
           </div>
         );
       })}

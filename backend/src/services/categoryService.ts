@@ -38,8 +38,22 @@ export const categoryService = {
   },
 
   async create(data: CreateCategoryDTO) {
-    const slug = data.slug || makeSlug(data.name);
-    return prisma.category.create({ data: { ...data, slug } });
+    const slug = data.slug
+      ? makeSlug(data.slug)
+      : data.name
+      ? makeSlug(data.name)
+      : null;
+
+    if (!data.name) {
+      throw new Error("Category name is required");
+    }
+
+    return prisma.category.create({
+      data: {
+        ...data,
+        slug: slug || undefined, // تا اگه خالی بود، Prisma خطا نده
+      },
+    });
   },
 
   async update(id: number, data: UpdateCategoryDTO) {
@@ -86,62 +100,62 @@ export const categoryService = {
 
   // 🆕 گرفتن همه محصولات متصل به دسته و زیر‌دسته‌ها
   async getAllProductsByCategory(categoryId: number, sort?: string) {
-  // 🔸 دریافت تمام زیردسته‌ها به‌صورت بازگشتی
-  const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
-  const allIds = [categoryId, ...subCategoryIds];
+    // 🔸 دریافت تمام زیردسته‌ها به‌صورت بازگشتی
+    const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
+    const allIds = [categoryId, ...subCategoryIds];
 
-  // 🔸 واکشی محصولات دسته و زیرشاخه‌ها (بدون مرتب‌سازی از Prisma)
-  const products = await prisma.product.findMany({
-    where: { categoryId: { in: allIds }, isBlock: false },
-    include: {
-      category: true,
-      variants: true,
-    },
-  });
+    // 🔸 واکشی محصولات دسته و زیرشاخه‌ها (بدون مرتب‌سازی از Prisma)
+    const products = await prisma.product.findMany({
+      where: { categoryId: { in: allIds }, isBlock: false },
+      include: {
+        category: true,
+        variants: true,
+      },
+    });
 
-  // 🔸 مرتب‌سازی سمت جاوااسکریپت
-  switch (sort) {
-    case "cheapest": {
-      // ارزان‌ترین بر اساس کمترین قیمت variant
-      products.sort((a, b) => {
-        const aPrice = Math.min(
-          ...a.variants.map((v) => v.price ? v.price.toNumber() : 0)
+    // 🔸 مرتب‌سازی سمت جاوااسکریپت
+    switch (sort) {
+      case "cheapest": {
+        // ارزان‌ترین بر اساس کمترین قیمت variant
+        products.sort((a, b) => {
+          const aPrice = Math.min(
+            ...a.variants.map((v) => (v.price ? v.price.toNumber() : 0))
+          );
+          const bPrice = Math.min(
+            ...b.variants.map((v) => (v.price ? v.price.toNumber() : 0))
+          );
+          return aPrice - bPrice;
+        });
+        break;
+      }
+      case "expensive": {
+        // گران‌ترین بر اساس بیشترین قیمت variant
+        products.sort((a, b) => {
+          const aPrice = Math.max(
+            ...a.variants.map((v) => (v.price ? v.price.toNumber() : 0))
+          );
+          const bPrice = Math.max(
+            ...b.variants.map((v) => (v.price ? v.price.toNumber() : 0))
+          );
+          return bPrice - aPrice;
+        });
+        break;
+      }
+      case "bestseller": {
+        // پرفروش‌ترین
+        products.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
+        break;
+      }
+      default: {
+        // جدیدترین (بر اساس تاریخ ساخت)
+        products.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        const bPrice = Math.min(
-          ...b.variants.map((v) => v.price ? v.price.toNumber() : 0)
-        );
-        return aPrice - bPrice;
-      });
-      break;
+        break;
+      }
     }
-    case "expensive": {
-      // گران‌ترین بر اساس بیشترین قیمت variant
-      products.sort((a, b) => {
-        const aPrice = Math.max(
-          ...a.variants.map((v) => v.price ? v.price.toNumber() : 0)
-        );
-        const bPrice = Math.max(
-          ...b.variants.map((v) => v.price ? v.price.toNumber() : 0)
-        );
-        return bPrice - aPrice;
-      });
-      break;
-    }
-    case "bestseller": {
-      // پرفروش‌ترین
-      products.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
-      break;
-    }
-    default: {
-      // جدیدترین (بر اساس تاریخ ساخت)
-      products.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      break;
-    }
-  }
 
-  return products;
-}
+    return products;
+  },
 };

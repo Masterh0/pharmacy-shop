@@ -18,6 +18,7 @@ export interface CreateProductDTO {
   brandId: number;
   isPrescriptionRequired?: boolean;
   isBlock: boolean;
+  soldCount: number;
   variants: CreateProductVariantDTO[];
 }
 export interface UpdateProductDTO extends Partial<CreateProductDTO> {}
