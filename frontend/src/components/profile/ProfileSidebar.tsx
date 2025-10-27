@@ -1,6 +1,15 @@
 "use client";
 
-import { Home2, Bag2, Location, Box, User, LogoutCurve } from "iconsax-react";
+import {
+  Home2,
+  Bag2,
+  Location,
+  Box,
+  User,
+  LogoutCurve,
+  Category,
+  Autobrightness,
+} from "iconsax-react";
 import { usePathname } from "next/navigation";
 
 export default function ProfileSidebar() {
@@ -10,6 +19,8 @@ export default function ProfileSidebar() {
     { label: "پیشخوان", icon: Home2, href: "/profile" },
     { label: "تاریخچه سفارشات", icon: Bag2, href: "/profile/orders" },
     { label: "آدرس‌ها", icon: Location, href: "/profile/addresses" },
+    { label: "دسته بندی ها", icon: Category, href: "/profile/categorie" },
+    { label: "برند ها", icon: Autobrightness, href: "/profile/brand" },
     { label: "محصولات", icon: Box, href: "/profile/add-product" },
     { label: "اطلاعات حساب کاربری", icon: User, href: "/profile/account" },
     { label: "خروج", icon: LogoutCurve, href: "/logout" },

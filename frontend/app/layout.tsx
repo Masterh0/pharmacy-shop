@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           href="https://cdn.fontcdn.ir/Font/Persian/IranYekan.css"
         />
       </head>
-      <body className="relative font-[IRANYekanX] bg-white text-[#242424]">
+      <body className="relative bg-white text-[#242424]">
         <Providers>
           {/* 🔹 هدر ثابت در بالا صفحه */}
           <Header />

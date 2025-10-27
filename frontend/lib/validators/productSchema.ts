@@ -12,7 +12,7 @@ export const variantSchema = z.object({
 export const productSchema = z.object({
   name: z.string().min(1, "نام محصول الزامی است"),
   slug: z.string().optional(),
-  sku: z.string().optional(),
+  sku: z.string().min(1, "کد SKU الزامی است"),
   description: z.string().optional(),
   brandId: z.number().optional(),
   categoryId: z.number().optional(),

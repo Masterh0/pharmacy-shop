@@ -1,5 +1,5 @@
-import AddCategoryForm from "../../src/components/categories/AddCategoryForm";
-import CategoryTree from "../../src/components/categories/CategoryTree";
+import AddCategoryForm from "@/src/components/categories/AddCategoryForm";
+import CategoryTree from "@/src/components/categories/CategoryTree";
 
 export default function CategoriesPage() {
   return (

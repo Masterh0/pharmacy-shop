@@ -82,7 +82,7 @@ model Product {
   brand           Brand            @relation(fields: [brandId], references: [id])
   category        Category         @relation(fields: [categoryId], references: [id])
   variants        ProductVariant[]
-  price           Int?
+  price           Decimal?
 
   @@index([name])
   @@index([categoryId])

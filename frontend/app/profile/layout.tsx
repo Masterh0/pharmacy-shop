@@ -6,11 +6,7 @@ export default function ProfileLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      dir="rtl"
-      lang="fa"
-      className="flex justify-start bg-[#F9FAFB] min-h-screen py-10"
-    >
+    <div dir="rtl" lang="fa" className="flex justify-start min-h-screen py-10">
       {/* کانتینر کلی (هم‌راستا با Sidebar و Boxها) */}
       <div className="flex w-[1200px] mr-32">
         {/* Sidebar پروفایل */}

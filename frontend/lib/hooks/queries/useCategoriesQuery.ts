@@ -6,9 +6,9 @@ export const useCategoriesQuery = () => {
   return useQuery<Category[]>({
     queryKey: ["categories", "all"],
     queryFn: async () => {
-      const { data } = await api.get("/categories/getAllWithChildren");
-      return data;
+      const { data } = await api.get("/categories/children");
+      return Array.isArray(data) ? data : data?.categories || data?.data || [];
     },
-    staleTime: 5 * 60 * 1000, // ۵ دقیقه کش
+    staleTime: 5 * 60 * 1000,
   });
 };

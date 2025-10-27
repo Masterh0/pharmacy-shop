@@ -2,18 +2,17 @@
 
 import { Autocomplete, TextField, CircularProgress } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useCategorySearchQuery } from "@/lib/hooks/queries/useCategorySearchQuery";
 import { useCategoriesQuery } from "@/lib/hooks/queries/useCategoriesQuery";
 import { useCategorySearchStore } from "@/lib/stores/useCategorySearchStore";
 import type { Category } from "@/lib/types/category";
 
 /**
- * Utility: باز کردن درخت دسته‌ها به صورت فلت برای Autocomplete
+ * Utility: فلت کردن درخت دسته‌بندی‌ها
  */
 function flattenCategories(categories: Category[]): Category[] {
   const result: Category[] = [];
-
   const recurse = (list: Category[]) => {
     for (const cat of list) {
       result.push({
@@ -25,93 +24,122 @@ function flattenCategories(categories: Category[]): Category[] {
       if (cat.subCategories?.length) recurse(cat.subCategories);
     }
   };
-
   recurse(categories);
   return result;
 }
 
 /**
- * ✅ CategorySelectSearch
- * - نمایش تمام کتگوری‌ها در حالت عادی (getAllWithChildren)
- * - جستجوی زنده (search?q=)
- * - همگام با React Hook Form و Zustand
+ * ✅ CategorySelectSearch — نسخه‌ی سالم و نهایی
  */
 export function CategorySelectSearch() {
-  const { control, setValue, watch } = useFormContext();
-  const selectedCategoryId = watch("categoryId");
+  const { control } = useFormContext();
+  const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  // لیست کامل همه کتگوری‌ها
+  // گرفتن همه دسته‌ها
   const { data: allCategoriesTree = [], isFetching: fetchingAll } =
     useCategoriesQuery();
 
-  // جستجوی زنده
-  const { data: searchResults = [], isFetching: fetchingSearch } =
-    useCategorySearchQuery(inputValue);
-
-  // تبدیل داده درختی به فلت فقط یکبار
+  // فلت‌کردن آرایه درختی
   const allCategories = useMemo(
     () => flattenCategories(allCategoriesTree),
     [allCategoriesTree]
   );
 
-  // منبع نهایی دیتا (بین حالت عادی و سرچ زنده)
+  // وضعیت سرچ
   const isSearching = inputValue.trim().length >= 2;
-  const results = isSearching ? searchResults : allCategories;
+  const { data: searchResults = [], isFetching: fetchingSearch } =
+    useCategorySearchQuery(isSearching ? inputValue.trim() : "");
 
-  // وضعیت انتخاب کتگوری در Zustand
   const { selectedCategory, setSelectedCategory } = useCategorySearchStore();
-
-  // مقدار انتخاب‌شده‌ی فعلی از RHF یا Zustand
-  const currentValue =
-    results.find((c) => c.id === selectedCategoryId) ||
-    selectedCategory ||
-    null;
+  const optionsData = isSearching ? searchResults : allCategories;
 
   return (
     <Controller
-      control={control}
       name="categoryId"
-      render={({ field }) => (
-        <Autocomplete
-          disablePortal
-          autoHighlight
-          includeInputInList
-          filterOptions={(x) => x} // جلوگیری از فیلتر داخلی MUI
-          sx={{ width: 320 }}
-          options={results}
-          value={currentValue}
-          getOptionLabel={(option) => option?.name || ""}
-          loading={isSearching ? fetchingSearch : fetchingAll}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
-          onChange={(_, newValue) => {
-            field.onChange(newValue ? newValue.id : 0);
-            setValue("categoryId", newValue ? newValue.id : 0);
-            setSelectedCategory(newValue);
-          }}
-          onInputChange={(_, newInputValue, reason) => {
-            if (reason === "input") setInputValue(newInputValue);
-          }}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="دسته‌بندی"
-              placeholder="جست‌وجو..."
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {(fetchingAll || fetchingSearch) && (
-                      <CircularProgress size={18} />
-                    )}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
-              }}
-            />
-          )}
-        />
-      )}
+      control={control}
+      render={({ field }) => {
+        const currentValue =
+          optionsData.find((c) => c.id === field.value) ||
+          selectedCategory ||
+          null;
+
+        // هر وقت مقدار فرم تغییر کنه، selectedCategory به‌روز میشه
+        useEffect(() => {
+          if (field.value && allCategories.length > 0) {
+            const found = allCategories.find((c) => c.id === field.value);
+            if (found) setSelectedCategory(found);
+          }
+        }, [field.value, allCategories, setSelectedCategory]);
+
+        return (
+          <Autocomplete
+            disablePortal
+            autoHighlight
+            includeInputInList
+            filterOptions={(x) => x}
+            open={open}
+            onOpen={() => {
+              setOpen(true);
+              if (!inputValue.trim()) setInputValue(""); // نمایش همه
+            }}
+            onClose={() => setOpen(false)}
+            options={optionsData}
+            value={currentValue}
+            getOptionLabel={(option) => option?.name || ""}
+            isOptionEqualToValue={(opt, val) => opt?.id === val?.id}
+            loading={isSearching ? fetchingSearch : fetchingAll}
+            onChange={(_, newValue) => {
+              field.onChange(newValue ? newValue.id : undefined);
+              setSelectedCategory(newValue || null);
+            }}
+            onInputChange={(_, newInputValue, reason) => {
+              if (reason === "input") setInputValue(newInputValue);
+            }}
+            sx={{
+              width: "100%",
+              "& .MuiOutlinedInput-root": {
+                height: "40px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontFamily: "Vazirmatn",
+                color: "#434343",
+                backgroundColor: "#FFFFFF",
+                "& fieldset": { borderColor: "#D6D6D6" },
+                "&:hover fieldset": { borderColor: "#0077B6" },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#00B4D8",
+                  borderWidth: "1.6px",
+                },
+              },
+              "& .MuiFormLabel-root": {
+                fontSize: "14px",
+                fontFamily: "Vazirmatn",
+                color: "#656565",
+              },
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="دسته‌بندی"
+                placeholder="انتخاب یا جست‌وجو..."
+                variant="outlined"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {(fetchingAll || fetchingSearch) && (
+                        <CircularProgress size={18} sx={{ color: "#00B4D8" }} />
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+          />
+        );
+      }}
     />
   );
 }

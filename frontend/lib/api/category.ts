@@ -33,9 +33,14 @@ export const categoryApi = {
   },
 
   // ✅ دریافت محصولات یک کتگوری و زیردسته‌ها
-  getProductsByCategory: async (id: number, sort?: string): Promise<Product[]> => {
+  getProductsByCategory: async (
+    id: number,
+    sort?: string
+  ): Promise<Product[]> => {
     if (!id || isNaN(id)) return [];
-    const res = await api.get(`${API_URL}/${id}/products`, { params: { sort } });
+    const res = await api.get(`${API_URL}/${id}/products`, {
+      params: { sort },
+    });
     return res.data || [];
   },
 
@@ -67,7 +72,9 @@ export const categoryApi = {
   search: async (q: string): Promise<Category[]> => {
     const text = q?.trim();
     if (!text) return [];
-    const res = await api.get(`${API_URL}/search?q=${encodeURIComponent(text)}`);
+    const res = await api.get(
+      `${API_URL}/search?q=${encodeURIComponent(text)}`
+    );
     return res.data || [];
   },
 };

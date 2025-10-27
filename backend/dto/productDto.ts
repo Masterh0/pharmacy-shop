@@ -1,3 +1,5 @@
+import { Decimal } from "@prisma/client/runtime/library";
+
 // dto/product.dto.ts
 export interface CreateProductVariantDTO {
   packageQuantity: number;
@@ -19,6 +21,7 @@ export interface CreateProductDTO {
   isPrescriptionRequired?: boolean;
   isBlock: boolean;
   soldCount: number;
+  price:Decimal;
   variants: CreateProductVariantDTO[];
 }
 export interface UpdateProductDTO extends Partial<CreateProductDTO> {}
