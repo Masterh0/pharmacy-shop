@@ -16,7 +16,8 @@ import { Product } from "@/lib/types/product";
 import { FormProvider } from "react-hook-form";
 import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSearch";
 import { ImageUploader } from "../inputs/ImageUploader";
-
+import { packageTypeOptions } from "@/src/constants/productOptions";
+import Select from "react-select";
 interface AddProductFormProps {
   mode?: "add" | "edit";
   initialData?: Product;
@@ -264,9 +265,35 @@ export default function AddProductForm({
                   <label className="block text-[13px] mb-2">
                     نوع بسته‌بندی
                   </label>
-                  <input
-                    {...register(`variants.${i}.packageType`)}
-                    className="w-full h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+
+                  <Controller
+                    name={`variants.${i}.packageType`}
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        options={packageTypeOptions}
+                        placeholder="جستجو یا انتخاب کنید..."
+                        isSearchable
+                        className="text-[13px]"
+                        styles={{
+                          control: (base) => ({
+                            ...base,
+                            minHeight: "40px",
+                            borderRadius: "8px",
+                            borderColor: "#D6D6D6",
+                          }),
+                          option: (base, state) => ({
+                            ...base,
+                            fontSize: "13px",
+                            backgroundColor: state.isFocused
+                              ? "#f1f1f1"
+                              : "white",
+                            color: "#434343",
+                          }),
+                        }}
+                      />
+                    )}
                   />
                 </div>
                 <div>

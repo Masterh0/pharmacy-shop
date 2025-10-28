@@ -11,19 +11,24 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 // پیکربندی ذخیره فایل
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1e6);
     const ext = path.extname(file.originalname);
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+    const baseName = req.body.name
+      ? req.body.name.replace(/\s+/g, "-").toLowerCase()
+      : "product";
+    cb(null, `${baseName}-${timestamp}-${random}${ext}`);
   },
 });
 
 // فقط عکس مجاز
 const fileFilter = (req: any, file: any, cb: any) => {
-  if (file.mimetype.startsWith("image/")) cb(null, true);
-  else cb(new Error("فقط فایل تصویری مجاز است!"), false);
+  const allowed = ["image/jpeg", "image/png", "image/webp"];
+  if (allowed.includes(file.mimetype)) cb(null, true);
+  else cb(new Error("فقط فایل‌های تصویری مجاز هستند!"));
 };
 
 const upload = multer({ storage, fileFilter });

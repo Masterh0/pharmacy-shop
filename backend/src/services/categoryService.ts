@@ -100,54 +100,49 @@ export const categoryService = {
 
   // 🆕 گرفتن همه محصولات متصل به دسته و زیر‌دسته‌ها
   async getAllProductsByCategory(categoryId: number, sort?: string) {
-    // 🔸 دریافت تمام زیردسته‌ها به‌صورت بازگشتی
+    // ✅ دریافت تمام زیر‌دسته‌ها به‌صورت بازگشتی
     const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
-    const allIds = [categoryId, ...subCategoryIds];
 
-    // 🔸 واکشی محصولات دسته و زیرشاخه‌ها (بدون مرتب‌سازی از Prisma)
+    // ⚠️ حذف categoryId تکراری (چون خودش داخل با recursion ممکنه برگرده)
+    const uniqueIds = Array.from(new Set([...subCategoryIds, categoryId]));
+
+    // ✅ واکشی محصولات فعال از همه دسته‌ها و زیرشاخه‌ها
     const products = await prisma.product.findMany({
-      where: { categoryId: { in: allIds }, isBlock: false },
+      where: {
+        categoryId: { in: uniqueIds },
+        isBlock: false,
+      },
       include: {
         category: true,
         variants: true,
       },
     });
 
-    // 🔸 مرتب‌سازی سمت جاوااسکریپت
+    // ✅ تابع کمکی برای گرفتن قیمت قابل محاسبه از واریانت‌ها
+    const getPrice = (product: any, mode: "min" | "max" = "min") => {
+      if (!product.variants?.length) return Infinity;
+      const prices = product.variants.map((v: any) =>
+        v.price ? Number(v.price) : 0
+      );
+      return mode === "min" ? Math.min(...prices) : Math.max(...prices);
+    };
+
+    // ✅ منطق مرتب‌سازی سمت جاوااسکریپت
     switch (sort) {
       case "cheapest": {
-        // ارزان‌ترین بر اساس کمترین قیمت variant
-        products.sort((a, b) => {
-          const aPrice = Math.min(
-            ...a.variants.map((v) => (v.price ? v.price.toNumber() : 0))
-          );
-          const bPrice = Math.min(
-            ...b.variants.map((v) => (v.price ? v.price.toNumber() : 0))
-          );
-          return aPrice - bPrice;
-        });
+        products.sort((a, b) => getPrice(a, "min") - getPrice(b, "min"));
         break;
       }
       case "expensive": {
-        // گران‌ترین بر اساس بیشترین قیمت variant
-        products.sort((a, b) => {
-          const aPrice = Math.max(
-            ...a.variants.map((v) => (v.price ? v.price.toNumber() : 0))
-          );
-          const bPrice = Math.max(
-            ...b.variants.map((v) => (v.price ? v.price.toNumber() : 0))
-          );
-          return bPrice - aPrice;
-        });
+        products.sort((a, b) => getPrice(b, "max") - getPrice(a, "max"));
         break;
       }
       case "bestseller": {
-        // پرفروش‌ترین
         products.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
         break;
       }
       default: {
-        // جدیدترین (بر اساس تاریخ ساخت)
+        // جدیدترین بر اساس تاریخ ساخت
         products.sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

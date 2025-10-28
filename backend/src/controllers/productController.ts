@@ -39,7 +39,9 @@ export const create = async (
   next: NextFunction
 ) => {
   try {
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const imageUrl = req.file
+      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      : undefined;
     const payload = req.body;
 
     // اگر variant به صورت JSON string اومده (به خاطر FormData)
