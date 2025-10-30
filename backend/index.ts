@@ -8,14 +8,7 @@ import variantRoutes from "./src/routes/variantRoutes";
 import categoryRoutes from "./src/routes/categoryRoutes";
 import { notFoundMiddleware } from "./src/middlewares/notFoundMiddleware"; // برای مدیریت مسیرهای ناموجود 404
 import { errorMiddleware } from "./src/middlewares/errorMiddleware"; // میان‌افزار مرکزی مدیریت خطا
-import {
-  register,
-  verifyRegisterOtp,
-  login,
-  sendLoginOtp,
-  verifyLoginOtp,
-  refresh,
-} from "./src/controllers/authController";
+import authRoutes from "./src/routes/authRoutes";
 
 import {
   verifyRefreshToken,
@@ -29,6 +22,13 @@ const uploadsPath = path.join(__dirname, "../uploads");
 
 // ✅ سرو فایل‌های استاتیک از این مسیر
 app.use("/uploads", express.static(path.join(__dirname, "./uploads")));
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
+app.use(express.json());
 app.use(express.json());
 
 // -----------------------------
@@ -41,38 +41,8 @@ app.get("/", async (req: Request, res: Response) => {
 // -----------------------------
 // ثبت‌نام و تایید OTP
 // -----------------------------
-app.post("/register", register); // ثبت‌نام اولیه (با OTP)
-app.post("/register/verify-otp", verifyRegisterOtp); // تایید OTP ثبت‌نام
 
-// -----------------------------
-// لاگین با پسورد
-// -----------------------------
-app.post("/login", login);
-
-// -----------------------------
-// لاگین با OTP
-// -----------------------------
-app.post("/login/request-otp", sendLoginOtp);
-app.post("/login/verify-otp", verifyLoginOtp);
-
-// -----------------------------
-// رفرش توکن
-// -----------------------------
-app.post("/refresh", refresh); // Middleware هم میتونه برای اعتبارسنجی اضافه بشه
-
-// -----------------------------
-// مسیرهای مدیریتی
-// -----------------------------
-app.get(
-  "/admin/test",
-  verifyAccessToken,
-  checkRole(["ADMIN"]),
-  async (req: Request, res: Response) => {
-    res.json({
-      message: `Welcome ${req.user.role}! This is an admin-only endpoint`,
-    });
-  }
-);
+app.use("/auth", authRoutes);
 app.use("/categories", categoryRoutes);
 app.use("/products", productRoutes);
 app.use("/variants", variantRoutes);

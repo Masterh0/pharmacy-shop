@@ -3,12 +3,24 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { categoryApi } from "@/lib/api/category";
 import ProductGridView from "@/src/components/products/ProductGridView";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function CategoryProductsPage() {
   const [sort, setSort] = useState<
     "newest" | "bestseller" | "cheapest" | "expensive"
   >("newest");
+
+  // 🔹 بازیابی sort از localStorage هنگام mount
+  useEffect(() => {
+    const savedSort =
+      (localStorage.getItem("productSort") as
+        | "newest"
+        | "bestseller"
+        | "cheapest"
+        | "expensive"
+        | null) || "newest";
+    setSort(savedSort);
+  }, []);
 
   const { id } = useParams<{ id: string }>();
   const categoryId = Number(id);
@@ -24,17 +36,25 @@ export default function CategoryProductsPage() {
   });
 
   if (isLoading)
-    return <div className="text-center py-20 text-gray-600">در حال بارگذاری...</div>;
+    return (
+      <div className="text-center py-20 text-gray-600">در حال بارگذاری...</div>
+    );
   if (isError)
-    return <div className="text-center py-20 text-red-500">خطا در دریافت داده‌ها</div>;
+    return (
+      <div className="text-center py-20 text-red-500">
+        خطا در دریافت داده‌ها
+      </div>
+    );
 
-  // ✅ فقط محصولات فعال
   const activeProducts = products.filter((p) => !p.isBlock);
 
   if (!activeProducts.length)
-    return <div className="text-center py-20 text-gray-600">محصولی برای این دسته یافت نشد.</div>;
+    return (
+      <div className="text-center py-20 text-gray-600">
+        محصولی برای این دسته یافت نشد.
+      </div>
+    );
 
-  // ✅ استخراج نام دسته از اولین محصول (یا متن جایگزین)
   const categoryName = activeProducts[0]?.category?.name || "دسته‌بندی نامشخص";
 
   return (

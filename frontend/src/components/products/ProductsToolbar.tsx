@@ -18,7 +18,7 @@ export default function ProductsToolbar({ sort, setSort }: ProductsToolbarProps)
       {tabs.map((tab) => (
         <button
           key={tab.key}
-          onClick={() => setSort(tab.key as SortType)} // 👈 تغییر sort هنگام کلیک
+          onClick={() => setSort(tab.key as SortType)}
           className={`py-2 px-4 text-[16px] font-normal transition ${
             sort === tab.key
               ? "text-[#00B4D8] border-b-[2px] border-[#00B4D8]"

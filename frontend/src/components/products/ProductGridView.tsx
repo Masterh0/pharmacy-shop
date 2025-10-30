@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import ProductsToolbar from "./ProductsToolbar";
 import ProductsGrid from "./ProductsGrid";
 import ProductsPagination from "./ProductsPagination";
@@ -23,14 +24,15 @@ export default function ProductGridView({
   sort,
   setSort,
 }: ProductGridViewProps) {
+  // ✅ ذخیره sort در LocalStorage
+  useEffect(() => {
+    localStorage.setItem("productSort", sort);
+  }, [sort]);
+
   return (
     <div className="flex flex-col items-center w-full mt-12 font-iranYekan">
-      {/* 🔹 عنوان کتگوری دینامیک */}
       <h2 className="text-[#0077B6] text-3xl font-bold mb-8">{title}</h2>
-
-      {/* 👇 اینجا props درست پاس داده می‌شن */}
       <ProductsToolbar sort={sort} setSort={setSort} />
-
       <ProductsGrid products={products} />
       <ProductsPagination totalPages={5} currentPage={1} />
     </div>

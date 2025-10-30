@@ -11,7 +11,7 @@ model User {
   id                    Int                  @id @default(autoincrement())
   email                 String?              @unique
   phone                 String               @unique
-  password              String
+  password              String?
   role                  Role                 @default(CUSTOMER)
   isActive              Boolean              @default(true)
   emailVerifiedAt       DateTime?
@@ -26,6 +26,7 @@ model User {
   reviewedPrescriptions Prescription[]       @relation("PrescriptionReviewer")
   prescriptions         Prescription[]
   refreshTokens         RefreshToken[]       @relation("UserRefreshTokens")
+  hasPassword           Boolean              @default(false)
 }
 
 model RefreshToken {

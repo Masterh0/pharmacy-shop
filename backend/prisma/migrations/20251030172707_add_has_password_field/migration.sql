@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Product" ALTER COLUMN "price" SET DATA TYPE DECIMAL(65,30);
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "hasPassword" BOOLEAN NOT NULL DEFAULT false,
+ALTER COLUMN "password" DROP NOT NULL;
