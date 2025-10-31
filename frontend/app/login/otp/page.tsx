@@ -51,8 +51,8 @@ export default function LoginOtpPage() {
         name: data.user.name,
       });
       toast.success("ورود موفقیت‌آمیز ✅");
-      // if (data.user.role === "ADMIN") router.push("/admin/dashboard");
-      // else router.push("/");
+      if (data.user.role === "ADMIN") router.push("/admin/dashboard");
+      else router.push("/");
     },
     onError: (err: AxiosError<{ error?: string; message?: string }>) => {
       toast.error(

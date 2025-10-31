@@ -1,5 +1,5 @@
 "use client";
-
+import { useAuthStore } from "@/lib/stores/authStore";
 import {
   Home2,
   Bag2,
@@ -28,7 +28,7 @@ export default function ProfileSidebar() {
     { label: "اطلاعات حساب کاربری", icon: User, href: "/profile/account" },
     { label: "خروج", icon: LogoutCurve, href: "/logout" },
   ];
-
+  const {  name } = useAuthStore();
   return (
     <aside
       dir="rtl"
@@ -49,7 +49,7 @@ export default function ProfileSidebar() {
       {/* اطلاعات کاربر */}
       <div className="flex flex-col text-center mb-4 leading-[160%]">
         <span className="text-[#434343] text-[16px] font-medium">
-          نگار زمانی
+        {name}
         </span>
         <span className="text-[#656565] text-[14px] font-normal">
           behvandi@gmail.com
