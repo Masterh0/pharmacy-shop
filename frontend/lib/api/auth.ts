@@ -7,7 +7,7 @@ export type Role = "ADMIN" | "STAFF" | "CUSTOMER";
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  user: { id: number; phone: string; email?: string; role: Role };
+  user: { id: number; phone: string; email?: string; role: Role ,name:string };
 }
 export interface LoginOtpInput {
   phone: string;
@@ -19,7 +19,11 @@ export interface AdminResponse {
 export interface ApiError {
   error?: string;
 }
-
+export interface LoginOtpResponse {
+  message: string;
+  expiresAt?: string; // زمان انقضا OTP
+  remainingMs?: number; // زمان باقیمانده اگر OTP فعال موجود باشد
+}
 // ورودی‌ها
 export interface RegisterInput {
   phone: string;
@@ -49,13 +53,12 @@ export interface Product {
   price: number;
 }
 
-
 export interface UpdateProductDTO {
   name?: string;
   price?: number;
 }
 const api = axios.create({
-  baseURL: "http://localhost:5000", // آدرس backend
+  baseURL: "http://localhost:5000/auth", // آدرس backend
 });
 
 // ----------------------
@@ -88,8 +91,8 @@ export const requestLoginOtp = async (phone: string) => {
 };
 
 export const verifyLoginOtp = async (data: VerifyOtpInput) => {
-  const response = await api.post<AuthResponse>("/login/verify-otp", data);
-  return response.data; // JWT و user
+  const res = await api.post<AuthResponse>("/login/verify-otp", data);
+  return res.data;
 };
 
 // ----------------------
@@ -114,9 +117,7 @@ export const testAdmin = async () => {
   return response.data;
 };
 
-
 export const sendLoginOtp = async (data: LoginOtpInput) => {
-  const res = await api.post("/auth/send-otp", data);
-  return res.data; // { message: "OTP sent" }
+  const res = await api.post<LoginOtpResponse>("/login/request-otp", data);
+  return res.data;
 };
-

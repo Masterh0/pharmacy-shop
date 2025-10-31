@@ -1,48 +1,52 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import type { Role } from "@/lib/api/auth";
 
 interface AuthState {
-  accessToken: string;
-  refreshToken: string;
-  phone: string; // شماره کاربر
-  otp: string; // آخرین کدی که کاربر وارد کرده
-  isVerified: boolean;
-  setTokens: (accessToken: string, refreshToken: string) => void;
-  clearTokens: () => void;
-  setPhone: (phone: string) => void;
-  setOtp: (otp: string) => void;
-  setVerified: (verified: boolean) => void;
+  accessToken?: string;
+  refreshToken?: string;
+  role?: Role;
+  userId?: number;
+  phone?: string;
+  name?: string;
+  setAuth: (data: {
+    accessToken: string;
+    refreshToken: string;
+    role: Role;
+    userId: number;
+    phone: string;
+    name?: string;
+  }) => void;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      accessToken: "",
-      refreshToken: "",
-      phone: "",
-      otp: "",
-      isVerified: false,
+      accessToken: undefined,
+      refreshToken: undefined,
+      role: undefined,
+      userId: undefined,
+      phone: undefined,
+      name: undefined,
 
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken }),
-      clearTokens: () =>
+      setAuth: (data) => set({ ...data }),
+
+      logout: () => {
+        // فقط داده‌های استور رو پاک کن، نه کل localStorage
+        localStorage.removeItem("auth-store");
         set({
-          accessToken: "",
-          refreshToken: "",
-          phone: "",
-          otp: "",
-          isVerified: false,
-        }),
-
-      setPhone: (phone) => set({ phone }),
-      setOtp: (otp) => set({ otp }),
-      setVerified: (verified) => set({ isVerified: verified }),
+          accessToken: undefined,
+          refreshToken: undefined,
+          role: undefined,
+          userId: undefined,
+          phone: undefined,
+          name: undefined,
+        });
+      },
     }),
     {
-      name: "auth-storage",
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? localStorage : sessionStorage
-      ),
+      name: "auth-store",
     }
   )
 );

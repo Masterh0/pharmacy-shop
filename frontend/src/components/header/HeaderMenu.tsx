@@ -1,14 +1,15 @@
 "use client";
-
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { categoryApi, Category } from "@/lib/api/category";
 import { useState } from "react";
 import Link from "next/link";
 import MegaMenu from "./MegaMenu";
+import { useCategoryStore } from "@/lib/stores/categoryStore";
 
 export default function HeaderMenu() {
   const [activeId, setActiveId] = useState<number | null>(null);
+  const { setSelectedCategory } = useCategoryStore();
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["header-categories"],
@@ -50,6 +51,9 @@ export default function HeaderMenu() {
           >
             <Link
               href={`/categories/${cat.id}`}
+              onClick={() =>
+                setSelectedCategory({ id: cat.id, name: cat.name })
+              } // ✅ اضافه شد
               className={`
                 flex items-center justify-center gap-[8px]
                 px-[8px] py-[8px] w-[165px] h-[52px]

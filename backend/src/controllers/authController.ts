@@ -42,13 +42,14 @@ async function generateTokens(userId: number, role: string) {
 // ثبت‌نام (CUSTOMER) با OTP
 // -------------------
 interface RegisterBody {
+  name : string;
   email?: string;
   password?: string;
   phone: string;
 }
 
 const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
-  const { email, password, phone } = req.body;
+  const {name, email, password, phone } = req.body;
 
   if (!phone) return res.status(400).json({ error: "Phone required" });
 
@@ -66,6 +67,7 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
     // ایجاد کاربر جدید
     const user = await prisma.user.create({
       data: {
+        name: name,
         email: email || null,
         phone: phone ,
         password: hashedPassword,
@@ -219,44 +221,83 @@ const login = async (
 // -------------------
 // ارسال OTP برای لاگین (بدون پسورد)
 // -------------------
-const sendLoginOtp = async (
+ const sendLoginOtp = async (
   req: Request<{}, {}, { phone: string }>,
   res: Response
 ) => {
-  const { phone } = req.body;
-  const user = await prisma.user.findUnique({ where: { phone } });
-  if (!user) return res.status(404).json({ error: "User not found" });
-  if (!user.isVerified)
-    return res.status(401).json({ error: "Phone not verified" });
+  try {
+    const { phone } = req.body;
 
-  // حذف یا بی‌اعتباری OTP‌های قبلی
-  await prisma.otp.updateMany({
-    where: { phone, used: false },
-    data: { used: true },
-  });
+    // ✅ اعتبارسنجی
+    if (!/^09\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: "Invalid phone format" });
+    }
 
-  // تولید OTP جدید
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expireAt = new Date(Date.now() + 2 * 60 * 1000); // دو دقیقه
-  await prisma.otp.create({
-    data: { phone, code, expiresAt: expireAt },
-  });
+    const user = await prisma.user.findUnique({ where: { phone } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user.isVerified)
+      return res.status(401).json({ error: "Phone not verified" });
 
-  console.log(`Login OTP for ${phone}: ${code}`); // فقط برای تست
-  res.json({ message: "OTP sent" });
+    // ✅ بررسی وجود OTP فعال که هنوز منقضی نشده باشد
+    const activeOtp = await prisma.otp.findFirst({
+      where: { phone, used: false, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (activeOtp) {
+      const remainingMs = activeOtp.expiresAt.getTime() - Date.now();
+      return res.status(429).json({
+        error: "OTP already sent. Please wait.",
+        expiresAt: activeOtp.expiresAt,
+        remainingMs,
+      });
+    }
+
+    // 🔁 باطل کردن OTPهای قبلی
+    await prisma.otp.updateMany({
+      where: { phone, used: false },
+      data: { used: true },
+    });
+
+    // 🔢 تولید OTP جدید (۶ رقمی)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // اعتبار ۲ دقیقه
+
+    await prisma.otp.create({
+      data: { phone, code, expiresAt },
+    });
+
+    // ⚠ فقط برای تست (در dev)
+    if (process.env.NODE_ENV !== "production")
+      console.log(`Login OTP for ${phone}: ${code}`);
+
+    // ✅ بازگردانی اطلاعات به فرانت
+    return res.status(200).json({
+      message: "OTP sent successfully",
+      expiresAt, // تا فرانت بتواند countdown بگذارد
+    });
+  } catch (error) {
+    console.error("sendLoginOtp error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 };
 
-// -------------------
+// ------------------
 // تایید OTP لاگین
-// -------------------
-const verifyLoginOtp = async (
+// ------------------
+ const verifyLoginOtp = async (
   req: Request<{}, {}, { phone: string; code: string }>,
   res: Response
 ) => {
-  const { phone, code } = req.body;
-
   try {
-    // ۱️⃣ پیدا کردن آخرین OTP معتبر (استفاده‌نشده و منقضی‌نشده)
+    const { phone, code } = req.body;
+
+    // ✅ بررسی صحت شماره تلفن
+    if (!/^09\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: "Invalid phone format" });
+    }
+
+    // ✅ یافتن OTP معتبر (استفاده نشده و منقضی نشده)
     const otpRecord = await prisma.otp.findFirst({
       where: {
         phone,
@@ -267,28 +308,33 @@ const verifyLoginOtp = async (
       orderBy: { createdAt: "desc" },
     });
 
-    // ۲️⃣ بررسی اعتبار
-    if (!otpRecord)
+    if (!otpRecord) {
       return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
 
-    // ۳️⃣ باطل کردن همه OTP های فعال همین شماره
-    // تا دیگه هیچ OTP باقیمانده‌ای قابل استفاده نباشه
+    // 🔁 باطل کردن تمام OTPهای همین شماره
     await prisma.otp.updateMany({
       where: { phone },
       data: { used: true },
     });
 
-    // ۴️⃣ بررسی وجود کاربر
+    // ✅ به‌روزرسانی OTP جاری به عنوان تأییدشده
+    await prisma.otp.update({
+      where: { id: otpRecord.id },
+      data: { isVerified: true },
+    });
+
+    // ✅ تهیه کاربر
     const user = await prisma.user.findUnique({ where: { phone } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // ۵️⃣ تولید Access و Refresh Token جدید
+    // ✅ تولید توکن‌ها
     const { accessToken, refreshToken } = await generateTokens(
       user.id,
       user.role
     );
 
-    // ۶️⃣ پاسخ موفق نهایی
+    // ✅ پاسخ نهایی
     return res.status(200).json({
       accessToken,
       refreshToken,

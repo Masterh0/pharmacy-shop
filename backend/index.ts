@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
-import { PrismaClient } from "@prisma/client";
 import "dotenv/config";
 import brandRoutes from "./src/routes/brandRoutes";
 import productRoutes from "./src/routes/productRoutes";
@@ -10,21 +9,16 @@ import { notFoundMiddleware } from "./src/middlewares/notFoundMiddleware"; // ب
 import { errorMiddleware } from "./src/middlewares/errorMiddleware"; // میان‌افزار مرکزی مدیریت خطا
 import authRoutes from "./src/routes/authRoutes";
 
-import {
-  verifyRefreshToken,
-  verifyAccessToken,
-  checkRole,
-} from "./src/middlewares/auth";
 import path from "path";
 const app = express();
-const prisma = new PrismaClient();
-const uploadsPath = path.join(__dirname, "../uploads");
 
 // ✅ سرو فایل‌های استاتیک از این مسیر
 app.use("/uploads", express.static(path.join(__dirname, "./uploads")));
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: (origin, callback) => {
+      callback(null, true); // اجازه به همه‌ی originها
+    },
     credentials: true,
   })
 );
