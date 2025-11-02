@@ -50,7 +50,7 @@ export default function HeaderMenu() {
             onMouseLeave={() => setActiveId(null)}
           >
             <Link
-              href={`/categories/${cat.id}`}
+              href={`/categories/${cat.slug}?id=${cat.id}`}
               onClick={() =>
                 setSelectedCategory({ id: cat.id, name: cat.name })
               } // ✅ اضافه شد

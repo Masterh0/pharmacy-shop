@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { categoryApi } from "@/lib/api/category";
 import ProductGridView from "@/src/components/products/ProductGridView";
@@ -24,14 +24,15 @@ export default function CategoryProductsPage() {
     setSort(savedSort);
   }, []);
 
-  // 🔹 گرفتن id دسته از params مسیر
-  const { id } = useParams<{ id: string }>();
-  const categoryId = Number(id);
+  // ✅ گرفتن slug از مسیر و id از query string
+  const { slug } = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
+  const categoryId = Number(searchParams.get("id")); // ← از URL مثل ?id=12
 
   // 🔹 خواندن دسته انتخاب‌شده از Zustand
   const { selectedCategory } = useCategoryStore();
 
-  // 🔹 درخواست محصولات این دسته از API
+  // 🔹 درخواست محصولات این دسته از API (با id نه slug)
   const {
     data: products = [],
     isLoading,
@@ -39,7 +40,7 @@ export default function CategoryProductsPage() {
   } = useQuery({
     queryKey: ["category-products", categoryId, sort],
     queryFn: () => categoryApi.getProductsByCategory(categoryId, sort),
-    enabled: !!categoryId,
+    enabled: !!categoryId, // فقط وقتی id معتبره فچ انجام بده
   });
 
   if (isLoading)
@@ -54,7 +55,6 @@ export default function CategoryProductsPage() {
       </div>
     );
 
-  // 🔹 فقط محصولات فعال را نمایش بده
   const activeProducts = products.filter((p) => !p.isBlock);
 
   if (!activeProducts.length)
@@ -64,7 +64,7 @@ export default function CategoryProductsPage() {
       </div>
     );
 
-  // 🔹 اولویت: نام دسته از Zustand → سپس از دسته محصول اول → سپس fallback
+  // 🔹 اولویت: نام دسته از Zustand → سپس از محصول اول → سپس fallback
   const categoryName =
     selectedCategory?.name ||
     activeProducts[0]?.category?.name ||

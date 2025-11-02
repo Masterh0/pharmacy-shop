@@ -25,7 +25,7 @@ export default function MegaMenu({ categories }: MegaMenuProps) {
         <div key={category.id} className="w-full flex flex-col items-end">
           {/* سطح دوم */}
           <Link
-            href={`/categories/${category.id}`}
+            href={`/categories/${category.slug}?id=${category.id}`}
             onClick={() => setSelectedCategory({ id: category.id, name: category.name })} // ✅ ذخیره وضعیت در Zustand
             className="text-[12px] font-bold text-[#242424] mb-[8px] hover:text-[#0077B6] transition-colors"
           >

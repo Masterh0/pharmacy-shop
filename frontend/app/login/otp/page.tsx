@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/authStore";
@@ -8,6 +7,8 @@ import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import AuthLayout from "../../authComponents/AuthLayout";
+import BackButton from "@/app/authComponents/BackButton";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 
 export default function LoginOtpPage() {
   const [phone, setPhone] = useState("");
@@ -15,9 +16,12 @@ export default function LoginOtpPage() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countdown, setCountdown] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+
   const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
+  useAuthRedirect();
 
+  /* 🟦 Mutation ارسال OTP */
   const sendOtp = useMutation({
     mutationFn: (data: { phone: string }) => sendLoginOtp(data),
     onSuccess: (data) => {
@@ -29,19 +33,33 @@ export default function LoginOtpPage() {
       }
       toast.success("کد ارسال شد ✅");
     },
-    onError: (err: AxiosError<{ error?: string; message?: string }>) => {
-      toast.error(
-        err.response?.data?.error ||
-          err.response?.data?.message ||
-          "خطایی رخ داد."
-      );
+    onError: (
+      err: AxiosError<{
+        error?: string;
+        message?: string;
+        expiresAt?: string;
+        remainingMs?: number;
+      }>
+    ) => {
+      const msg = err.response?.data?.error || err.response?.data?.message;
+
+      /* 💡 بررسی خطای "کد فعال" */
+      if (err.response?.status === 429 && msg?.includes("کد فعال ارسال شده")) {
+        const { expiresAt, remainingMs } = err.response.data;
+        setStep("otp");
+        setCountdown(Math.floor((remainingMs || 0) / 1000));
+        setExpiresAt(expiresAt || null);
+        toast.info(msg);
+      } else {
+        toast.error(msg || "خطایی رخ داد.");
+      }
     },
   });
 
+  /* 🟦 Mutation تأیید OTP */
   const verifyOtp = useMutation({
     mutationFn: (data: { phone: string; code: string }) => verifyLoginOtp(data),
     onSuccess: (data) => {
-      console.log("✅ OTP VERIFY RESPONSE:", data); // 👈 دقیق می‌بینیم چی برگشته
       setAuth({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
@@ -51,8 +69,7 @@ export default function LoginOtpPage() {
         name: data.user.name,
       });
       toast.success("ورود موفقیت‌آمیز ✅");
-      if (data.user.role === "ADMIN") router.push("/admin/dashboard");
-      else router.push("/");
+      router.push(data.user.role === "ADMIN" ? "/admin/dashboard" : "/");
     },
     onError: (err: AxiosError<{ error?: string; message?: string }>) => {
       toast.error(
@@ -63,13 +80,37 @@ export default function LoginOtpPage() {
     },
   });
 
+  /* 🕒 شمارش معکوس */
   useEffect(() => {
     if (!countdown) return;
-    const interval = setInterval(() => {
-      setCountdown((t) => (t > 0 ? t - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
+    const timer = setInterval(
+      () => setCountdown((t) => (t > 0 ? t - 1 : 0)),
+      1000
+    );
+    return () => clearInterval(timer);
   }, [countdown]);
+
+  /* 🟢 کلیک یا Enter */
+  const handleSend = () => {
+    if (phone && !sendOtp.isPending) sendOtp.mutate({ phone });
+  };
+
+  const handleVerify = () => {
+    if (code && !verifyOtp.isPending) verifyOtp.mutate({ phone, code });
+  };
+
+  /* ✅ هندل Enter */
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (step === "phone") handleSend();
+        else if (step === "otp") handleVerify();
+      }
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [step, phone, code]);
 
   const handleResend = () => {
     if (!countdown) sendOtp.mutate({ phone });
@@ -83,30 +124,17 @@ export default function LoginOtpPage() {
 
   return (
     <AuthLayout>
-      <div className="flex flex-col items-center justify-center w-full min-h-screen relative px-6">
-        {/* Back */}
-        <div className="absolute flex items-center gap-[10px] left-[76px] top-[54px]">
-          <span className="text-[24px] text-[#171717]">↩</span>
-          <Link href="/login" className="text-[18px] text-[#171717]">
-            بازگشت
-          </Link>
-        </div>
+      <BackButton fallback="/" />
 
-        {/* Title */}
-        <div className="flex flex-col items-center gap-[8px] mt-20 mb-6 text-center">
-          <h1 className="text-[32px] font-bold text-[#171717]">
-            ورود با کد یک‌بار مصرف
-          </h1>
-          <p className="text-[16px] text-[#656565]">
-            شماره موبایل خود را وارد کنید تا کد ارسال شود
-          </p>
-        </div>
-
+      <div className="flex flex-col items-center justify-center w-full mt-24 px-6 text-center">
         {step === "phone" && (
           <div className="flex flex-col gap-4 items-center w-[288px]">
-            <label className="w-full text-right text-[14px] text-[#656565]">
-              شماره موبایل
-            </label>
+            <h1 className="text-[32px] font-bold text-[#171717]">
+              ورود با کد یک‌بار مصرف
+            </h1>
+            <p className="text-[16px] text-[#656565]">
+              شماره موبایل خود را وارد کنید تا کد ارسال شود
+            </p>
             <input
               type="tel"
               maxLength={11}
@@ -116,8 +144,8 @@ export default function LoginOtpPage() {
               placeholder="مثلاً 09123456789"
             />
             <button
-              onClick={() => sendOtp.mutate({ phone })}
-              disabled={sendOtp.isPending}
+              onClick={handleSend}
+              disabled={sendOtp.isPending || !phone}
               className="w-full h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[14px] font-[500]"
             >
               {sendOtp.isPending ? "در حال ارسال..." : "ارسال کد"}
@@ -127,14 +155,12 @@ export default function LoginOtpPage() {
 
         {step === "otp" && (
           <div className="flex flex-col gap-4 items-center w-[288px]">
-            <div className="text-center">
-              <p className="text-[#171717] text-[16px] mb-1">
-                کد به شماره زیر ارسال شد:
-              </p>
-              <p className="font-[500] text-[#00B4D8]">
-                {phone.replace(/^(\d{3})(\d{3})(\d{4})$/, "09*** *** $3")}
-              </p>
-            </div>
+            <p className="text-[#171717] text-[16px] mb-1">
+              کد به شماره زیر ارسال شد:
+            </p>
+            <p className="font-[500] text-[#00B4D8]">
+              {phone.replace(/^(\d{3})(\d{3})(\d{4})$/, "09*** *** $3")}
+            </p>
 
             <input
               type="text"
@@ -147,14 +173,14 @@ export default function LoginOtpPage() {
             />
 
             <button
-              onClick={() => verifyOtp.mutate({ phone, code })}
+              onClick={handleVerify}
               disabled={verifyOtp.isPending || !code}
               className="w-full h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[14px] font-[500]"
             >
               {verifyOtp.isPending ? "در حال بررسی..." : "تأیید کد"}
             </button>
 
-            <div className="text-[12px] text-[#434343]">
+            <div className="text-[12px] text-[#434343] mt-1">
               {countdown > 0 ? (
                 <p>امکان ارسال مجدد تا {countdown} ثانیه دیگر</p>
               ) : (

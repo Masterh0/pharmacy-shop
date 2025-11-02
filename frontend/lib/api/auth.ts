@@ -26,6 +26,7 @@ export interface LoginOtpResponse {
 }
 // ورودی‌ها
 export interface RegisterInput {
+  name:string;
   phone: string;
   password: string;
   email?: string;

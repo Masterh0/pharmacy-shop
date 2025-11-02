@@ -3,19 +3,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeSlash } from "iconsax-react";
 import AuthLayout from "../authComponents/AuthLayout";
+import BackButton from "../authComponents/BackButton";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-
+    useAuthRedirect();
   return (
     <AuthLayout>
       {/* Back */}
-      <div className="absolute flex items-center gap-[10px] left-[76px] top-[54px]">
-        <span className="text-[24px] text-[#171717]">↩</span>
-        <Link href="/" className="text-[18px] text-[#171717]">
-          بازگشت
-        </Link>
-      </div>
+      <BackButton fallback="/" />
 
       {/* Title */}
       <div className="absolute flex flex-col justify-center items-center gap-[12px] w-[359px] left-[64px] top-[54px]">

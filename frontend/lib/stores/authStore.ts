@@ -22,7 +22,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       accessToken: undefined,
       refreshToken: undefined,
       role: undefined,
@@ -30,10 +30,16 @@ export const useAuthStore = create<AuthState>()(
       phone: undefined,
       name: undefined,
 
-      setAuth: (data) => set({ ...data }),
+      setAuth: (data) => {
+        console.log("🟢 [AuthStore] setAuth called with data:", data);
+        set({ ...data });
+
+        // بلافاصله بعد از set، وضعیت فعلی رو لاگ بگیر
+        console.log("✅ [AuthStore] new state:", get());
+      },
 
       logout: () => {
-        // فقط داده‌های استور رو پاک کن، نه کل localStorage
+        console.log("🟡 [AuthStore] logout called — clearing state...");
         localStorage.removeItem("auth-store");
         set({
           accessToken: undefined,
@@ -43,10 +49,21 @@ export const useAuthStore = create<AuthState>()(
           phone: undefined,
           name: undefined,
         });
+        console.log("✅ [AuthStore] after logout:", get());
       },
     }),
     {
       name: "auth-store",
+      onRehydrateStorage: () => {
+        console.log("🔷 [AuthStore] Rehydration started — loading from storage...");
+        return (state, error) => {
+          if (error) {
+            console.error("❌ [AuthStore] Error during rehydration:", error);
+          } else {
+            console.log("🟣 [AuthStore] Rehydration complete — current state:", state);
+          }
+        };
+      },
     }
   )
 );

@@ -8,6 +8,9 @@ import { useMutation } from "@tanstack/react-query";
 import { register, verifyRegisterOtp } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useRouter } from "next/navigation";
+import BackButton from "../authComponents/BackButton";
+import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
+import { useAuthReady } from "@/lib/hooks/useAuthReady";
 
 // ⚡ فرم استایل‌ها دست‌نخورده 👇
 export default function SignupPage() {
@@ -77,7 +80,17 @@ export default function SignupPage() {
       }
     },
   });
+  const status = useAuthRedirect();
+    if (status === "checking") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <p className="animate-pulse text-[#00B4D8]">در حال بررسی وضعیت ورود...</p>
+      </div>
+    );
+  }
 
+  // 🔁 تو مرحله redirect هستیم → نشون نده
+  if (status === "redirecting") return null;
   // --------------------
   // ⚙️ رویداد ارسال فرم ثبت‌نام
   // --------------------
@@ -87,6 +100,7 @@ export default function SignupPage() {
       return alert("رمز عبور و تأیید یکسان نیست");
 
     registerMutation.mutate({
+      name: formData.name.trim(),
       phone: formData.phone,
       password: formData.password,
       email: formData.email || undefined,
@@ -107,12 +121,7 @@ export default function SignupPage() {
   return (
     <AuthLayout>
       {/* Back */}
-      <div className="absolute flex items-center gap-[10px] left-[76px] top-[54px]">
-        <span className="text-[24px] text-[#171717]">↩</span>
-        <Link href="/" className="text-[18px] text-[#171717]">
-          بازگشت
-        </Link>
-      </div>
+      <BackButton fallback="/" />
 
       {/* Title */}
       <div className="absolute flex flex-col justify-center items-center gap-[12px] w-[359px] left-[64px] top-[54px]">
@@ -249,7 +258,7 @@ export default function SignupPage() {
               </Link>
             </p>
             <Link
-              href="/login-otp"
+              href="/login/otp"
               className="text-[12px] text-[#3C8F7C] hover:underline"
             >
               ورود با شماره تماس
