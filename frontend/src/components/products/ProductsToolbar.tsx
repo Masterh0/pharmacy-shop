@@ -1,20 +1,31 @@
-type SortType = "newest" | "bestseller" | "cheapest" | "expensive";
+import { Key } from "lucide-react";
+
+type SortType =
+  | "newest"
+  | "bestseller"
+  | "cheapest"
+  | "expensive"
+  | "mostViewed";
 
 type ProductsToolbarProps = {
   sort: SortType;
   setSort: (sort: SortType) => void;
 };
 
-export default function ProductsToolbar({ sort, setSort }: ProductsToolbarProps) {
+export default function ProductsToolbar({
+  sort,
+  setSort,
+}: ProductsToolbarProps) {
   const tabs = [
     { key: "newest", name: "جدیدترین" },
     { key: "bestseller", name: "پرفروش‌ترین" },
     { key: "cheapest", name: "ارزان‌ترین" },
     { key: "expensive", name: "گران‌ترین" },
+    { Key: "mostViewed", name: "پربازدیدترین" },
   ];
 
   return (
-    <div className="flex justify-center gap-6 mb-4 border-b border-gray-200 w-[85%] pb-2">
+    <div className="flex justify-start gap-6 mb-4 border-b border-gray-200 w-[85%] pb-2">
       {tabs.map((tab) => (
         <button
           key={tab.key}

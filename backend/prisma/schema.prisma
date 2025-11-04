@@ -85,6 +85,7 @@ model Product {
   category        Category         @relation(fields: [categoryId], references: [id])
   variants        ProductVariant[]
   price           Decimal?
+  viewCount       Int              @default(0)
 
   @@index([name])
   @@index([categoryId])

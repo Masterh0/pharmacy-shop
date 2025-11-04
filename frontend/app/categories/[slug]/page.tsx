@@ -9,7 +9,7 @@ import { useCategoryStore } from "@/lib/stores/categoryStore";
 
 export default function CategoryProductsPage() {
   const [sort, setSort] = useState<
-    "newest" | "bestseller" | "cheapest" | "expensive"
+    "newest" | "bestseller" | "cheapest" | "expensive" | "mostViewed"
   >("newest");
 
   // 🔹 بازیابی نوع مرتب‌سازی از localStorage هنگام mount
@@ -20,6 +20,7 @@ export default function CategoryProductsPage() {
         | "bestseller"
         | "cheapest"
         | "expensive"
+        | "mostViewed"
         | null) || "newest";
     setSort(savedSort);
   }, []);
@@ -27,12 +28,15 @@ export default function CategoryProductsPage() {
   // ✅ گرفتن slug از مسیر و id از query string
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
-  const categoryId = Number(searchParams.get("id")); // ← از URL مثل ?id=12
+  const categoryId = Number(searchParams.get("id")); // e.g. /categories/sport?id=12
 
-  // 🔹 خواندن دسته انتخاب‌شده از Zustand
+  // ✅ خواندن دسته انتخاب‌شده از Zustand
   const { selectedCategory } = useCategoryStore();
 
-  // 🔹 درخواست محصولات این دسته از API (با id نه slug)
+  // ✅ نام دسته صفحه (ابتدا مقدار پیش‌فرض)
+  const [categoryName, setCategoryName] = useState("دسته‌بندی نامشخص");
+
+  // ✅ محصولات دسته را فچ کن
   const {
     data: products = [],
     isLoading,
@@ -40,9 +44,22 @@ export default function CategoryProductsPage() {
   } = useQuery({
     queryKey: ["category-products", categoryId, sort],
     queryFn: () => categoryApi.getProductsByCategory(categoryId, sort),
-    enabled: !!categoryId, // فقط وقتی id معتبره فچ انجام بده
+    enabled: !!categoryId,
   });
 
+  // ✅ وقتی داده‌ها یا دسته‌ انتخاب شده عوض شد، اسم هدر را تنظیم کن
+  useEffect(() => {
+    if (selectedCategory?.name) {
+      setCategoryName(selectedCategory.name);
+    } else if (products.length > 0 && products[0]?.category?.name) {
+      setCategoryName(products[0].category.name);
+    } else if (slug) {
+      // آخرین fallback: از slug‌ استفاده کن (در صورت فارسی‌سازی می‌تونی decodeURIComponent کنی)
+      setCategoryName(decodeURIComponent(slug));
+    }
+  }, [selectedCategory, products, slug]);
+
+  // ✅ وضعیت‌های لودینگ / خطا
   if (isLoading)
     return (
       <div className="text-center py-20 text-gray-600">در حال بارگذاری...</div>
@@ -55,6 +72,7 @@ export default function CategoryProductsPage() {
       </div>
     );
 
+  // ✅ حذف محصولات غیرفعال
   const activeProducts = products.filter((p) => !p.isBlock);
 
   if (!activeProducts.length)
@@ -64,12 +82,7 @@ export default function CategoryProductsPage() {
       </div>
     );
 
-  // 🔹 اولویت: نام دسته از Zustand → سپس از محصول اول → سپس fallback
-  const categoryName =
-    selectedCategory?.name ||
-    activeProducts[0]?.category?.name ||
-    "دسته‌بندی نامشخص";
-
+  // ✅ رندر نهایی
   return (
     <main className="w-full flex flex-col items-center mt-8">
       <h1 className="text-3xl font-bold text-[#0077B6] mb-6">

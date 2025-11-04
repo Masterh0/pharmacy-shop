@@ -229,12 +229,14 @@ export default function AddProductForm({
           <h3 className="text-[16px] font-semibold text-[#242424]">
             📦 واریانت‌ها
           </h3>
+
           {fields.map((field, i) => (
             <div
               key={field.id}
               className="border border-[#D6D6D6] bg-gray-50 rounded-[12px] p-5 flex flex-col gap-5"
             >
               <div className="grid grid-cols-2 gap-x-10 gap-y-5">
+                {/* تعداد در بسته */}
                 <FormField
                   label="تعداد در بسته"
                   error={errors.variants?.[i]?.packageQuantity?.message}
@@ -252,6 +254,7 @@ export default function AddProductForm({
                   />
                 </FormField>
 
+                {/* نوع بسته‌بندی */}
                 <FormField
                   label="نوع بسته‌بندی"
                   error={errors.variants?.[i]?.packageType?.message}
@@ -290,15 +293,33 @@ export default function AddProductForm({
                   />
                 </FormField>
 
+                {/* قیمت */}
                 <FormField
                   label="قیمت (تومان)"
                   error={errors.variants?.[i]?.price?.message}
                 >
                   <input
-                    type="number"
+                    type="text"
                     {...register(`variants.${i}.price`, {
                       valueAsNumber: true,
                     })}
+                    onChange={(e) => {
+                      // حذف کاماهای قبلی
+                      const raw = e.target.value.replace(/,/g, "");
+
+                      // ✨ فقط عدد اجازه بده (regex دقیقی‌تر)
+                      if (!/^\d*$/.test(raw)) {
+                        e.target.value = e.target.value.replace(/[^\d,]/g, "");
+                        return;
+                      }
+
+                      // فرمت سه رقم سه رقم
+                      const formatted = raw.replace(
+                        /\B(?=(\d{3})+(?!\d))/g,
+                        ","
+                      );
+                      e.target.value = formatted;
+                    }}
                     className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
                       errors.variants?.[i]?.price
                         ? "border-red-500"
@@ -307,6 +328,7 @@ export default function AddProductForm({
                   />
                 </FormField>
 
+                {/* موجودی */}
                 <FormField
                   label="موجودی"
                   error={errors.variants?.[i]?.stock?.message}
@@ -318,6 +340,57 @@ export default function AddProductForm({
                     })}
                     className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
                       errors.variants?.[i]?.stock
+                        ? "border-red-500"
+                        : "border-[#D6D6D6]"
+                    }`}
+                  />
+                </FormField>
+
+                {/* قیمت با تخفیف */}
+                <FormField
+                  label="قیمت با تخفیف (تومان)"
+                  error={errors.variants?.[i]?.discountPrice?.message}
+                >
+                  <input
+                    type="text"
+                    {...register(`variants.${i}.discountPrice`, {
+                      valueAsNumber: true,
+                    })}
+                    onChange={(e) => {
+                      // حذف کاماهای قبلی
+                      const raw = e.target.value.replace(/,/g, "");
+
+                      // ✨ فقط عدد اجازه بده (regex دقیقی‌تر)
+                      if (!/^\d*$/.test(raw)) {
+                        e.target.value = e.target.value.replace(/[^\d,]/g, "");
+                        return;
+                      }
+
+                      // فرمت سه رقم سه رقم
+                      const formatted = raw.replace(
+                        /\B(?=(\d{3})+(?!\d))/g,
+                        ","
+                      );
+                      e.target.value = formatted;
+                    }}
+                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
+                      errors.variants?.[i]?.discountPrice
+                        ? "border-red-500"
+                        : "border-[#D6D6D6]"
+                    }`}
+                  />
+                </FormField>
+
+                {/* تاریخ انقضا */}
+                <FormField
+                  label="تاریخ انقضا"
+                  error={errors.variants?.[i]?.expiryDate?.message}
+                >
+                  <input
+                    type="date"
+                    {...register(`variants.${i}.expiryDate`)}
+                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
+                      errors.variants?.[i]?.expiryDate
                         ? "border-red-500"
                         : "border-[#D6D6D6]"
                     }`}

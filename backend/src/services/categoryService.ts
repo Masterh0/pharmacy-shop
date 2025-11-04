@@ -141,6 +141,11 @@ export const categoryService = {
         products.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
         break;
       }
+      case "mostViewed": {
+        // 👈 اضافه شد
+        products.sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0));
+        break;
+      }
       default: {
         // جدیدترین بر اساس تاریخ ساخت
         products.sort(

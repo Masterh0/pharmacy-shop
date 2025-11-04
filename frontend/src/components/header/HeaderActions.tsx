@@ -72,7 +72,7 @@ export default function HeaderActions() {
         </div>
       ) : (
         <Link
-          href="/profile"
+          href="/manager/profile"
           className="
             flex flex-row-reverse items-center gap-[8px]
             text-[#0077B6] text-[14px] font-IRANYekanX font-medium
