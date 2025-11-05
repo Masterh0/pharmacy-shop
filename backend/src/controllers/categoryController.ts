@@ -58,10 +58,16 @@ export const getCategoryProducts = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "شناسه دسته معتبر نیست" });
     }
 
-    const sort = req.query.sort as string | undefined;
-    const products = await categoryService.getAllProductsByCategory(categoryId, sort);
+    const sort = (req.query.sort as string) || "newest";
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 24;
+    const {products,pagination} = await categoryService.getAllProductsByCategory(categoryId, sort, page, limit);
 
-    res.json(products);
+    res.json({
+      success: true,
+      data: products,
+      pagination,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "خطا در دریافت محصولات دسته‌بندی" });

@@ -25,3 +25,19 @@ export interface Product {
   category?: { id: number; name: string };
   variants: ProductVariant[];
 }
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ProductsByCategoryResponse {
+  products: Product[];
+  pagination: PaginationMeta;
+}

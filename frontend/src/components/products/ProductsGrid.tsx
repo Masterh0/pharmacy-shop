@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-
+import { useCategoryStore } from "@/lib/stores/categoryStore";
 type Category = {
   id: number;
   name: string;
@@ -52,7 +52,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
       return rest;
     });
   };
-
+  const { setSelectedCategory } = useCategoryStore();
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-[85%] mx-auto mt-8">
       {products.map((p) => {
@@ -118,6 +118,12 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                 {p.category?.name && (
                   <Link
                     href={`/categories/${p.category.slug}?id=${p.category.id}`}
+                    onClick={() =>
+                      setSelectedCategory({
+                        id: p.category.id,
+                        name: p.category.name,
+                      })
+                    }
                     className="text-[#6E6E6E] text-[14px] font-normal leading-[22px] opacity-75 hover:text-[#0077B6] transition"
                   >
                     {p.category.name}

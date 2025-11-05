@@ -16,7 +16,17 @@ export interface CreateCategoryDTO {
   parentId?: number | null;
   slug?: string;
 }
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
+export interface ProductsByCategoryResponse {
+  products: Product[];
+  pagination: PaginationMeta;
+}
 const API_URL = "/categories";
 
 export const categoryApi = {
@@ -35,15 +45,18 @@ export const categoryApi = {
   // ✅ دریافت محصولات یک کتگوری و زیردسته‌ها
   getProductsByCategory: async (
     id: number,
-    sort?: string
-  ): Promise<Product[]> => {
-    if (!id || isNaN(id)) return [];
-    const res = await api.get(`${API_URL}/${id}/products`, {
-      params: { sort },
+    options: { sort?: string; page?: number; limit?: number }
+  ): Promise<ProductsByCategoryResponse> => {
+    const params = new URLSearchParams({
+      sort: options.sort || "newest",
+      page: String(options.page || 1),
+      limit: String(options.limit || 24),
     });
-    return res.data || [];
-  },
 
+    const res = await api.get(`${API_URL}/${id}/products?${params}`, 
+    );
+    return res.data as ProductsByCategoryResponse;
+  },
   // ✅ دریافت یک کتگوری خاص
   getById: async (id: number): Promise<Category | null> => {
     if (!id || isNaN(id)) return null;

@@ -1,7 +1,7 @@
 import { prisma } from "../config/db";
 import { CreateCategoryDTO, UpdateCategoryDTO } from "../../dto/categoryDto";
 import { makeSlug } from "../utils/slugify";
-
+import { getPagination, buildPaginationMeta } from "../utils/pagination";
 export const categoryService = {
   async getAllWithChildren(parentId: number | null = null): Promise<any[]> {
     const categories = await prisma.category.findMany({
@@ -99,13 +99,24 @@ export const categoryService = {
   },
 
   // 🆕 گرفتن همه محصولات متصل به دسته و زیر‌دسته‌ها
-  async getAllProductsByCategory(categoryId: number, sort?: string) {
+  async getAllProductsByCategory(
+    categoryId: number,
+    sort?: string,
+    page: number = 1,
+    limit: number = 12
+  ) {
     // ✅ دریافت تمام زیر‌دسته‌ها به‌صورت بازگشتی
     const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
 
     // ⚠️ حذف categoryId تکراری (چون خودش داخل با recursion ممکنه برگرده)
     const uniqueIds = Array.from(new Set([...subCategoryIds, categoryId]));
-
+    const totalCount = await prisma.product.count({
+      where: {
+        categoryId: { in: uniqueIds },
+        isBlock: false,
+      },
+    });
+    const { skip, take } = getPagination(page, limit);
     // ✅ واکشی محصولات فعال از همه دسته‌ها و زیرشاخه‌ها
     const products = await prisma.product.findMany({
       where: {
@@ -116,6 +127,8 @@ export const categoryService = {
         category: true,
         variants: true,
       },
+      skip,
+      take,
     });
 
     // ✅ تابع کمکی برای گرفتن قیمت قابل محاسبه از واریانت‌ها
@@ -155,7 +168,7 @@ export const categoryService = {
         break;
       }
     }
-
-    return products;
+    const pagination = buildPaginationMeta(totalCount, page, limit);
+    return { products, pagination };
   },
 };
