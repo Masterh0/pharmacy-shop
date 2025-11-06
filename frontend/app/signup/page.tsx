@@ -65,6 +65,7 @@ export default function SignupPage() {
         role: user.role,
         userId: user.id,
         phone: user.phone,
+        name: user.name,
       });
 
       // هدایت بر اساس نقش
@@ -81,10 +82,12 @@ export default function SignupPage() {
     },
   });
   const status = useAuthRedirect();
-    if (status === "checking") {
+  if (status === "checking") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
-        <p className="animate-pulse text-[#00B4D8]">در حال بررسی وضعیت ورود...</p>
+        <p className="animate-pulse text-[#00B4D8]">
+          در حال بررسی وضعیت ورود...
+        </p>
       </div>
     );
   }

@@ -6,11 +6,12 @@ import { useState } from "react";
 import Link from "next/link";
 import MegaMenu from "./MegaMenu";
 import { useCategoryStore } from "@/lib/stores/categoryStore";
+import { useAuthStore } from "@/lib/stores/authStore";
 
 export default function HeaderMenu() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const { setSelectedCategory } = useCategoryStore();
-
+  const { role } = useAuthStore();
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["header-categories"],
     queryFn: categoryApi.getAllWithChildren,
@@ -50,7 +51,11 @@ export default function HeaderMenu() {
             onMouseLeave={() => setActiveId(null)}
           >
             <Link
-              href={`/categories/${cat.slug}?id=${cat.id}`}
+              href={
+                role === "ADMIN"
+                  ? `/manager/categories/${cat.slug}?id=${cat.id}`
+                  : `/categories/${cat.slug}?id=${cat.id}`
+              }
               onClick={() =>
                 setSelectedCategory({ id: cat.id, name: cat.name })
               } // ✅ اضافه شد

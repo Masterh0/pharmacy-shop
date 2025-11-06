@@ -1,10 +1,9 @@
-// /lib/types/product.ts
 export interface ProductVariant {
   id: number;
   productId: number;
   packageQuantity: number;
   packageType?: string | null;
-  price: string; // Decimal در Prisma => در API معمولا string
+  price: string; // ✅ رشته (در API هم همین درسته)
   discountPrice?: string | null;
   stock: number;
   expiryDate?: string | null;
@@ -24,20 +23,4 @@ export interface Product {
   brand?: { id: number; name: string };
   category?: { id: number; name: string };
   variants: ProductVariant[];
-}
-export interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
-export interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface ProductsByCategoryResponse {
-  products: Product[];
-  pagination: PaginationMeta;
 }

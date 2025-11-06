@@ -22,6 +22,7 @@ import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSear
 import { ImageUploader } from "../inputs/ImageUploader";
 import { packageTypeOptions } from "@/src/constants/productOptions";
 import Select from "react-select";
+import { numberToPersianText } from "@/lib/utils/numberToText";
 
 /* --------------------------------------------------------- */
 /* ✅ فرم بیسیک + پشتیبانی از Error UI و Toast */
@@ -83,9 +84,9 @@ export default function AddProductForm({
                 {
                   packageQuantity: 1,
                   packageType: "",
-                  price: 0,
+                  price: "",
                   stock: 0,
-                  discountPrice: undefined,
+                  discountPrice: "",
                   expiryDate: undefined,
                 },
               ],
@@ -114,7 +115,12 @@ export default function AddProductForm({
     control,
     name: "variants",
   });
-
+  const [priceTexts, setPriceTexts] = useState<string[]>([]);
+  const [discountTexts, setDiscountTexts] = useState<string[]>([]);
+  useEffect(() => {
+    setPriceTexts(Array(fields.length).fill(""));
+    setDiscountTexts(Array(fields.length).fill(""));
+  }, [fields.length]);
   // 🚀 درخواست API
   const mutation = useMutation({
     mutationFn: async (data: CreateProductDTO) => {
@@ -298,34 +304,47 @@ export default function AddProductForm({
                   label="قیمت (تومان)"
                   error={errors.variants?.[i]?.price?.message}
                 >
-                  <input
-                    type="text"
-                    {...register(`variants.${i}.price`, {
-                      valueAsNumber: true,
-                    })}
-                    onChange={(e) => {
-                      // حذف کاماهای قبلی
-                      const raw = e.target.value.replace(/,/g, "");
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      {...register(`variants.${i}.price`)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/,/g, "");
 
-                      // ✨ فقط عدد اجازه بده (regex دقیقی‌تر)
-                      if (!/^\d*$/.test(raw)) {
-                        e.target.value = e.target.value.replace(/[^\d,]/g, "");
-                        return;
-                      }
+                        // فقط عدد
+                        if (!/^\d*$/.test(raw)) {
+                          e.target.value = e.target.value.replace(
+                            /[^\d,]/g,
+                            ""
+                          );
+                          return;
+                        }
 
-                      // فرمت سه رقم سه رقم
-                      const formatted = raw.replace(
-                        /\B(?=(\d{3})+(?!\d))/g,
-                        ","
-                      );
-                      e.target.value = formatted;
-                    }}
-                    className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
-                      errors.variants?.[i]?.price
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
-                  />
+                        // فرمت سه رقم سه رقم
+                        const formatted = raw.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ","
+                        );
+                        e.target.value = formatted;
+
+                        // نمایش به حروف
+                        const newText = numberToPersianText(formatted);
+                        setPriceTexts((prev) =>
+                          prev.map((t, idx) => (idx === i ? newText : t))
+                        );
+                      }}
+                      className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
+                        errors.variants?.[i]?.price
+                          ? "border-red-500"
+                          : "border-[#D6D6D6]"
+                      }`}
+                    />
+                    {priceTexts[i] && (
+                      <p className="text-xs mt-1 text-gray-600">
+                        {priceTexts[i]}
+                      </p>
+                    )}
+                  </div>
                 </FormField>
 
                 {/* موجودی */}
@@ -351,36 +370,45 @@ export default function AddProductForm({
                   label="قیمت با تخفیف (تومان)"
                   error={errors.variants?.[i]?.discountPrice?.message}
                 >
-                  <input
-                    type="text"
-                    {...register(`variants.${i}.discountPrice`, {
-                      valueAsNumber: true,
-                    })}
-                    onChange={(e) => {
-                      // حذف کاماهای قبلی
-                      const raw = e.target.value.replace(/,/g, "");
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      {...register(`variants.${i}.discountPrice`)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/,/g, "");
+                        if (!/^\d*$/.test(raw)) {
+                          e.target.value = e.target.value.replace(
+                            /[^\d,]/g,
+                            ""
+                          );
+                          return;
+                        }
 
-                      // ✨ فقط عدد اجازه بده (regex دقیقی‌تر)
-                      if (!/^\d*$/.test(raw)) {
-                        e.target.value = e.target.value.replace(/[^\d,]/g, "");
-                        return;
-                      }
+                        const formatted = raw.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ","
+                        );
+                        e.target.value = formatted;
 
-                      // فرمت سه رقم سه رقم
-                      const formatted = raw.replace(
-                        /\B(?=(\d{3})+(?!\d))/g,
-                        ","
-                      );
-                      e.target.value = formatted;
-                    }}
-                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                      errors.variants?.[i]?.discountPrice
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
-                  />
+                        // نمایش به حروف
+                        const newText = numberToPersianText(formatted);
+                        setDiscountTexts((prev) =>
+                          prev.map((t, idx) => (idx === i ? newText : t))
+                        );
+                      }}
+                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
+                        errors.variants?.[i]?.discountPrice
+                          ? "border-red-500"
+                          : "border-[#D6D6D6]"
+                      }`}
+                    />
+                    {discountTexts[i] && (
+                      <p className="text-xs mt-1 text-gray-600">
+                        {discountTexts[i]}
+                      </p>
+                    )}
+                  </div>
                 </FormField>
-
                 {/* تاریخ انقضا */}
                 <FormField
                   label="تاریخ انقضا"
@@ -414,8 +442,10 @@ export default function AddProductForm({
               append({
                 packageQuantity: 1,
                 packageType: "",
-                price: 0,
+                price: 0, // ✅ رشته خالی
+                discountPrice: 0, // ✅ رشته خالی
                 stock: 0,
+                expiryDate: undefined,
               })
             }
             className="text-[#00B4D8] text-[14px] self-start hover:underline"

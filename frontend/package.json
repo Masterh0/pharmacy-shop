@@ -21,6 +21,7 @@
     "iconsax-react": "^0.0.8",
     "lucide-react": "^0.545.0",
     "next": "15.5.4",
+    "persian-tools": "^1.0.6",
     "postcss": "^8.4.47",
     "react": "19.1.0",
     "react-dom": "19.1.0",

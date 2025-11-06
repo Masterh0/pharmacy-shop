@@ -36,7 +36,11 @@ export default function ProfileSidebar() {
       href: "/manager/profile/categories",
       children: [
         { label: "افزودن دسته", icon: Add, href: "/manager/profile/categorie" },
-        { label: "تغییر دسته", icon: Edit2, href: "/manager/profile/categories/edit" },
+        {
+          label: "تغییر دسته",
+          icon: Edit2,
+          href: "/manager/profile/categories/edit",
+        },
       ],
     },
     {
@@ -45,7 +49,11 @@ export default function ProfileSidebar() {
       href: "/manager/profile/brands",
       children: [
         { label: "افزودن برند", icon: Add, href: "/manager/profile/brand" },
-        { label: "تغییر برند", icon: Edit2, href: "/manager/profile/brands/edit" },
+        {
+          label: "تغییر برند",
+          icon: Edit2,
+          href: "/manager/profile/brands/edit",
+        },
       ],
     },
 
@@ -54,12 +62,24 @@ export default function ProfileSidebar() {
       icon: Box,
       href: "/manager/profile/products",
       children: [
-        { label: "افزودن محصول", icon: Add, href: "/manager/profile/add-product" },
-        { label: "تغییر محصول", icon: Edit2, href: "/manager/profile/edit-product" },
+        {
+          label: "افزودن محصول",
+          icon: Add,
+          href: "/manager/profile/add-product",
+        },
+        {
+          label: "تغییر محصول",
+          icon: Edit2,
+          href: "/manager/profile/edit-product",
+        },
       ],
     },
 
-    { label: "اطلاعات حساب کاربری", icon: User, href: "/manager/profile/account" },
+    {
+      label: "اطلاعات حساب کاربری",
+      icon: User,
+      href: "/manager/profile/account",
+    },
     { label: "خروج", icon: LogoutCurve, href: "/logout" },
   ];
 
