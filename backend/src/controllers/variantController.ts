@@ -13,7 +13,11 @@ export const getById = async (req: Request, res: Response) => {
   const result = await variantService.getById(id);
   res.json(result);
 };
-
+export const getByProductId = async (req: Request, res: Response) => {
+  const productId = Number(req.params.id);
+  const variants = await variantService.getByProductId(productId);
+  return res.json(variants);
+};
 export const create = async (req: Request, res: Response) => {
   const result = await variantService.create(req.body);
   res.status(201).json(result);

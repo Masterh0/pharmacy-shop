@@ -7,9 +7,17 @@ export const variantService = {
   },
 
   async getById(id: number) {
-    return prisma.productVariant.findUnique({ where: { id }, include: { product: true } });
+    return prisma.productVariant.findUnique({
+      where: { id },
+      include: { product: true },
+    });
   },
-
+  async getByProductId(productId: number) {
+    return prisma.productVariant.findMany({
+      where: { productId },
+      orderBy: { id: "asc" },
+    });
+  },
   async create(data: CreateVariantDTO) {
     // پاکسازی فیلدها برای اطمینان
     const variantData = {

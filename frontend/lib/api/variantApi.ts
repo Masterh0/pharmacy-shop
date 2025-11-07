@@ -4,7 +4,7 @@ import type { ProductVariant } from "@/lib/types/variant";
 export const variantApi = {
   /** دریافت همه‌ی واریانت‌های یک محصول خاص */
   async getAllByProductId(productId: number): Promise<ProductVariant[]> {
-    const { data } = await api.get(`/products/${productId}/variants`);
+    const { data } = await api.get(`/variants/product/${productId}`);
     return data;
   },
 

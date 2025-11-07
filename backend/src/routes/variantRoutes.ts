@@ -5,6 +5,7 @@ const router = Router();
 
 router.get("/", variantController.getAll);
 router.get("/:id", variantController.getById);
+router.get("/product/:id", variantController.getByProductId);
 router.post("/", variantController.create);
 router.put("/:id", variantController.update);
 router.delete("/:id", variantController.remove);

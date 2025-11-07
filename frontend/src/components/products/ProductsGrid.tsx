@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCategoryStore } from "@/lib/stores/categoryStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useDeleteProduct } from "@/lib/hooks/useDeleteProduct";
+import { useRouter } from "next/navigation";
 type Category = {
   id: number;
   name: string;
@@ -57,6 +58,11 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
     if (confirm(`آیا مطمئن هستی می‌خوای "${name}" رو حذف کنی؟`)) {
       deleteProduct(id);
     }
+  };
+  const router = useRouter();
+
+  const EditButton = (id: number) => {
+    router.push(`/manager/profile/edit-product/${id}`);
   };
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-[85%] mx-auto mt-8">
@@ -195,7 +201,9 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                 ) : (
                   <div className="flex justify-center gap-3 w-full">
                     {/* فقط ظاهر دکمه‌ها */}
-                    <button className="px-4 py-2 border border-[#0077B6] text-[#0077B6] text-[14px] rounded-full hover:bg-[#0077B6] hover:text-white transition">
+                    <button
+                    onClick={()=>EditButton(p.id)}
+                    className="px-4 py-2 border border-[#0077B6] text-[#0077B6] text-[14px] rounded-full hover:bg-[#0077B6] hover:text-white transition">
                       ✏️ ویرایش
                     </button>
                     <button

@@ -55,5 +55,14 @@ export const productSchema = z.object({
     .array(variantSchema)
     .min(1, "حداقل یک واریانت باید وجود داشته باشد"),
 });
-
+export const editProductSchema = z.object({
+  name: z.string().min(1, "نام محصول الزامی است"),
+  slug: z.string().optional(),
+  sku: z.string().min(1, "کد SKU الزامی است"),
+  description: z.string().optional(),
+  brandId: z.coerce.number().optional(),
+  categoryId: z.coerce.number().optional(),
+  isBlock: z.boolean().optional(),
+  image: z.any().optional(),
+});
 export type CreateProductDTO = z.infer<typeof productSchema>;

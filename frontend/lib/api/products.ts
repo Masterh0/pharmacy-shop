@@ -37,7 +37,7 @@ export const productApi = {
     data: Partial<CreateProductDTO> | FormData
   ): Promise<Product> => {
     const isFormData = data instanceof FormData;
-    const { data: res } = await api.patch(`/products/${id}`, data, {
+    const { data: res } = await api.put(`/products/${id}`, data, {
       headers: isFormData
         ? { "Content-Type": "multipart/form-data" }
         : undefined,
