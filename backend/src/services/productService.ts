@@ -151,15 +151,49 @@ export const productService = {
   // ۴. update: مدیریت خطای پیدا نشدن و بازگرداندن رکورد به‌روز شده
   update: async (id: number, data: Partial<Product>): Promise<Product> => {
     try {
-      let slug = data.slug;
-      if (!slug && data.name) {
-        slug = makeSlug(data.name);
-      }
-      return await prisma.product.update({
+      // یافتن محصول فعلی برای تصمیم در مورد اسلاگ
+      const existing = await prisma.product.findUnique({
         where: { id },
-        data: { ...data, slug },
+        select: { name: true, slug: true },
       });
+
+      if (!existing) {
+        throw new NotFoundError(
+          `Cannot update: Product with ID ${id} not found.`
+        );
+      }
+
+      // تعیین اسلاگ جدید فقط در صورتی که نام تغییر کرده باشد
+      const slug =
+        data.name && data.name !== existing.name
+          ? makeSlug(data.name)
+          : existing.slug;
+
+      // نرمال‌سازی داده‌ها از FormData
+      const normalizedData: any = {
+        ...data,
+        // 🔹 تبدیل رشته‌های عددی به عدد
+        brandId: data.brandId ? Number(data.brandId) : undefined,
+        categoryId: data.categoryId ? Number(data.categoryId) : undefined,
+        // 🔹 تبدیل مقدار بولی از رشته به boolean
+        isBlock:
+          typeof data.isBlock === "string"
+            ? data.isBlock === "true"
+            : Boolean(data.isBlock),
+      };
+
+      // آپدیت نهایی محصول
+      const updated = await prisma.product.update({
+        where: { id },
+        data: {
+          ...normalizedData,
+          slug,
+        },
+      });
+
+      return updated;
     } catch (error) {
+      // خطای P2025 = محصول پیدا نشد
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2025"
@@ -168,6 +202,8 @@ export const productService = {
           `Cannot update: Product with ID ${id} not found.`
         );
       }
+
+      // سایر خطاهای احتمالی
       throw error;
     }
   },

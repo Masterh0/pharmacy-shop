@@ -3,8 +3,9 @@
 import { Router } from "express";
 import * as productController from "../controllers/productController";
 import upload from "../middlewares/upload"; // ✅ مسیر صحیح فایل Multer middleware
+import express from "express";
 
-const router = Router();
+const router = express.Router();
 
 // گرفتن همه محصولات
 router.get("/", productController.getAll);
@@ -16,7 +17,7 @@ router.get("/:id", productController.getById);
 router.post("/", upload.single("image"), productController.create);
 
 // ویرایش کامل محصول
-router.put("/:id", productController.update);
+router.put("/:id", upload.none(), productController.update);
 // حذف محصول
 router.delete("/:id", productController.remove);
 

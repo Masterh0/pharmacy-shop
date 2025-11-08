@@ -12,12 +12,13 @@ import {
   Edit2,
   Add,
 } from "iconsax-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function ProfileSidebar() {
   const pathname = usePathname();
-  const { name } = useAuthStore();
+  const router = useRouter();
+  const { name, logout } = useAuthStore();
 
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -80,7 +81,9 @@ export default function ProfileSidebar() {
       icon: User,
       href: "/manager/profile/account",
     },
-    { label: "خروج", icon: LogoutCurve, href: "/logout" },
+
+    // نکتهٔ اصلی: حذف href مستقیم از خروج
+    { label: "خروج", icon: LogoutCurve, action: "logout" },
   ];
 
   return (
@@ -109,13 +112,25 @@ export default function ProfileSidebar() {
           const isExpanded = expanded === item.label;
           const Icon = item.icon;
 
+          // ✅ اینجا منطق کلیک اضافه شده
+          const handleClick = () => {
+            if (item.action === "logout") {
+              logout(); // پاک کردن استور
+              router.replace("/"); // تغییر مسیر به صفحه اصلی
+              return;
+            }
+            if (item.children) {
+              toggleExpand(item.label);
+            } else if (item.href) {
+              router.push(item.href); // جابه‌جایی نرمال
+            }
+          };
+
           return (
             <div key={item.label}>
               {/* آیتم اصلی */}
               <button
-                onClick={() =>
-                  item.children ? toggleExpand(item.label) : null
-                }
+                onClick={handleClick}
                 className={`w-full flex items-center justify-between py-[6px] px-[10px] border-b border-[#EDEDED] text-[15px] font-normal text-right ${
                   isActive || isExpanded
                     ? "bg-[#00B4D8] rounded-[10px] text-white shadow-[0_1px_4px_rgba(0,180,216,0.3)]"
@@ -165,9 +180,9 @@ export default function ProfileSidebar() {
                       pathname.startsWith(child.href + "/");
 
                     return (
-                      <a
+                      <button
                         key={child.label}
-                        href={child.href}
+                        onClick={() => router.push(child.href)}
                         className={`flex items-center gap-[6px] py-[5px] px-[12px] text-[14px] rounded-[8px] transition-colors duration-150 ${
                           childActive
                             ? "bg-[#E0F7FA] text-[#0077B6] font-medium"
@@ -180,7 +195,7 @@ export default function ProfileSidebar() {
                           variant="Bold"
                         />
                         {child.label}
-                      </a>
+                      </button>
                     );
                   })}
                 </div>

@@ -16,10 +16,6 @@ import { Product } from "@/lib/types/product";
 import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSearch";
 import { ImageUploader } from "../inputs/ImageUploader";
 
-/* --------------------------------------------------------- */
-/* 🎯 فرم نهایی ویرایش محصول (بدون بخش واریانت‌ها) */
-/* --------------------------------------------------------- */
-
 interface EditProductFormProps {
   initialData: Product;
 }
@@ -33,14 +29,9 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
     initialData.imageUrl || initialData.image || null
   );
 
-  console.log("🔍 initialData دریافت‌شده:", initialData);
-  console.log("🔍 برندها:", brands);
-  console.log("🔍 دسته‌بندی‌ها:", categories);
-  console.log("🔍 preview اولیه:", preview);
-
-  /* --------------------------------------------------------- */
-  /* 🎯 مقداردهی فرم با داده اولیه */
-  /* --------------------------------------------------------- */
+  /* -------------------------------------------- */
+  /* 📋 مقداردهی اولیه فرم */
+  /* -------------------------------------------- */
   const form = useForm<CreateProductDTO>({
     resolver: zodResolver(editProductSchema),
     defaultValues: {
@@ -54,17 +45,10 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
     },
   });
 
-  const {
-    control,
-    register,
-    reset,
-    handleSubmit,
-    formState: { errors },
-  } = form;
+  const { control, register, reset, handleSubmit, formState } = form;
+  const { errors } = formState;
 
-  // 🎯 در صورت تغییر initialData یا کوئری‌ها، ریست کن
   useEffect(() => {
-    console.log("📦 useEffect اجرا شد / مقداردهی مجدد فرم");
     if (initialData) {
       reset({
         name: initialData.name ?? "",
@@ -78,100 +62,61 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
       setPreview(initialData.imageUrl || initialData.image || null);
     }
   }, [initialData, reset]);
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      console.log("👀 تغییر در فرم:", name, value);
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
-  /* --------------------------------------------------------- */
-  /* 🚀 Mutation: Update Product */
-  /* --------------------------------------------------------- */
+
+  /* -------------------------------------------- */
+  /* 🚀 Mutation برای update محصول */
+  /* -------------------------------------------- */
   const mutation = useMutation({
     mutationFn: async (data: CreateProductDTO) => {
-      console.log("🧩 شروع mutation / داده‌های فرم:", data);
-
+      console.log("🧩 آماده‌سازی FormData برای ارسال به سرور");
       if (!initialData?.id) throw new Error("شناسه محصول نامعتبر است");
 
       const formData = new FormData();
-      formData.append("name", data.name || initialData.name);
-      formData.append("sku", data.sku || initialData.sku || "");
-      formData.append(
-        "description",
-        data.description || initialData.description || ""
-      );
-      formData.append("brandId", String(data.brandId || initialData.brandId));
-      formData.append(
-        "categoryId",
-        String(data.categoryId || initialData.categoryId)
-      );
-      formData.append(
-        "isBlock",
-        String(data.isBlock ?? initialData.isBlock ?? false)
-      );
+      formData.append("name", data.name || "");
+      formData.append("sku", data.sku || "");
+      formData.append("description", data.description || "");
+      formData.append("brandId", String(data.brandId || ""));
+      formData.append("categoryId", String(data.categoryId || ""));
+      formData.append("isBlock", String(data.isBlock ?? false));
 
-      if (data.image && data.image instanceof File) {
+      if (data.image instanceof File) {
         formData.append("image", data.image);
-        console.log("📸 فایل جدید اضافه شد:", data.image);
-      } else {
-        console.log("📸 بدون تغییر تصویر ارسال شد");
       }
 
-      console.log(
-        "🚀 ارسال به API productApi.update:",
-        `/products/${initialData.id}`
-      );
-
-      // ✅ بهینه‌ترین نسخهٔ update با هندل پاسخ API
+      console.log("📤 فرستادن به API productApi.update...");
       const res = await productApi.update(initialData.id, formData);
-      console.log("📦 پاسخ از سرور:", res);
       return res;
     },
-
-    onSuccess: (res) => {
-      console.log("✅ پاسخ موفقیت از API:", res);
-      toast.success("✅ محصول با موفقیت ویرایش شد");
+    onSuccess: () => {
+      toast.success("✅ تغییرات ذخیره شد");
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
-
     onError: (err: any) => {
-      console.error("❌ خطا در mutation:", err);
+      console.error("❌ خطا در بروزرسانی:", err);
       toast.error("❌ خطا در بروزرسانی محصول");
     },
   });
 
-  /* --------------------------------------------------------- */
-  /* 📤 ارسال فرم */
-  /* --------------------------------------------------------- */
+  /* -------------------------------------------- */
+  /* 🎯 تابع ارسال فرم */
+  /* -------------------------------------------- */
   const onSubmit = async (data: CreateProductDTO) => {
-  console.log("🧨 RHF فراخوان شد، داده‌های خام:", data);
-
-  // همه ارورها از فرم زنده کنسول کن
-  console.log("🐞 errors (react-hook-form):", errors);
-
-  // تایید کن که این لاگ اجرا میشه
-  alert("Form Submitted! Go check console 🧠");
-
-  try {
-    const parsed = editProductSchema.safeParse(data);
-    console.log("📦 نتیجه زود:", parsed);
-
-    if (!parsed.success) {
-      console.error("❌ زود ناموفق شد:", parsed.error.errors);
-      toast.error("⚠️ Validation شکست خورد");
-      return;
+    console.log("📦 دادهٔ نهایی قبل از ارسال:", data);
+    try {
+      const parsed = editProductSchema.safeParse(data);
+      if (!parsed.success) {
+        console.error("⚠️ خطای اعتبارسنجی:", parsed.error.errors);
+        return toast.error("داده نامعتبر است");
+      }
+      await mutation.mutateAsync(parsed.data);
+    } catch (err) {
+      console.error("💥 خطا در فراخوانی mutation:", err);
     }
+  };
 
-    console.log("✅ زود تأیید شد:", parsed.data);
-
-    await mutation.mutateAsync(parsed.data);
-  } catch (err) {
-    console.error("💥 خطا در mutateAsync:", err);
-  }
-};
-  /* --------------------------------------------------------- */
-  /* 🧩 UI قالب فرم */
-  /* --------------------------------------------------------- */
+  /* -------------------------------------------- */
+  /* 🧩 قالب UI فرم */
+  /* -------------------------------------------- */
   return (
     <FormProvider {...form}>
       <form
@@ -183,29 +128,24 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         <ImageUploader name="image" defaultPreview={preview} />
 
         <div className="grid grid-cols-2 gap-8">
-          {/* 🔹 نام */}
           <FormField label="نام محصول" error={errors.name?.message}>
             <input
               {...register("name")}
               className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
                 errors.name ? "border-red-500" : "border-[#D6D6D6]"
               }`}
-              placeholder="نام محصول را وارد کنید"
             />
           </FormField>
 
-          {/* 🔹 SKU */}
           <FormField label="کد محصول (SKU)" error={errors.sku?.message}>
             <input
               {...register("sku")}
               className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
                 errors.sku ? "border-red-500" : "border-[#D6D6D6]"
               }`}
-              placeholder="کد محصول را وارد کنید"
             />
           </FormField>
 
-          {/* 🔹 برند */}
           <FormField label="برند" error={errors.brandId?.message}>
             <select
               {...register("brandId", {
@@ -224,7 +164,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
             </select>
           </FormField>
 
-          {/* 🔹 دسته‌بندی */}
           <FormField label="دسته‌بندی" error={errors.categoryId?.message}>
             <Controller
               name="categoryId"
@@ -243,7 +182,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
           </FormField>
         </div>
 
-        {/* 🔹 توضیحات */}
         <FormField label="توضیحات" error={errors.description?.message}>
           <textarea
             {...register("description")}
@@ -251,11 +189,9 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
               errors.description ? "border-red-500" : "border-[#D6D6D6]"
             }`}
             rows={3}
-            placeholder="توضیحات محصول..."
           />
         </FormField>
 
-        {/* 🔹 دکمه ثبت */}
         <div className="flex justify-end mt-3">
           <button
             type="submit"
@@ -270,9 +206,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   );
 }
 
-/* --------------------------------------------------------- */
-/* 📦 FormField Component */
-/* --------------------------------------------------------- */
+/* -------------------------------------------- */
 interface FormFieldProps {
   label: string;
   error?: string;

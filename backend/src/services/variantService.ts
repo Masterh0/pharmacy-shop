@@ -29,14 +29,49 @@ export const variantService = {
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       productId: data.productId,
     };
+    if (
+      variantData.discountPrice &&
+      variantData.discountPrice > variantData.price
+    ) {
+      throw new Error("❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر باشد");
+    }
     return prisma.productVariant.create({ data: variantData });
   },
 
-  async update(id: number, data: UpdateVariantDTO) {
-    return prisma.productVariant.update({ where: { id }, data });
+  async update(id: number, data: any) {
+    if (isNaN(id)) throw new Error("Invalid variant id");
+
+    const expiryDate =
+      data.expiryDate && data.expiryDate.trim() !== ""
+        ? new Date(data.expiryDate)
+        : null;
+    const price = Number(data.price);
+    const discountPrice = Number(data.discountPrice);
+    if (discountPrice && discountPrice > price) {
+      throw new Error("❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر باشد");
+    }
+    return prisma.productVariant.update({
+      where: { id },
+      data: {
+        packageType: data.packageType,
+        packageQuantity: Number(data.packageQuantity),
+        price: Number(data.price),
+        discountPrice: Number(data.discountPrice),
+        stock: Number(data.stock),
+        expiryDate,
+      },
+    });
   },
 
   async delete(id: number) {
-    return prisma.productVariant.delete({ where: { id } });
+    const variant = await prisma.productVariant.findUnique({
+      where: { id },
+      include: { product: { include: { variants: true } } },
+    });
+    if (variant?.product?.variants && variant.product.variants.length <= 1) {
+      throw new Error("محصول نمی‌تواند بدون واریانت باشد ❌");
+    }
+    await prisma.productVariant.delete({ where: { id } });
+    return { success: true };
   },
 };

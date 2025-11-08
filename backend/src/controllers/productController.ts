@@ -64,9 +64,19 @@ export const create = async (
 };
 
 export const update = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const updated = await productService.update(id, req.body);
-  res.json(updated);
+  
+   try {
+    const id = Number(req.params.id);
+
+    // 👇 تست سریع برای تأیید اینکه داده دریافت شده
+
+    const result = await productService.update(id, req.body);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("❌ SERVER ERROR در update:", error);
+    res.status(500).json({ message: "Internal server error", error });
+  }
 };
 
 export const remove = async (req: Request, res: Response) => {
