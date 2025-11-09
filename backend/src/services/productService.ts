@@ -120,6 +120,7 @@ export const productService = {
             : null,
           stock: Number(variant.stock ?? 0),
           expiryDate: variant.expiryDate ? new Date(variant.expiryDate) : null,
+          flavor:variant.flavor?? null
         },
       });
 

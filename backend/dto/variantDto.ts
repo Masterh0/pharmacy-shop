@@ -6,6 +6,7 @@ export interface CreateVariantDTO {
   discountPrice?: number;
   stock: number;
   expiryDate?: string;
+  flavor?: string;
 }
 
-export interface UpdateVariantDTO extends Partial<CreateVariantDTO> {}
+export interface UpdateVariantDTO extends Partial<CreateVariantDTO> { }

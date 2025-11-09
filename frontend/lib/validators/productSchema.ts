@@ -27,6 +27,7 @@ export const variantSchema = z
 
     stock: z.number().min(0, "موجودی نمی‌تواند منفی باشد"),
     expiryDate: z.string().optional(),
+    flavor: z.string().optional(),
   })
   // 🧩 منطق اضافی: بررسی اختلاف قیمت‌ها
   .refine(

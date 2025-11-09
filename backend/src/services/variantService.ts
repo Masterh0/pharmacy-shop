@@ -28,6 +28,7 @@ export const variantService = {
       stock: data.stock,
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       productId: data.productId,
+      flavor: data.flavor,
     };
     if (
       variantData.discountPrice &&
@@ -59,6 +60,7 @@ export const variantService = {
         discountPrice: Number(data.discountPrice),
         stock: Number(data.stock),
         expiryDate,
+        flavor: data.flavor,
       },
     });
   },

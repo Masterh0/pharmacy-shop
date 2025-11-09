@@ -1,12 +1,16 @@
 "use client";
-import React from "react";
-import { useState } from "react";
+import React, { useEffect } from "react";
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useForm, useFieldArray, FormProvider, Controller } from "react-hook-form";
+import {
+  useForm,
+  useFieldArray,
+  FormProvider,
+  Controller,
+} from "react-hook-form";
 import Select from "react-select";
 import { toast } from "sonner";
 import { variantApi } from "@/lib/api/variantApi";
@@ -15,105 +19,94 @@ import { packageTypeOptions } from "@/src/constants/productOptions";
 export default function VariantsManager({ productId }) {
   const queryClient = useQueryClient();
 
-  /* 🧩 گرفتن واریانت‌ها از سرور */
+  // 🧩 گرفتن واریانت‌ها از سرور
   const { data: variants, isLoading } = useQuery({
     queryKey: ["variants", productId],
     queryFn: () => variantApi.getAllByProductId(productId),
   });
 
-  /* 🧠 فرم RHF */
-  const methods = useForm({
-    defaultValues: { variants: [] },
-  });
-
-  const { control, handleSubmit } = methods;
+  // ✏️ فرم RHF
+  const methods = useForm({ defaultValues: { variants: [] } });
+  const { control, register, handleSubmit, getValues } = methods;
   const { fields, append, remove, replace } = useFieldArray({
     name: "variants",
     control,
   });
 
-  /* 📦 Mutationها */
+  // 📦 Mutations
   const createMutation = useMutation({
-    mutationFn: (payload) => {
-      console.log("➡️ [API CREATE] داده‌ی نهایی قبل از ارسال:", payload);
-      return variantApi.create(payload);
-    },
+    mutationFn: (payload) => variantApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries(["variants", productId]);
-      toast.success("واریانت با موفقیت افزوده شد ✅");
+      toast.success("✅ واریانت جدید اضافه شد");
     },
-    onError: (e) => {
-      console.error("❌ [API CREATE ERROR]:", e);
-      toast.error("خطا در افزودن واریانت ⚠️");
-    },
+    onError: (e) => toast.error("⚠️ خطا در افزودن واریانت"),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }) => {
-      console.log("✏️ [API UPDATE] شناسه واریانت:", id);
-      console.log("📦 [API UPDATE] داده‌ی ارسال‌شده:", payload);
-      return variantApi.update(id, payload);
-    },
+    mutationFn: ({ id, payload }) => variantApi.update(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries(["variants", productId]);
-      toast.success("ویرایش انجام شد ✅");
+      toast.success("✏️ تغییرات واریانت ذخیره شد");
     },
-    onError: (e) => {
-      console.error("❌ [API UPDATE ERROR]:", e);
-      toast.error("خطا در ویرایش ⚠️");
-    },
+    onError: () => toast.error("❌ خطا در بروزرسانی واریانت"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => {
-      console.log("🗑️ [API DELETE] حذف واریانت با شناسه:", id);
-      return variantApi.remove(id);
-    },
+    mutationFn: (id) => variantApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries(["variants", productId]);
-      toast.success("واریانت حذف شد 🗑️");
+      toast.success("🗑️ واریانت از دیتابیس حذف شد");
     },
-    onError: (e) => {
-      console.error("❌ [API DELETE ERROR]:", e);
-      toast.error(e.response?.data?.message || "خطا در حذف واریانت ❌");
-    },
+    onError: () => toast.error("⚠️ خطا در حذف واریانت"),
   });
 
-  /* 🔄 Sync داده‌های سرور با فرم RHF */
-  React.useEffect(() => {
+  // 🔄 Sync سرور با فرم
+  useEffect(() => {
     if (variants) {
-      console.log("🔄 [Sync] داده‌های دریافتی از سرور:", variants);
       replace(
         variants.map((v) => ({
-          dbId: v.id, // ✅ شناسه واقعی از دیتابیس
+          dbId: v.id,
           packageType: v.packageType || "",
           packageQuantity: v.packageQuantity ?? 1,
           price: v.price ?? 0,
           discountPrice: v.discountPrice ?? 0,
           stock: v.stock ?? 0,
           expiryDate: v.expiryDate?.slice(0, 10) || "",
+          flavor: v.flavor ?? "",
         }))
       );
     }
   }, [variants, replace]);
 
-  /* 🚀 افزودن واریانت جدید */
-  const onSubmit = async (data) => {
-    console.log("🚀 [FORM SUBMIT] کل داده فرم:", data);
-    for (const v of data.variants) {
-      const payload = { productId, ...v };
-      console.log("➡️ [CREATE MUTATION EXEC] داده هر واریانت:", payload);
+  // 🚀 افزودن واریانت جدید
+  const handleAddVariant = () => {
+    append({
+      packageType: "",
+      packageQuantity: 1,
+      price: 0,
+      discountPrice: 0,
+      stock: 0,
+      expiryDate: "",
+      flavor: "",
+    });
+  };
+
+  // 🧾 ثبت کل واریانت‌ها (در صورت نیاز)
+  const onSubmitAll = async (data) => {
+    for (const variant of data.variants) {
+      const payload = { productId, ...variant };
       await createMutation.mutateAsync(payload);
     }
   };
 
   if (isLoading) return <div className="p-6 text-gray-500">در حال بارگذاری...</div>;
 
-  /* 🖥️ رندر فرم */
   return (
     <FormProvider {...methods}>
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmitAll)}
+        dir="rtl"
         className="mt-8 border-t pt-6 flex flex-col gap-8"
       >
         <h3 className="text-[16px] font-semibold text-[#0077B6] mb-2">
@@ -125,7 +118,20 @@ export default function VariantsManager({ productId }) {
             key={field.id}
             className="border border-[#D6D6D6] bg-gray-50 rounded-[12px] p-5 flex flex-col gap-5"
           >
-            <div className="grid grid-cols-2 gap-x-10 gap-y-5">
+            <h4 className="font-semibold text-[#0077B6] text-[15px]">
+              {field.dbId ? `ویرایش واریانت #${i + 1}` : "واریانت جدید"}
+            </h4>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+              {/* 🔹 فیلد طعم */}
+              <FormField label="طعم">
+                <input
+                  {...register(`variants.${i}.flavor`)}
+                  placeholder="مثلاً شکلاتی، وانیلی..."
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
+                />
+              </FormField>
+
               {/* نوع بسته‌بندی */}
               <FormField label="نوع بسته‌بندی">
                 <Controller
@@ -152,124 +158,106 @@ export default function VariantsManager({ productId }) {
                 />
               </FormField>
 
-              {/* تعداد در بسته */}
               <FormField label="تعداد در بسته">
                 <input
                   type="number"
-                  {...methods.register(`variants.${i}.packageQuantity`, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+                  {...register(`variants.${i}.packageQuantity`, { valueAsNumber: true })}
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
                 />
               </FormField>
 
-              {/* قیمت */}
               <FormField label="قیمت (تومان)">
                 <input
                   type="number"
-                  {...methods.register(`variants.${i}.price`, { valueAsNumber: true })}
-                  className="h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+                  {...register(`variants.${i}.price`, { valueAsNumber: true })}
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
                 />
               </FormField>
 
-              {/* قیمت با تخفیف */}
               <FormField label="قیمت با تخفیف (تومان)">
                 <input
                   type="number"
-                  {...methods.register(`variants.${i}.discountPrice`, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+                  {...register(`variants.${i}.discountPrice`, { valueAsNumber: true })}
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
                 />
               </FormField>
 
-              {/* موجودی */}
               <FormField label="موجودی">
                 <input
                   type="number"
-                  {...methods.register(`variants.${i}.stock`, {
-                    valueAsNumber: true,
-                  })}
-                  className="h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+                  {...register(`variants.${i}.stock`, { valueAsNumber: true })}
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
                 />
               </FormField>
 
-              {/* تاریخ انقضا */}
               <FormField label="تاریخ انقضا">
                 <input
                   type="date"
-                  {...methods.register(`variants.${i}.expiryDate`)}
-                  className="h-[40px] border border-[#D6D6D6] rounded-[8px] px-3 text-[13px]"
+                  {...register(`variants.${i}.expiryDate`)}
+                  className="border border-[#D6D6D6] rounded-[8px] h-[40px] px-3 text-[13px]"
                 />
               </FormField>
             </div>
 
-            <div className="flex justify-end gap-3 mt-2">
-              {field.dbId && (
-                <>
-                  {/* دکمه ذخیره تغییرات */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const payload = methods.getValues(`variants.${i}`);
-                      const dbId = Number(field.dbId);
-                      console.log("✏️ [UPDATE CLICK] شناسه واقعی:", dbId);
-                      console.log("📦 داده برای آپدیت:", payload);
-                      updateMutation.mutate({ id: dbId, payload });
-                    }}
-                    className="bg-[#00B4D8] text-white text-sm px-5 py-2 rounded-[8px] hover:bg-[#0099c0]"
-                  >
-                    ذخیره تغییرات
-                  </button>
+            {/* 🔘 دکمه‌های هر واریانت */}
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="text-gray-500 text-sm hover:underline"
+                >
+                  🔙 بستن فرم واریانت
+                </button>
 
-                  {/* دکمه حذف */}
+                {field.dbId && (
                   <button
                     type="button"
                     onClick={() => {
                       const dbId = Number(field.dbId);
-                      console.log("🗑️ [DELETE CLICK] شناسه واقعی:", dbId);
-                      if (fields.length <= 1) {
-                        toast.error("محصول باید حداقل یک واریانت داشته باشد ❌");
-                        return;
-                      }
+                      toast.warning("در حال حذف واریانت از دیتابیس...");
                       deleteMutation.mutate(dbId);
                     }}
-                    className="text-red-500 text-sm underline hover:text-red-600"
+                    className="text-red-600 text-sm hover:underline"
                   >
-                    حذف واریانت
+                    🗑 حذف واریانت از دیتابیس
                   </button>
-                </>
-              )}
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const payload = getValues(`variants.${i}`);
+                  const dbId = field.dbId ? Number(field.dbId) : null;
+                  dbId
+                    ? updateMutation.mutate({ id: dbId, payload })
+                    : createMutation.mutate({ productId, ...payload });
+                }}
+                className="bg-[#00B4D8] hover:bg-[#009DC1] text-white text-[13px] px-6 py-2 rounded-[8px]"
+              >
+                {field.dbId ? "ثبت تغییرات" : "ثبت واریانت"}
+              </button>
             </div>
           </div>
         ))}
 
-        {/* افزودن جدید */}
+        {/* افزودن واریانت جدید */}
         <button
           type="button"
-          onClick={() => {
-            console.log("➕ [ADD CLICK] افزودن واریانت جدید به فرم");
-            append({
-              packageType: "",
-              packageQuantity: 1,
-              price: 0,
-              discountPrice: 0,
-              stock: 0,
-              expiryDate: "",
-            });
-          }}
-          className="text-[#00B4D8] text-[14px] hover:underline"
+          onClick={handleAddVariant}
+          className="text-[#0077B6] text-[14px] hover:underline mt-3 self-end"
         >
           + افزودن واریانت جدید
         </button>
 
-        <div className="flex justify-end mt-3">
+        {/* ثبت کلی فرم */}
+        <div className="flex justify-end mt-4">
           <button
             type="submit"
-            disabled={createMutation.isPending}
-            className="bg-[#00B4D8] hover:bg-[#0099c0] text-white text-[14px] font-medium px-8 py-2 rounded-[8px]"
+            className="bg-[#0077B6] hover:bg-[#009DC1] text-white text-[14px] font-medium px-8 py-2 rounded-[8px]"
           >
-            {createMutation.isPending ? "در حال ارسال..." : "ثبت واریانت جدید"}
+            ثبت تمام واریانت‌ها
           </button>
         </div>
       </form>

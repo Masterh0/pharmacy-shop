@@ -69,27 +69,29 @@ export default function AddProductForm({
         variants:
           initialData.variants.length > 0
             ? initialData.variants.map((v) => ({
-                packageQuantity: v.packageQuantity,
-                packageType: v.packageType || "",
-                price: Number(v.price),
-                discountPrice: v.discountPrice
-                  ? Number(v.discountPrice)
-                  : undefined,
-                stock: v.stock,
-                expiryDate: v.expiryDate
-                  ? v.expiryDate.split("T")[0]
-                  : undefined,
-              }))
+              packageQuantity: v.packageQuantity,
+              packageType: v.packageType || "",
+              price: Number(v.price),
+              discountPrice: v.discountPrice
+                ? Number(v.discountPrice)
+                : undefined,
+              stock: v.stock,
+              expiryDate: v.expiryDate
+                ? v.expiryDate.split("T")[0]
+                : undefined,
+
+
+            }))
             : [
-                {
-                  packageQuantity: 1,
-                  packageType: "",
-                  price: "",
-                  stock: 0,
-                  discountPrice: "",
-                  expiryDate: undefined,
-                },
-              ],
+              {
+                packageQuantity: 1,
+                packageType: "",
+                price: "",
+                stock: 0,
+                discountPrice: "",
+                expiryDate: undefined,
+              },
+            ],
       });
     } else {
       reset({
@@ -104,7 +106,10 @@ export default function AddProductForm({
             packageQuantity: 1,
             packageType: "",
             price: 0,
+            discountPrice: 0,
+            expiryDate: "",
             stock: 0,
+            flavor: "",
           },
         ],
       });
@@ -168,9 +173,8 @@ export default function AddProductForm({
           <FormField label="نام محصول" error={errors.name?.message}>
             <input
               {...register("name")}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.name ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
+              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.name ? "border-red-500" : "border-[#D6D6D6]"
+                }`}
             />
           </FormField>
 
@@ -178,9 +182,8 @@ export default function AddProductForm({
           <FormField label="کد محصول (SKU)" error={errors.sku?.message}>
             <input
               {...register("sku")}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.sku ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
+              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.sku ? "border-red-500" : "border-[#D6D6D6]"
+                }`}
             />
           </FormField>
 
@@ -190,9 +193,8 @@ export default function AddProductForm({
               {...register("brandId", {
                 setValueAs: (v) => (v === "" ? undefined : Number(v)),
               })}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.brandId ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
+              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.brandId ? "border-red-500" : "border-[#D6D6D6]"
+                }`}
             >
               <option value="">انتخاب کنید</option>
               {brands?.map((b) => (
@@ -222,9 +224,8 @@ export default function AddProductForm({
         <FormField label="توضیحات" error={errors.description?.message}>
           <textarea
             {...register("description")}
-            className={`w-full border px-3 py-2 rounded-[8px] text-[13px] resize-none ${
-              errors.description ? "border-red-500" : "border-[#D6D6D6]"
-            }`}
+            className={`w-full border px-3 py-2 rounded-[8px] text-[13px] resize-none ${errors.description ? "border-red-500" : "border-[#D6D6D6]"
+              }`}
             rows={3}
             placeholder="توضیحات محصول..."
           />
@@ -252,11 +253,10 @@ export default function AddProductForm({
                     {...register(`variants.${i}.packageQuantity`, {
                       valueAsNumber: true,
                     })}
-                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                      errors.variants?.[i]?.packageQuantity
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
+                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.variants?.[i]?.packageQuantity
+                      ? "border-red-500"
+                      : "border-[#D6D6D6]"
+                      }`}
                   />
                 </FormField>
 
@@ -333,11 +333,10 @@ export default function AddProductForm({
                           prev.map((t, idx) => (idx === i ? newText : t))
                         );
                       }}
-                      className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
-                        errors.variants?.[i]?.price
-                          ? "border-red-500"
-                          : "border-[#D6D6D6]"
-                      }`}
+                      className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${errors.variants?.[i]?.price
+                        ? "border-red-500"
+                        : "border-[#D6D6D6]"
+                        }`}
                     />
                     {priceTexts[i] && (
                       <p className="text-xs mt-1 text-gray-600">
@@ -357,11 +356,10 @@ export default function AddProductForm({
                     {...register(`variants.${i}.stock`, {
                       valueAsNumber: true,
                     })}
-                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                      errors.variants?.[i]?.stock
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
+                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.variants?.[i]?.stock
+                      ? "border-red-500"
+                      : "border-[#D6D6D6]"
+                      }`}
                   />
                 </FormField>
 
@@ -396,11 +394,10 @@ export default function AddProductForm({
                           prev.map((t, idx) => (idx === i ? newText : t))
                         );
                       }}
-                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                        errors.variants?.[i]?.discountPrice
-                          ? "border-red-500"
-                          : "border-[#D6D6D6]"
-                      }`}
+                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.variants?.[i]?.discountPrice
+                        ? "border-red-500"
+                        : "border-[#D6D6D6]"
+                        }`}
                     />
                     {discountTexts[i] && (
                       <p className="text-xs mt-1 text-gray-600">
@@ -408,6 +405,18 @@ export default function AddProductForm({
                       </p>
                     )}
                   </div>
+                  <FormField
+                    label="طعم"
+                    error={errors.variants?.[i]?.flavor?.message}
+                  >
+                    <input
+                      type="text"
+                      {...register(`variants.${i}.flavor`)}
+                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.variants?.[i]?.flavor ? "border-red-500" : "border-[#D6D6D6]"
+                        }`}
+                      placeholder="مثلاً شکلاتی، وانیلی..."
+                    />
+                  </FormField>
                 </FormField>
                 {/* تاریخ انقضا */}
                 <FormField
@@ -417,11 +426,10 @@ export default function AddProductForm({
                   <input
                     type="date"
                     {...register(`variants.${i}.expiryDate`)}
-                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                      errors.variants?.[i]?.expiryDate
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
+                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.variants?.[i]?.expiryDate
+                      ? "border-red-500"
+                      : "border-[#D6D6D6]"
+                      }`}
                   />
                 </FormField>
               </div>
@@ -464,8 +472,8 @@ export default function AddProductForm({
             {mutation.isPending
               ? "در حال ارسال..."
               : mode === "edit"
-              ? "ثبت تغییرات"
-              : "ثبت محصول"}
+                ? "ثبت تغییرات"
+                : "ثبت محصول"}
           </button>
         </div>
       </form>
