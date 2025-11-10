@@ -67,15 +67,19 @@ export const update = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
 
+    let imageUrl: string | undefined;
+    console.log("📥 req.file:", req.file);
+
     if (req.file) {
-  // اگر فایل جدید انتخاب شده، مسیر یا نامش رو به data اضافه کن
-  req.body.image = req.file.filename;
-  console.log("✅ فایل جدید ضمیمه شد:", req.body.image);
-}
-    
-    console.log("🔸 req.file:", req.file);
-    console.log("🔸 req.body:", req.body);
-    const result = await productService.update(id, req.body);
+      imageUrl = `/uploads/${req.file.filename}`;
+    } else {
+      imageUrl = req.body.imageUrl;
+    }
+
+    // تزریق مقدار نهایی در body قبل از ارسال
+    const updateData = { ...req.body, imageUrl };
+
+    const result = await productService.update(id, updateData);
 
     return res.status(200).json(result);
   } catch (error) {

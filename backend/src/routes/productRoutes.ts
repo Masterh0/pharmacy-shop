@@ -14,10 +14,10 @@ router.get("/", productController.getAll);
 router.get("/:id", productController.getById);
 
 // ایجاد محصول جدید
-router.post("/", upload.single("image"), productController.create);
+router.post("/", upload.single("imageUrl"), productController.create);
 
 // ویرایش کامل محصول
-router.put("/:id", upload.single("image"), productController.update);
+router.put("/:id", upload.single("imageUrl"), productController.update);
 // حذف محصول
 router.delete("/:id", productController.remove);
 

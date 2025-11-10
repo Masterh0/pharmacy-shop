@@ -26,7 +26,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   const { data: categories } = useCategories();
 
   const [preview, setPreview] = useState<string | null>(
-    initialData.imageUrl || initialData.image || null
+    initialData.imageUrl || null
   );
 
   /* -------------------------------------------- */
@@ -41,7 +41,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
       brandId: Number(initialData?.brandId ?? ""),
       categoryId: Number(initialData?.categoryId ?? ""),
       isBlock: !!initialData?.isBlock,
-      image: undefined,
+      imageUrlص: undefined,
     },
   });
 
@@ -57,7 +57,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         brandId: Number(initialData.brandId ?? ""),
         categoryId: Number(initialData.categoryId ?? ""),
         isBlock: !!initialData.isBlock,
-        image: undefined,
+        imageUrl: undefined,
       });
       setPreview(initialData.imageUrl || initialData.image || null);
     }
@@ -79,10 +79,9 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
       formData.append("categoryId", String(data.categoryId || ""));
       formData.append("isBlock", String(data.isBlock ?? false));
 
-      if (data.image instanceof File) {
-        formData.append("image", data.image);
-      }
-
+      if (data.imageUrl instanceof File)
+        formData.append("imageUrl", data.imageUrl); // فقط در صورت فایل فیزیکی
+      else formData.append("imageUrl", data.imageUrl as string);
       console.log("📤 فرستادن به API productApi.update...");
       const res = await productApi.update(initialData.id, formData);
       return res;
@@ -125,7 +124,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         className="w-[808px] bg-white border border-[#EDEDED] rounded-[16px] p-8 flex flex-col gap-8 font-vazir text-[#434343]"
       >
         {/* 🖼 تصویر محصول */}
-        <ImageUploader name="image" defaultPreview={preview} />
+        <ImageUploader name="imageUrl" defaultPreview={preview} />
 
         <div className="grid grid-cols-2 gap-8">
           <FormField label="نام محصول" error={errors.name?.message}>

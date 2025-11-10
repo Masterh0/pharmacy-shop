@@ -64,6 +64,6 @@ export const editProductSchema = z.object({
   brandId: z.coerce.number().optional(),
   categoryId: z.coerce.number().optional(),
   isBlock: z.boolean().optional(),
-  image: z.any().optional(),
+  imageUrl: z.any().optional(),
 });
 export type CreateProductDTO = z.infer<typeof productSchema>;

@@ -189,7 +189,7 @@ export const productService = {
         sku: normalizedData.sku,
         description: normalizedData.description,
         isBlock: normalizedData.isBlock,
-        image: normalizedData.imageUrl,
+        imageUrl: normalizedData.imageUrl,
         slug,
         // ✅ ارتباط‌ها با connect
         brand: normalizedData.brandId
