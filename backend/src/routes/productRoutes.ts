@@ -17,7 +17,7 @@ router.get("/:id", productController.getById);
 router.post("/", upload.single("image"), productController.create);
 
 // ویرایش کامل محصول
-router.put("/:id", upload.none(), productController.update);
+router.put("/:id", upload.single("image"), productController.update);
 // حذف محصول
 router.delete("/:id", productController.remove);
 

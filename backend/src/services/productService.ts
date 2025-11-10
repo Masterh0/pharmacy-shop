@@ -120,7 +120,7 @@ export const productService = {
             : null,
           stock: Number(variant.stock ?? 0),
           expiryDate: variant.expiryDate ? new Date(variant.expiryDate) : null,
-          flavor:variant.flavor?? null
+          flavor: variant.flavor ?? null,
         },
       });
 
@@ -152,7 +152,7 @@ export const productService = {
   // ۴. update: مدیریت خطای پیدا نشدن و بازگرداندن رکورد به‌روز شده
   update: async (id: number, data: Partial<Product>): Promise<Product> => {
     try {
-      // یافتن محصول فعلی برای تصمیم در مورد اسلاگ
+      // 🔹 یافتن محصول فعلی برای تصمیم در مورد اسلاگ
       const existing = await prisma.product.findUnique({
         where: { id },
         select: { name: true, slug: true },
@@ -164,34 +164,52 @@ export const productService = {
         );
       }
 
-      // تعیین اسلاگ جدید فقط در صورتی که نام تغییر کرده باشد
+      // 🔹 تعیین اسلاگ جدید فقط در صورتی که نام تغییر کرده باشد
       const slug =
         data.name && data.name !== existing.name
           ? makeSlug(data.name)
           : existing.slug;
 
-      // نرمال‌سازی داده‌ها از FormData
-      const normalizedData: any = {
+      // 🔹 نرمال‌سازی داده‌های ورودی (از FormData)
+      const normalizedData = {
         ...data,
-        // 🔹 تبدیل رشته‌های عددی به عدد
         brandId: data.brandId ? Number(data.brandId) : undefined,
         categoryId: data.categoryId ? Number(data.categoryId) : undefined,
-        // 🔹 تبدیل مقدار بولی از رشته به boolean
         isBlock:
           typeof data.isBlock === "string"
             ? data.isBlock === "true"
             : Boolean(data.isBlock),
       };
+      const cleanedData = { ...normalizedData };
+      delete cleanedData.brandId;
+      delete cleanedData.categoryId;
+      // 🔹 ساخت آبجکت آپدیت نهایی
+      const updateData: any = {
+        name: normalizedData.name,
+        sku: normalizedData.sku,
+        description: normalizedData.description,
+        isBlock: normalizedData.isBlock,
+        image: normalizedData.imageUrl,
+        slug,
+        // ✅ ارتباط‌ها با connect
+        brand: normalizedData.brandId
+          ? { connect: { id: normalizedData.brandId } }
+          : undefined,
+        category: normalizedData.categoryId
+          ? { connect: { id: normalizedData.categoryId } }
+          : undefined,
+      };
 
-      // آپدیت نهایی محصول
+      // 🔹 پاک کردن فیلدهای ناخواسته تا Prisma ارور نده
+      delete updateData.brandId;
+      delete updateData.categoryId;
+
+      // 🔹 اجرای آپدیت
       const updated = await prisma.product.update({
         where: { id },
-        data: {
-          ...normalizedData,
-          slug,
-        },
+        data: updateData,
       });
-
+      console.log("🧩 Final updateData going to Prisma:", updated);
       return updated;
     } catch (error) {
       // خطای P2025 = محصول پیدا نشد
