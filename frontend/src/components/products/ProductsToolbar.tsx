@@ -1,27 +1,17 @@
-import { Key } from "lucide-react";
-
-type SortType =
-  | "newest"
-  | "bestseller"
-  | "cheapest"
-  | "expensive"
-  | "mostViewed";
+type SortType = "newest" | "bestseller" | "cheapest" | "expensive" | "mostViewed";
 
 type ProductsToolbarProps = {
   sort: SortType;
   setSort: (sort: SortType) => void;
 };
 
-export default function ProductsToolbar({
-  sort,
-  setSort,
-}: ProductsToolbarProps) {
+export default function ProductsToolbar({ sort, setSort }: ProductsToolbarProps) {
   const tabs = [
     { key: "newest", name: "جدیدترین" },
     { key: "bestseller", name: "پرفروش‌ترین" },
     { key: "cheapest", name: "ارزان‌ترین" },
     { key: "expensive", name: "گران‌ترین" },
-    { Key: "mostViewed", name: "پربازدیدترین" },
+    { key: "mostViewed", name: "پربازدیدترین" },
   ];
 
   return (

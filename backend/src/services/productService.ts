@@ -155,7 +155,7 @@ export const productService = {
       // 🔹 یافتن محصول فعلی برای تصمیم در مورد اسلاگ
       const existing = await prisma.product.findUnique({
         where: { id },
-        select: { name: true, slug: true },
+        select: { name: true, slug: true, imageUrl: true },
       });
 
       if (!existing) {
@@ -179,6 +179,12 @@ export const productService = {
           typeof data.isBlock === "string"
             ? data.isBlock === "true"
             : Boolean(data.isBlock),
+        imageUrl:
+          typeof data.imageUrl === "string" &&
+          data.imageUrl.trim() !== "" &&
+          !["undefined", "null"].includes(data.imageUrl.trim().toLowerCase())
+            ? data.imageUrl
+            : existing.imageUrl,
       };
       const cleanedData = { ...normalizedData };
       delete cleanedData.brandId;

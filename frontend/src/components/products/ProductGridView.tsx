@@ -57,6 +57,11 @@ type ProductGridViewProps = {
   products: Product[];
   sort: SortType;
   setSort: (sort: SortType) => void;
+  pagination: {
+    totalPages: number;
+    currentPage: number;
+  };
+  setPage?: (page: number) => void;
 };
 
 export default function ProductGridView({
@@ -64,6 +69,8 @@ export default function ProductGridView({
   products,
   sort,
   setSort,
+  pagination,
+  setPage,
 }: ProductGridViewProps) {
   // ✅ ذخیره sort در LocalStorage
   useEffect(() => {
@@ -80,7 +87,13 @@ export default function ProductGridView({
         <h2 className="text-[#0077B6] text-3xl font-bold mb-8">{title}</h2>
         <ProductsToolbar sort={sort} setSort={setSort} />
         <ProductsGrid products={products} />
-        <ProductsPagination totalPages={5} currentPage={1} />
+        {pagination && (
+          <ProductsPagination
+            totalPages={pagination.totalPages}
+            currentPage={pagination.currentPage}
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   );

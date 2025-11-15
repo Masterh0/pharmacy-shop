@@ -67,20 +67,36 @@ export const update = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
 
-    let imageUrl: string | undefined;
     console.log("📥 req.file:", req.file);
 
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    } else {
-      imageUrl = req.body.imageUrl;
+    // دریافت محصول فعلی برای بررسی تصویر موجود
+    const existingProduct = await productService.getById(id);
+    if (!existingProduct) {
+      return res.status(404).json({ message: "Product not found" });
     }
 
-    // تزریق مقدار نهایی در body قبل از ارسال
+    let imageUrl: string | undefined | null; // مقدار پیش‌فرض: عکس قبلی
+
+    // در صورت ارسال فایل جدید، جایگزین شود
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`;
+    } else if (
+      req.body.imageUrl &&
+      req.body.imageUrl !== "undefined" &&
+      req.body.imageUrl !== "null" &&
+      req.body.imageUrl.trim() !== ""
+    ) {
+      imageUrl = req.body.imageUrl;
+    } else {
+      // هیچ مقدار معتبر نیامده، باید عکس موجود حفظ شود
+      const existingProduct = await productService.getById(id);
+      imageUrl = existingProduct.imageUrl;
+    }
+
+    // تشکیل داده نهایی آپدیت
     const updateData = { ...req.body, imageUrl };
 
     const result = await productService.update(id, updateData);
-
     return res.status(200).json(result);
   } catch (error) {
     console.error("❌ SERVER ERROR در update:", error);

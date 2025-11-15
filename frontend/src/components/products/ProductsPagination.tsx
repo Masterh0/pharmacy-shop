@@ -1,20 +1,72 @@
-interface PaginationProps {
+"use client";
+
+interface ProductsPaginationProps {
   totalPages: number;
   currentPage: number;
+  onPageChange: (page: number) => void;
 }
 
-export default function ProductsPagination({ totalPages, currentPage }: PaginationProps) {
+export default function ProductsPagination({
+  totalPages,
+  currentPage,
+  onPageChange,
+}: ProductsPaginationProps) {
+  if (totalPages <= 1) return null; // نمایش فقط در صورت وجود بیش از یک صفحه
+
   return (
-    <div className="flex justify-center gap-3 mt-12 text-center">
-      {Array.from({ length: totalPages }).map((_, i) => (
-        <button
-          key={i}
-          className={`w-8 h-8 rounded-full border flex items-center justify-center
-            ${i + 1 === currentPage ? "bg-[#90E0EF] border-[#90E0EF]" : "border-[#656565]"}`}
-        >
-          {i + 1}
-        </button>
-      ))}
+    <div
+      dir="rtl"
+      className="flex justify-center items-center gap-4 mt-12"
+    >
+      {/* دکمه قبلی */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage <= 1}
+        className={`w-8 h-8 rounded-full border flex items-center justify-center
+          font-[IRANYekanX] text-[16px] leading-[180%]
+          ${currentPage <= 1
+            ? "opacity-40 cursor-not-allowed border-[#D6D6D6]"
+            : "hover:bg-[#E0F7FA] hover:border-[#00B4D8] border-[#656565]"
+          }`}
+      >
+        ‹
+      </button>
+
+      {/* شماره‌ها */}
+      {Array.from({ length: totalPages }).map((_, i) => {
+        const pageNumber = i + 1;
+        const isActive = pageNumber === currentPage;
+
+        return (
+          <button
+            key={i}
+            onClick={() => onPageChange(pageNumber)}
+            className={`w-8 h-8 rounded-full border flex items-center justify-center
+              font-[IRANYekanX] text-[16px] leading-[180%] transition-all duration-200
+              ${
+                isActive
+                  ? "bg-[#90E0EF] border-[#90E0EF] text-black"
+                  : "bg-white border-[#656565] text-black hover:bg-[#E0F7FA]"
+              }`}
+          >
+            {pageNumber}
+          </button>
+        );
+      })}
+
+      {/* دکمه بعدی */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+        className={`w-8 h-8 rounded-full border flex items-center justify-center
+          font-[IRANYekanX] text-[16px] leading-[180%]
+          ${currentPage >= totalPages
+            ? "opacity-40 cursor-not-allowed border-[#D6D6D6]"
+            : "hover:bg-[#E0F7FA] hover:border-[#00B4D8] border-[#656565]"
+          }`}
+      >
+        ›
+      </button>
     </div>
   );
 }
