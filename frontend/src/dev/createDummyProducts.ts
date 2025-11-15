@@ -4,17 +4,17 @@ import { productApi } from "@/lib/api/products";
  * ✅ ساخت ۳۰ محصول تستی تصادفی برای تست Pagination
  */
 export async function createDummyProducts() {
-  const IMAGE_URL = "uploads/image-1761592993826-133971432.jpg";
+  const IMAGE_URL = "/uploads/وی-کالخ-1763233078375-745252.jfif";
 
   // تو اینجا عدد ۳۰ رو می‌تونی تغییر بدی اگر خواستی بیشتر تست کنی
-  const productCount = 61;
+  const productCount = 30;
 
-  for (let i = 31; i <= productCount; i++) {
+  for (let i = 1; i <= productCount; i++) {
     const productData = {
       name: `محصول تستی شماره ${i}`,
       sku: `SKU-${1000 + i}`,
       description: `این توضیحات محصول تستی شماره ${i} است.`,
-      brandId: 2,          // یکی از برندهای موجود در دیتابیس‌ت
+      brandId: 1,          // یکی از برندهای موجود در دیتابیس‌ت
       categoryId: 1,       // یکی از دسته‌بندی‌های معتبر
       isBlock: false,
       imageUrl: IMAGE_URL,

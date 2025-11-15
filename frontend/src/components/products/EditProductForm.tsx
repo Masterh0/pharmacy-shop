@@ -15,6 +15,7 @@ import { useCategories } from "@/lib/hooks/useCategories";
 import { Product } from "@/lib/types/product";
 import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSearch";
 import { ImageUploader } from "../inputs/ImageUploader";
+import { RichTextEditor } from "../inputs/RichTextEditor";
 
 interface EditProductFormProps {
   initialData: Product;
@@ -182,13 +183,11 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         </div>
 
         <FormField label="توضیحات" error={errors.description?.message}>
-          <textarea
-            {...register("description")}
-            className={`w-full border px-3 py-2 rounded-[8px] text-[13px] resize-none ${
-              errors.description ? "border-red-500" : "border-[#D6D6D6]"
-            }`}
-            rows={3}
-          />
+          <RichTextEditor
+    control={control}
+    name="description"
+    label="توضیحات محصول"
+  />
         </FormField>
 
         <div className="flex justify-end mt-3">

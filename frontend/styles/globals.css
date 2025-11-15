@@ -1,7 +1,81 @@
+/* -------------------------- */
+/* ✅ Imports – External CSSs */
+/* -------------------------- */
+
+/* فونت و کتابخانه‌های خارجی باید قبل از Tailwind باشند */
+@import "@fontsource-variable/vazirmatn";
+@import "react-quill-new/dist/quill.snow.css";
+
+/* -------------------------- */
+/* ✅ Tailwind layers */
+/* -------------------------- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import "@fontsource-variable/vazirmatn";
+
+/* -------------------------- */
+/* ✅ Global/Reset styles */
+/* -------------------------- */
+
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: "Vazirmatn Variable", sans-serif;
+  background-color: #fafafa;
+  color: #434343;
+  line-height: 1.8;
+}
+
+/* -------------------------- */
+/* ✅ Quill / RichTextEditor styles */
+/* -------------------------- */
+
+.ql-toolbar {
+  border-color: #D6D6D6 !important;
+}
+.ql-toolbar button:hover .ql-stroke {
+  stroke: #0077B6 !important;
+}
+
+/* محتوا داخل ویرایشگر */
+.ql-editor {
+  font-family: "Vazirmatn Variable", sans-serif;
+  direction: rtl;
+  text-align: right;
+  color: #434343;
+}
+
+/* حذف بولت‌های پیش‌فرض لیست در Quill و جایگزینی با بولت برند */
+.ql-editor ul,
+.ql-editor ol {
+  list-style-type: none !important;
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* آیتم‌های لیست */
+.ql-editor li {
+  position: relative;
+  padding-right: 1.5rem !important;
+  margin-bottom: 0.6rem !important;
+  line-height: 2.1 !important;
+}
+
+/* بولت سفارشی آبی برند */
+.ql-editor li::before {
+  content: "•";
+  position: absolute;
+  right: 0.25rem;
+  top: 0.4rem;
+  color: #0077B6;      /* رنگ آبی برند */
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* جلوگیری از تداخل متن خالی */
+.ql-editor.ql-blank::before {
+  display: none !important;
 }

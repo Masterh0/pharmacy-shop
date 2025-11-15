@@ -23,6 +23,7 @@ import { ImageUploader } from "../inputs/ImageUploader";
 import { packageTypeOptions } from "@/src/constants/productOptions";
 import Select from "react-select";
 import { numberToPersianText } from "@/lib/utils/numberToText";
+import { RichTextEditor } from "../inputs/RichTextEditor";
 
 /* --------------------------------------------------------- */
 /* ✅ فرم بیسیک + پشتیبانی از Error UI و Toast */
@@ -222,12 +223,9 @@ export default function AddProductForm({
 
         {/* توضیحات */}
         <FormField label="توضیحات" error={errors.description?.message}>
-          <textarea
-            {...register("description")}
-            className={`w-full border px-3 py-2 rounded-[8px] text-[13px] resize-none ${errors.description ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
-            rows={3}
-            placeholder="توضیحات محصول..."
+          <RichTextEditor
+            control={control}
+            name="description"
           />
         </FormField>
 
