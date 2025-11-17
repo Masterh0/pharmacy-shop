@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useState } from "react";
-
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { categoryApi } from "@/lib/api/category";
 export default function ClientProductView({
   product,
   variants,
@@ -11,25 +13,61 @@ export default function ClientProductView({
   baseUrl,
   initialVariant,
 }) {
-  const [selectedFlavor, setSelectedFlavor] = useState(initialVariant?.flavor || "");
-  const [selectedPackage, setSelectedPackage] = useState(initialVariant?.packageQuantity || "");
+  const [selectedFlavor, setSelectedFlavor] = useState(
+    initialVariant?.flavor || ""
+  );
+  const [selectedPackage, setSelectedPackage] = useState(
+    initialVariant?.packageQuantity || ""
+  );
   const [selectedVariant, setSelectedVariant] = useState(initialVariant);
 
   function updateVariant(flavor, pkg) {
     const found = variants.find(
-      (v) => (!flavor || v.flavor === flavor) && (!pkg || v.packageQuantity === pkg)
+      (v) =>
+        (!flavor || v.flavor === flavor) && (!pkg || v.packageQuantity === pkg)
     );
     if (found) setSelectedVariant(found);
   }
+  const { data: breadcrumb, isLoading } = useQuery({
+    queryKey: ["breadcrumb", product.categoryId],
+    queryFn: async () => {
+      if (!product.categoryId) return [];
+      const chain: any[] = [];
+      let current = await categoryApi.getById(product.categoryId);
 
+      // عقب ‌گرد تا به ریشه برسیم
+      while (current && current.parentId) {
+        chain.unshift(current); // اضافه از چپ
+        current = await categoryApi.getById(current.parentId);
+      }
+
+      // وقتی رسیدیم به ریشه هم اضافه‌اش کنیم
+      if (current) chain.unshift(current);
+
+      return chain; // حالا از بالاترین والد تا پایین‌ترین دسته داریم
+    },
+    enabled: !!product.categoryId,
+  });
   return (
     <div className="w-[85%] mx-auto flex flex-col mt-12 font-vazirmatn text-[#434343]">
       {/* مسیر دسته‌بندی */}
-      <div className="text-gray-500 text-sm mb-8 flex gap-1">
-        <span>مکمل تخصصی</span>
-        <span>›</span>
-        <span>کاهش وزن</span>
-        <span>›</span>
+      <div className="text-gray-500 text-sm mb-8 flex gap-1 items-center flex-wrap">
+        {breadcrumb?.map((cat, i) => (
+          <span key={cat.id} className="flex items-center gap-1">
+            <Link
+              href={`/categories/${cat.slug}`}
+              className={
+                i === breadcrumb.length - 1
+                  ? "text-[#0077B6] font-bold"
+                  : "hover:text-[#0077B6] transition-colors"
+              }
+            >
+              {cat.name}
+            </Link>
+            {i < breadcrumb.length - 1 && <span>›</span>}
+          </span>
+        ))}
+        {/* در انتها خود محصول */}
         <span className="text-[#0077B6] font-bold">{product.name}</span>
       </div>
 
@@ -65,9 +103,14 @@ export default function ClientProductView({
         {/* 📋 بخش متن و انتخاب‌ها */}
         <div className="flex flex-col justify-between gap-8 text-[#434343]">
           {/* نام محصول */}
-          <h1 className="text-[#000000] text-3xl font-bold tracking-tight">{product.name}</h1>
+          <h1 className="text-[#000000] text-3xl font-bold tracking-tight">
+            {product.name}
+          </h1>
 
           {/* توضیحات بدون باکس */}
+          <h3 className="border-b-2 border-[#EDEDED] text-[#656565]">
+            مشخصات محصول
+          </h3>
           <div
             dangerouslySetInnerHTML={{ __html: product.description }}
             className="text-right font-vazirmatn leading-8 space-y-2
@@ -75,13 +118,14 @@ export default function ClientProductView({
               [&_p]:text-[#434343]
               [&_li::before]:content-['•'] [&_li::before]:absolute [&_li::before]:right-0.5
               [&_li::before]:text-[#0077B6] [&_li::before]:font-bold
-              relative [&_li]:pr-6"
+              relative [&_li]:pr-6 text-sm"
           ></div>
 
           {/* 🔹 انتخاب طعم و بسته کنار هم */}
-          <div className="flex flex-row flex-wrap items-start gap-8 ">
-            {flavors.length > 0 && (
-              <div className="flex flex-col gap-2 w-[48%]">
+          <div className="flex flex-row flex-wrap items-start gap-8 w-full">
+            {/* فقط اگر آرایه طعم معتبر و دارای مقدار باشه */}
+            {Array.isArray(flavors) && flavors.length > 0 && (
+              <div className="flex flex-col gap-2 w-1/2">
                 <span className="font-bold text-[#000000]">طعم:</span>
                 <div className="flex gap-3 flex-wrap">
                   {flavors.map((flavor) => (
@@ -104,8 +148,9 @@ export default function ClientProductView({
               </div>
             )}
 
-            {packages.length > 0 && (
-              <div className="flex flex-col gap-2 w-[48%]">
+            {/* فقط اگر آرایه تعداد در بسته معتبر و دارای مقدار باشه */}
+            {Array.isArray(packages) && packages.length > 0 && (
+              <div className="flex flex-col gap-2 w-1/2">
                 <span className="font-bold text-[#000000]">تعداد در بسته:</span>
                 <div className="flex gap-3 flex-wrap">
                   {packages.map((pkg) => (
