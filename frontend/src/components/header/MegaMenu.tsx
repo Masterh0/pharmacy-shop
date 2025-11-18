@@ -38,7 +38,7 @@ export default function MegaMenu({ categories }: MegaMenuProps) {
               {category.subCategories.map((sub) => (
                 <Link
                   key={sub.id}
-                  href={`/categories/${sub.id}`}
+                  href={`/categories/${sub.slug}?id=${sub.id}`}
                   onClick={() => setSelectedCategory({ id: sub.id, name: sub.name })} // ✅ برای subCategory هم
                   className="
                     bg-[#F0F0F0] text-[#242424] text-[10px]

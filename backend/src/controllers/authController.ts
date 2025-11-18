@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../config/db";
 import { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
-
+import crypto from "crypto";
+const generateOtp = () => {
+  // کد ۶ رقمی امن و تصادفی
+  return crypto.randomInt(100000, 999999).toString();
+};
 /* ------------------ Helper ------------------ */
 function normalizePhone(input: string): string {
   if (!input) return "";
@@ -54,7 +58,7 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
     if (existingUser)
       return res
         .status(400)
-        .json({ error: "کاربر با این شماره یا ایمیل قبلاً ثبت‌نام کرده است." });
+        .json({ error: "کاربر با این شماره  قبلاً ثبت‌نام کرده است." });
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
@@ -70,7 +74,7 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
       },
     });
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateOtp();
     const expireAt = new Date(Date.now() + 2 * 60 * 1000);
     await prisma.otp.create({
       data: { phone: normalizePhone(phone), code, expiresAt: expireAt },
@@ -103,10 +107,10 @@ const verifyRegisterOtp = async (
         .status(400)
         .json({ error: "کد تأیید نامعتبر است یا مهلت آن به پایان رسیده است." });
 
-    await prisma.otp.updateMany({ where: { phone }, data: { used: true } });
+    await prisma.otp.updateMany({ where: { phone: normalizePhone(phone) }, data: { used: true } });
 
     const user = await prisma.user.update({
-      where: { phone },
+      where: { phone: normalizePhone(phone) },
       data: { isVerified: true },
     });
 
@@ -145,12 +149,9 @@ const login = async (
         .json({ error: "شماره موبایل شما هنوز تأیید نشده است." });
 
     if (!user.hasPassword || !user.password)
-      return res
-        .status(400)
-        .json({
-          error:
-            "این حساب رمز عبور ندارد. لطفاً ورود با کد تأیید را انجام دهید.",
-        });
+      return res.status(400).json({
+        error: "این حساب رمز عبور ندارد. لطفاً ورود با کد تأیید را انجام دهید.",
+      });
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid)
@@ -176,7 +177,7 @@ const sendLoginOtp = async (
     if (!/^09\d{9}$/.test(phone))
       return res.status(400).json({ error: "فرمت شماره موبایل صحیح نیست." });
 
-    const user = await prisma.user.findUnique({ where: { phone } });
+    const user = await prisma.user.findUnique({ where: { phone: normalizePhone(phone) } });
     if (!user)
       return res.status(404).json({ error: "کاربری با این شماره یافت نشد." });
     if (!user.isVerified)
@@ -204,7 +205,7 @@ const sendLoginOtp = async (
       data: { used: true },
     });
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateOtp();
     const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
     await prisma.otp.create({ data: { phone, code, expiresAt } });
 
@@ -241,13 +242,13 @@ const verifyLoginOtp = async (
         .status(400)
         .json({ error: "کد تأیید نادرست است یا مهلت آن تمام شده است." });
 
-    await prisma.otp.updateMany({ where: { phone }, data: { used: true } });
+    await prisma.otp.updateMany({ where: { phone: normalizePhone(phone) }, data: { used: true } });
     await prisma.otp.update({
       where: { id: otpRecord.id },
       data: { isVerified: true },
     });
 
-    const user = await prisma.user.findUnique({ where: { phone } });
+    const user = await prisma.user.findUnique({ where: { phone: normalizePhone(phone) } });
     if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
 
     const { accessToken, refreshToken } = await generateTokens(
