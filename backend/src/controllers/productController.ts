@@ -109,3 +109,16 @@ export const remove = async (req: Request, res: Response) => {
   await productService.delete(id);
   res.status(204).send();
 };
+export const increaseViewCount = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const result = await productService.increaseViewCount(Number(id));
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

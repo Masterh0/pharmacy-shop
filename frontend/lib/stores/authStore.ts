@@ -2,13 +2,16 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Role } from "@/lib/api/auth";
 
-interface AuthState {
+interface UserAuthData {
   accessToken?: string;
   refreshToken?: string;
   role?: Role;
   userId?: number;
   phone?: string;
   name?: string;
+}
+
+interface AuthState extends UserAuthData {
   setAuth: (data: {
     accessToken: string;
     refreshToken: string;
@@ -17,7 +20,8 @@ interface AuthState {
     phone: string;
     name?: string;
   }) => void;
-  logout: () => void;
+  setTokens: (data: { accessToken: string; refreshToken: string }) => void; // ✨ این تابع همینطور که هست درسته
+  logout: () => void; // ✨ این تابع هم درسته
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,16 +35,17 @@ export const useAuthStore = create<AuthState>()(
       name: undefined,
 
       setAuth: (data) => {
-        console.log("🟢 [AuthStore] setAuth called with data:", data);
+        console.log("🟢 [AuthStore] setAuth called (full data)");
         set({ ...data });
-
-        // بلافاصله بعد از set، وضعیت فعلی رو لاگ بگیر
-        console.log("✅ [AuthStore] new state:", get());
+      },
+      
+      setTokens: ({ accessToken, refreshToken }) => { // ✨ تعریف درست: دریافت یک شیء
+        console.log("🔄 [AuthStore] setTokens called (refresh flow)");
+        set({ accessToken, refreshToken });
       },
 
       logout: () => {
         console.log("🟡 [AuthStore] logout called — clearing state...");
-        localStorage.removeItem("auth-store");
         set({
           accessToken: undefined,
           refreshToken: undefined,
@@ -49,7 +54,6 @@ export const useAuthStore = create<AuthState>()(
           phone: undefined,
           name: undefined,
         });
-        console.log("✅ [AuthStore] after logout:", get());
       },
     }),
     {

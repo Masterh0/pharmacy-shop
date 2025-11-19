@@ -9,7 +9,7 @@ const generateOtp = () => {
   return crypto.randomInt(100000, 999999).toString();
 };
 /* ------------------ Helper ------------------ */
-function normalizePhone(input: string): string {
+export default function normalizePhone(input: string): string {
   if (!input) return "";
   let phone = input.replace(/[\s\-]/g, "").trim();
   if (phone.startsWith("+")) phone = phone.slice(1);
@@ -31,6 +31,7 @@ async function generateTokens(userId: number, role: string) {
   const refreshToken = uuid();
   const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+  // این خط یک رکورد جدید در دیتابیس برای رفرش‌توکن جدید ایجاد می‌کند
   await prisma.refreshToken.create({
     data: { userId, token: refreshToken, expiresAt: refreshExpiry },
   });
@@ -261,42 +262,62 @@ const verifyLoginOtp = async (
   }
 };
 
-/* ------------------ رفرش توکن ------------------ */
+/* ------------------ رفرش توکن (اصلاح شده) ------------------ */
 const refresh = async (
   req: Request<{}, {}, { refreshToken: string }>,
   res: Response
 ) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken)
+  const { refreshToken: clientRefreshToken } = req.body; // تغییر نام برای جلوگیری از تداخل
+  if (!clientRefreshToken)
     return res.status(400).json({ error: "رفرش‌توکن ارسال نشده است." });
 
-  const tokenRecord = await prisma.refreshToken.findUnique({
-    where: { token: refreshToken },
-  });
-  if (!tokenRecord || tokenRecord.expiresAt < new Date())
+  let tokenRecord;
+  try {
+    // 1. رکورد رفرش‌توکن را بر اساس توکن دریافتی از کلاینت پیدا کن
+    tokenRecord = await prisma.refreshToken.findUnique({
+      where: { token: clientRefreshToken },
+    });
+  } catch (error) {
+    console.error("خطا در یافتن رکورد رفرش‌توکن:", error);
+    return res.status(500).json({ error: "خطای داخلی سرور." });
+  }
+
+  // 2. اگر توکن یافت نشد یا منقضی شده بود، خطا برگردان
+  if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+    // اگر توکن منقضی شده پیدا شد، آن را از دیتابیس حذف کن تا پاکسازی شود
+    if (tokenRecord) {
+      await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+    }
     return res
       .status(401)
       .json({ error: "رفرش‌توکن نامعتبر است یا منقضی شده است." });
+  }
 
+  // 3. کاربر مربوط به این توکن را پیدا کن
   const user = await prisma.user.findUnique({
     where: { id: tokenRecord.userId },
   });
-  if (!user)
+  if (!user) {
+    // اگر کاربر یافت نشد، رفرش‌توکن را حذف کن تا امنیت حفظ شود
+    await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
     return res.status(401).json({ error: "کاربر مربوط به این توکن یافت نشد." });
+  }
 
-  const { accessToken, refreshToken: newRefreshToken } = await generateTokens(
+  // --- منطق چرخش توکن (Token Rotation) ---
+  // 4. رفرش‌توکن قدیمی را از دیتابیس حذف کن (بی‌اعتبار کردن توکن استفاده شده)
+  await prisma.refreshToken.delete({
+    where: { id: tokenRecord.id },
+  });
+
+  // 5. یک Access Token جدید و یک Refresh Token جدید تولید کن.
+  //    تابع `generateTokens` خودش رکورد جدید رفرش‌توکن را در دیتابیس ایجاد می‌کند.
+  const { accessToken: newAccessToken, refreshToken: newGeneratedRefreshToken } = await generateTokens(
     user.id,
     user.role
   );
-  await prisma.refreshToken.update({
-    where: { id: tokenRecord.id },
-    data: {
-      token: newRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
 
-  res.json({ accessToken, refreshToken: newRefreshToken });
+  // 6. توکن‌های جدید را به کلاینت برگردان
+  res.json({ accessToken: newAccessToken, refreshToken: newGeneratedRefreshToken });
 };
 
 export {

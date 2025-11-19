@@ -7,7 +7,7 @@ import { toast } from "sonner";
 type Status = "checking" | "redirecting" | "render";
 
 /**
- * ✅ هوک نهایی ضد Flicker با Toast
+ * ✅ نسخه‌ی نهایی ضد Flicker با تشخیص ورود اولیه کاربر
  */
 export function useAuthRedirect(): Status {
   const router = useRouter();
@@ -15,24 +15,33 @@ export function useAuthRedirect(): Status {
   const { accessToken, role } = useAuthStore();
   const ready = useAuthReady();
   const [status, setStatus] = useState<Status>("checking");
+  const [firstLogin, setFirstLogin] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
 
-    // 🔐 اگر لاگین کرده ولی رفته صفحه‌های auth
+    // 🟢 شناسایی لاگین اولیه
+    // وقتی accessToken برای اولین بار ست می‌شود، یعنی verifyOtp موفق بوده
+    if (accessToken && status === "checking") {
+      setFirstLogin(true);
+      setTimeout(() => setFirstLogin(false), 1500); // بعد از ۱.۵ ثانیه عادی بشه
+    }
+
+    // 🔐 اگر لاگین کرده ولی تو صفحات auth هست
     if (accessToken && ["/login", "/signup", "/login/otp"].includes(pathname)) {
       setStatus("redirecting");
-      toast.warning(
-        "شما وارد حساب کاربری خود شده‌اید و به این صفحه دسترسی ندارید."
-      );
-      setTimeout(() => {
-        router.replace("/");
-      }, 100);
-      router.replace("/");
+      if (!firstLogin) {
+        toast.warning(
+          "شما وارد حساب کاربری خود شده‌اید و به این صفحه دسترسی ندارید."
+        );
+      } else {
+        toast.info("در حال ورود برای اولین بار...");
+      }
+      setTimeout(() => router.replace("/"), 300);
       return;
     }
 
-    // 🚫 اگر هنوز لاگین نکرده ولی رفته صفحات محافظت‌شده
+    // 🚫 اگر لاگین نکرده ولی رفته صفحات محافظت‌شده
     if (
       !accessToken &&
       (pathname.startsWith("/account") || pathname.startsWith("/admin"))

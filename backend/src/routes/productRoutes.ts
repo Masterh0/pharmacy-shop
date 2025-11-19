@@ -20,5 +20,6 @@ router.post("/", upload.single("imageUrl"), productController.create);
 router.put("/:id", upload.single("imageUrl"), productController.update);
 // حذف محصول
 router.delete("/:id", productController.remove);
+router.post("/:id/view", productController.increaseViewCount);
 
 export default router;

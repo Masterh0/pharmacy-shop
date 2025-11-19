@@ -10,7 +10,7 @@ export default function ProfileLayout({
       {/* کانتینر کلی (هم‌راستا با Sidebar و Boxها) */}
       <div className="flex w-[1200px] mr-32">
         {/* Sidebar پروفایل */}
-        <ProfileSidebar  />
+        <ProfileSidebar role="user" />
 
         {/* ناحیه محتوای صفحه پروفایل */}
         <main

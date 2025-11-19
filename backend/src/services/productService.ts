@@ -232,7 +232,26 @@ export const productService = {
       throw error;
     }
   },
-
+  increaseViewCount: async (id: number) => {
+    try {
+      const updated = await prisma.product.update({
+        where: { id },
+        data: { viewCount: { increment: 1 } },
+        select: { id: true, name: true, viewCount: true },
+        
+      });
+      console.log(updated)
+      return updated;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        throw new NotFoundError(`Product with ID ${id} not found.`);
+      }
+      throw error;
+    }
+  },
   // ۵. delete: مدیریت خطای پیدا نشدن و بازگرداندن رکورد حذف شده
   delete: async (id: number): Promise<Product> => {
     try {
