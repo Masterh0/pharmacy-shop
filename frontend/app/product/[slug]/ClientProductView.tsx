@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { categoryApi } from "@/lib/api/category";
 import api from "@/lib/axios";
-
+import InnerImageZoom from "react-inner-image-zoom";
 export default function ClientProductView({
   product,
   variants,
@@ -86,14 +86,14 @@ export default function ClientProductView({
             <Link
               href={`/categories/${cat.slug}?id=${cat.id}`}
               className={
-                i === breadcrumb.length - 1
+                i === breadcrumb.length
                   ? "text-[#0077B6] font-semibold"
                   : "hover:text-[#0077B6] transition-colors"
               }
             >
               {cat.name}
             </Link>
-            {i < breadcrumb.length - 1 && <span>›</span>}
+            {i <= breadcrumb.length - 1 && <span>›</span>}
           </span>
         ))}
         <span className="text-[#0077B6] font-semibold">{product.name}</span>
@@ -103,17 +103,22 @@ export default function ClientProductView({
       <div className="grid lg:grid-cols-2 gap-[64px] items-start">
         {/* تصویر اصلی */}
         <div className="flex justify-center items-center">
-          <div className="w-[530px] h-[576px] bg-white rounded-[16px] flex items-center justify-center border border-[#EDEDED]">
-            <Image
+          <div className="w-[530px] h-[576px] bg-white rounded-[16px] flex items-center justify-center border border-[#EDEDED] overflow-hidden">
+            <InnerImageZoom
               src={
                 product.imageUrl?.startsWith("http")
                   ? product.imageUrl
                   : `${baseUrl}/${product.imageUrl.replace(/^\/+/, "")}`
               }
+              zoomSrc={
+                product.imageUrl?.startsWith("http")
+                  ? product.imageUrl
+                  : `${baseUrl}/${product.imageUrl.replace(/^\/+/, "")}` // یا نسخه با رزولوشن بالاتر
+              }
               alt={product.name}
-              width={520}
-              height={520}
-              className="object-contain rounded-[8px]"
+              zoomType="hover" // زوم با حرکت موس
+              zoomScale={1.8} // میزان بزرگ‌نمایی
+              className="rounded-[8px] object-contain"
             />
           </div>
         </div>
@@ -186,7 +191,9 @@ export default function ClientProductView({
           <div className="mt-6 flex flex-col gap-8 w-[392px]">
             <span className="text-[24px] font-bold text-[#242424]">
               {selectedVariant?.price
-                ? `${selectedVariant.price.toLocaleString("fa-IR")} تومان`
+                ? `${Number(selectedVariant.price).toLocaleString(
+                    "fa-IR"
+                  )} تومان`
                 : "—"}
             </span>
 
