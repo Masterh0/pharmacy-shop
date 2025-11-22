@@ -7,6 +7,10 @@ import Link from "next/link";
 import { categoryApi } from "@/lib/api/category";
 import api from "@/lib/axios";
 import InnerImageZoom from "react-inner-image-zoom";
+import { useAuthStore } from "@/lib/stores/authStore";
+import { useAddToCart } from "@/lib/hooks/useAddToCart";
+import { getOrCreateSessionId } from "@/lib/utils/session";
+import { toast } from "sonner"; // یا هر سیستم نوتیف تو داری
 export default function ClientProductView({
   product,
   variants,
@@ -76,7 +80,32 @@ export default function ClientProductView({
       })
       .catch((err) => console.error("❌ خطا در افزایش viewCount:", err));
   }, [product?.id]);
+  const { userId } = useAuthStore();
+  const sessionId = getOrCreateSessionId();
+  const addToCart = useAddToCart(userId, sessionId);
+  function handleAddToCart() {
+    if (!selectedVariant?.id) {
+      toast.error("لطفاً طعم و بسته را انتخاب کنید");
+      return;
+    }
 
+    addToCart.mutate(
+      {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity: count,
+      },
+      {
+        onSuccess: () => {
+          toast.success("✅ به سبد خرید اضافه شد");
+        },
+        onError: (err) => {
+          console.error("❌ خطا در افزودن به سبد:", err);
+          toast.error("خطا در افزودن به سبد خرید");
+        },
+      }
+    );
+  }
   return (
     <div className="w-[85%] mx-auto flex flex-col mt-12 font-vazirmatn text-[#434343]">
       {/* 🟦 مسیر دسته‌بندی */}
@@ -198,8 +227,19 @@ export default function ClientProductView({
             </span>
 
             <div className="flex flex-row gap-6 items-center">
-              <button className="flex items-center justify-center gap-2 w-[184px] h-[48px] bg-gradient-to-r from-[#00B4D8] to-[#0077B6] text-white rounded-[8px] font-medium">
-                افزودن به سبد خرید
+              <button
+                onClick={handleAddToCart}
+                disabled={addToCart.isPending}
+                className={`flex items-center justify-center gap-2 w-[184px] h-[48px] rounded-[8px] font-medium transition-all 
+  ${
+    addToCart.isPending
+      ? "bg-gray-400 cursor-wait"
+      : "bg-gradient-to-r from-[#00B4D8] to-[#0077B6] text-white hover:opacity-90"
+  }`}
+              >
+                {addToCart.isPending
+                  ? "در حال افزودن..."
+                  : "افزودن به سبد خرید"}{" "}
               </button>
 
               <div className="flex flex-row items-center justify-center border border-[#00B4D8] rounded-[8px] w-[184px] h-[48px] px-6 gap-4">
