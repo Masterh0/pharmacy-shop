@@ -105,20 +105,12 @@ export const categoryService = {
     page: number = 1,
     limit: number = 12
   ) {
-    // ✅ دریافت تمام زیر‌دسته‌ها به‌صورت بازگشتی
+    // ۱. گرفتن همه زیر‌دسته‌ها
     const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
-
-    // ⚠️ حذف categoryId تکراری (چون خودش داخل با recursion ممکنه برگرده)
     const uniqueIds = Array.from(new Set([...subCategoryIds, categoryId]));
-    const totalCount = await prisma.product.count({
-      where: {
-        categoryId: { in: uniqueIds },
-        isBlock: false,
-      },
-    });
-    const { skip, take } = getPagination(page, limit);
-    // ✅ واکشی محصولات فعال از همه دسته‌ها و زیرشاخه‌ها
-    const products = await prisma.product.findMany({
+
+    // ۲. واکشی کل محصولات مرتبط بدون پیجینیشن (برای سورت دقیق کل دیتا)
+    const allProducts = await prisma.product.findMany({
       where: {
         categoryId: { in: uniqueIds },
         isBlock: false,
@@ -127,48 +119,52 @@ export const categoryService = {
         category: true,
         variants: true,
       },
-      skip,
-      take,
     });
 
-    // ✅ تابع کمکی برای گرفتن قیمت قابل محاسبه از واریانت‌ها
     const getPrice = (product: any, mode: "min" | "max" = "min") => {
-      if (!product.variants?.length) return Infinity;
-      const prices = product.variants.map((v: any) =>
-        v.price ? Number(v.price) : 0
-      );
+      if (!product.variants?.length) return Infinity; // اگر هیچ واریانتی نبود
+
+      const prices = product.variants.map((v: any) => {
+        // اگر تخفیف وجود داره، همون ملاکه وگرنه قیمت اصلی
+        const basePrice =
+          v.discountPrice && Number(v.discountPrice) > 0
+            ? Number(v.discountPrice)
+            : Number(v.price) || 0;
+        return basePrice;
+      });
+
+      // در حالت min یا max مقدار نهایی رو برمی‌گردونیم
       return mode === "min" ? Math.min(...prices) : Math.max(...prices);
     };
 
-    // ✅ منطق مرتب‌سازی سمت جاوااسکریپت
+    // ۳. سورت روی کل محصولات
     switch (sort) {
-      case "cheapest": {
-        products.sort((a, b) => getPrice(a, "min") - getPrice(b, "min"));
+      case "cheapest":
+        allProducts.sort((a, b) => getPrice(a, "min") - getPrice(b, "min"));
         break;
-      }
-      case "expensive": {
-        products.sort((a, b) => getPrice(b, "max") - getPrice(a, "max"));
+      case "expensive":
+        allProducts.sort((a, b) => getPrice(b, "max") - getPrice(a, "max"));
         break;
-      }
-      case "bestseller": {
-        products.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
+      case "bestseller":
+        allProducts.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
         break;
-      }
-      case "mostViewed": {
-        // 👈 اضافه شد
-        products.sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0));
+      case "mostViewed":
+        allProducts.sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0));
         break;
-      }
-      default: {
-        // جدیدترین بر اساس تاریخ ساخت
-        products.sort(
+      default:
+        // جدیدترین
+        allProducts.sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        break;
-      }
     }
+
+    // ۴. پیجینیشن بعد از سورت
+    const totalCount = allProducts.length;
+    const { skip, take } = getPagination(page, limit);
+    const paginatedProducts = allProducts.slice(skip, skip + take);
     const pagination = buildPaginationMeta(totalCount, page, limit);
-    return { products, pagination };
+
+    return { products: paginatedProducts, pagination };
   },
 };

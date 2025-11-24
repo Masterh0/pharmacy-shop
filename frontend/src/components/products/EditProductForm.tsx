@@ -69,7 +69,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   /* -------------------------------------------- */
   const mutation = useMutation({
     mutationFn: async (data: CreateProductDTO) => {
-      console.log("🧩 آماده‌سازی FormData برای ارسال به سرور");
       if (!initialData?.id) throw new Error("شناسه محصول نامعتبر است");
 
       const formData = new FormData();
@@ -83,7 +82,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
       if (data.imageUrl instanceof File)
         formData.append("imageUrl", data.imageUrl); // فقط در صورت فایل فیزیکی
       else formData.append("imageUrl", data.imageUrl as string);
-      console.log("📤 فرستادن به API productApi.update...");
       const res = await productApi.update(initialData.id, formData);
       return res;
     },
@@ -101,7 +99,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   /* 🎯 تابع ارسال فرم */
   /* -------------------------------------------- */
   const onSubmit = async (data: CreateProductDTO) => {
-    console.log("📦 دادهٔ نهایی قبل از ارسال:", data);
     try {
       const parsed = editProductSchema.safeParse(data);
       if (!parsed.success) {
@@ -172,7 +169,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
                 <CategorySelectSearch
                   value={field.value}
                   onChange={(val) => {
-                    console.log("📦 دسته‌بندی انتخاب شد:", val);
                     field.onChange(val ? Number(val) : undefined);
                   }}
                   defaultValue={Number(initialData.categoryId)}

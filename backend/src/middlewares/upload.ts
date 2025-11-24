@@ -1,36 +1,43 @@
-// src/middlewares/upload.ts
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 
 const uploadDir = path.join(__dirname, "../../uploads");
 
-// اطمینان از وجود پوشه
+// اگر پوشه وجود نداشت بساز
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// پیکربندی ذخیره فایل
+// تنظیمات ذخیره‌سازی فایل‌ها
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads"));
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1e6);
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname) || ".jpg";
     const baseName = req.body.name
       ? req.body.name.replace(/\s+/g, "-").toLowerCase()
-      : "product";
+      : "image";
     cb(null, `${baseName}-${timestamp}-${random}${ext}`);
   },
 });
 
-// فقط عکس مجاز
+// 🎯 پذیرش همه نوع عکس
 const fileFilter = (req: any, file: any, cb: any) => {
-  const allowed = ["image/jpeg", "image/png", "image/webp"];
-  if (allowed.includes(file.mimetype)) cb(null, true);
-  else cb(new Error("فقط فایل‌های تصویری مجاز هستند!"));
+  // هر MIME که با image/ شروع بشه قبول میشه
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("فقط فایل‌های تصویری مجاز هستند!"));
+  }
 };
 
-const upload = multer({ storage, fileFilter });
+// می‌تونستی محدودیت حجم هم اضافه کنی (اختیاری)
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // حداکثر 10 مگابایت
+});
 
 export default upload;

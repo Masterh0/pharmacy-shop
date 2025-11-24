@@ -105,9 +105,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
               p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
             }`;
         const count = cartCount[p.id] || 0;
-        console.log("p.imageUrl =", p.imageUrl);
-        console.log("BASE_URL =", BASE_URL);
-        console.log("Final imageSrc =", imageSrc);
+
         return (
           <div
             key={p.id}
