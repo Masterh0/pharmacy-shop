@@ -108,7 +108,10 @@ const verifyRegisterOtp = async (
         .status(400)
         .json({ error: "کد تأیید نامعتبر است یا مهلت آن به پایان رسیده است." });
 
-    await prisma.otp.updateMany({ where: { phone: normalizePhone(phone) }, data: { used: true } });
+    await prisma.otp.updateMany({
+      where: { phone: normalizePhone(phone) },
+      data: { used: true },
+    });
 
     const user = await prisma.user.update({
       where: { phone: normalizePhone(phone) },
@@ -178,7 +181,9 @@ const sendLoginOtp = async (
     if (!/^09\d{9}$/.test(phone))
       return res.status(400).json({ error: "فرمت شماره موبایل صحیح نیست." });
 
-    const user = await prisma.user.findUnique({ where: { phone: normalizePhone(phone) } });
+    const user = await prisma.user.findUnique({
+      where: { phone: normalizePhone(phone) },
+    });
     if (!user)
       return res.status(404).json({ error: "کاربری با این شماره یافت نشد." });
     if (!user.isVerified)
@@ -243,13 +248,18 @@ const verifyLoginOtp = async (
         .status(400)
         .json({ error: "کد تأیید نادرست است یا مهلت آن تمام شده است." });
 
-    await prisma.otp.updateMany({ where: { phone: normalizePhone(phone) }, data: { used: true } });
+    await prisma.otp.updateMany({
+      where: { phone: normalizePhone(phone) },
+      data: { used: true },
+    });
     await prisma.otp.update({
       where: { id: otpRecord.id },
       data: { isVerified: true },
     });
 
-    const user = await prisma.user.findUnique({ where: { phone: normalizePhone(phone) } });
+    const user = await prisma.user.findUnique({
+      where: { phone: normalizePhone(phone) },
+    });
     if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
 
     const { accessToken, refreshToken } = await generateTokens(
@@ -305,19 +315,22 @@ const refresh = async (
 
   // --- منطق چرخش توکن (Token Rotation) ---
   // 4. رفرش‌توکن قدیمی را از دیتابیس حذف کن (بی‌اعتبار کردن توکن استفاده شده)
-  await prisma.refreshToken.delete({
+  await prisma.refreshToken.deleteMany({
     where: { id: tokenRecord.id },
   });
 
   // 5. یک Access Token جدید و یک Refresh Token جدید تولید کن.
   //    تابع `generateTokens` خودش رکورد جدید رفرش‌توکن را در دیتابیس ایجاد می‌کند.
-  const { accessToken: newAccessToken, refreshToken: newGeneratedRefreshToken } = await generateTokens(
-    user.id,
-    user.role
-  );
+  const {
+    accessToken: newAccessToken,
+    refreshToken: newGeneratedRefreshToken,
+  } = await generateTokens(user.id, user.role);
 
   // 6. توکن‌های جدید را به کلاینت برگردان
-  res.json({ accessToken: newAccessToken, refreshToken: newGeneratedRefreshToken });
+  res.json({
+    accessToken: newAccessToken,
+    refreshToken: newGeneratedRefreshToken,
+  });
 };
 
 export {
