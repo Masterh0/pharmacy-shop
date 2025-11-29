@@ -6,6 +6,9 @@ import type { Address } from "@/lib/types/address";
 import ProvinceSelect from "./ProvinceSelect";
 import CitySelect from "./CitySelect";
 
+// Zod Schema (مسیر درست)
+import { addressClientSchema } from "@/lib/validators/address";
+
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +27,8 @@ export default function AddressesPage() {
     lng: undefined,
   });
 
+  const [clientErrors, setClientErrors] = useState<string[]>([]);
+
   useEffect(() => {
     fetchAddresses();
   }, []);
@@ -39,8 +44,21 @@ export default function AddressesPage() {
   };
 
   const handleCreate = async () => {
-    const newAddress = await addressApi.create(form);
+    // Validate before sending
+    const parsed = addressClientSchema.safeParse(form);
+
+    if (!parsed.success) {
+      setClientErrors(parsed.error.issues.map((e) => e.message));
+      return;
+    }
+
+    setClientErrors([]);
+
+    const validData = parsed.data;
+
+    const newAddress = await addressApi.create(validData);
     setAddresses([...addresses, newAddress]);
+
     resetForm();
   };
 
@@ -63,48 +81,53 @@ export default function AddressesPage() {
       <h2 className="text-[#242424] text-xl font-bold mb-4 text-right">
         افزودن آدرس
       </h2>
+
+      {/* نمایش خطاهای Zod */}
+      {clientErrors.length > 0 && (
+        <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded mb-4 text-right">
+          {clientErrors.map((err, i) => (
+            <p key={i}>• {err}</p>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-4">
         {/* فرم ایجاد آدرس */}
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="نام و نام خانوادگی"
             value={form.fullName}
-            onChange={(e) =>
-              setForm({ ...form, fullName: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
+
           <Input
             label="شماره تماس"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
+
           <Input
             label="کد پستی"
             value={form.postalCode}
             onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
           />
 
-          {/* انتخاب استان */}
           <ProvinceSelect
             value={form.province}
             onChange={(province) => setForm({ ...form, province, city: "" })}
           />
 
-          {/* انتخاب شهر */}
           <CitySelect
             province={form.province}
             value={form.city}
             onChange={(city) => setForm({ ...form, city })}
           />
 
-          {/* آدرس کامل */}
           <div className="col-span-2">
             <Input
               label="آدرس کامل"
               value={form.street}
-              onChange={(e) =>
-                setForm({ ...form, street: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, street: e.target.value })}
             />
           </div>
         </div>
@@ -121,7 +144,7 @@ export default function AddressesPage() {
 
       {/* لیست آدرس‌ها */}
       <div className="mt-8 border-t border-[#EDEDED] pt-4 space-y-3">
-        آدرس ها
+        آدرس‌ها
         {loading ? (
           <p className="text-center text-gray-500">در حال بارگذاری...</p>
         ) : addresses.length === 0 ? (
@@ -133,25 +156,26 @@ export default function AddressesPage() {
               className="border border-[#D6D6D6] p-4 rounded-lg flex justify-between items-center"
             >
               <div className="text-right">
-                <p className="font-bold">
-                  {addr.fullName}
-                </p>
+                <p className="font-bold">{addr.fullName}</p>
                 <p className="text-sm text-gray-600">{addr.street}</p>
                 <p className="text-sm text-gray-600">
                   {addr.city}, {addr.province}
                 </p>
                 <p className="text-sm text-gray-600">{addr.postalCode}</p>
               </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={() =>
                     addressApi.setDefault(addr.id).then(fetchAddresses)
                   }
-                  className={`px-3 py-1 rounded text-sm ${addr.isDefault ? "bg-green-500 text-white" : "bg-gray-200"
-                    }`}
+                  className={`px-3 py-1 rounded text-sm ${
+                    addr.isDefault ? "bg-green-500 text-white" : "bg-gray-200"
+                  }`}
                 >
                   پیش‌فرض
                 </button>
+
                 <button
                   onClick={() =>
                     addressApi.remove(addr.id).then(fetchAddresses)

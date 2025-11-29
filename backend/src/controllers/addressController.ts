@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
+import { ZodError } from "zod";
 import { AddressService } from "../services/addressService";
+import { createAddressSchema, updateAddressSchema } from "../dto/address.dto";
 import "../types";
 
 const service = new AddressService();
@@ -10,21 +12,33 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
+      const body = createAddressSchema.parse(req.body);
       const userId = req.user.id;
-      const address = await service.createAddress(userId, req.body);
-      res.json(address);
+
+      const address = await service.createAddress(userId, body);
+      return res.status(201).json(address);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      if (err instanceof ZodError) {
+        return res.status(400).json({ errors: err.issues });
+      }
+      return res.status(500).json({ error: err.message });
     }
   }
 
   async list(req: Request, res: Response) {
-    if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = req.user.id;
+      const addresses = await service.getAddresses(userId);
+
+      return res.json(addresses);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
     }
-    const userId = req.user.id;
-    const addresses = await service.getAddresses(userId);
-    res.json(addresses);
   }
 
   async get(req: Request, res: Response) {
@@ -32,14 +46,14 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
       const userId = req.user.id;
-      const address = await service.getAddressById(
-        userId,
-        Number(req.params.id)
-      );
-      res.json(address);
+      const id = Number(req.params.id);
+
+      const address = await service.getAddressById(userId, id);
+      return res.json(address);
     } catch (err: any) {
-      res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: err.message });
     }
   }
 
@@ -48,15 +62,18 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
+      const body = updateAddressSchema.parse(req.body);
       const userId = req.user.id;
-      const address = await service.updateAddress(
-        userId,
-        Number(req.params.id),
-        req.body
-      );
-      res.json(address);
+      const id = Number(req.params.id);
+
+      const updated = await service.updateAddress(userId, id, body);
+      return res.json(updated);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      if (err instanceof ZodError) {
+        return res.status(400).json({ errors: err.issues });
+      }
+      return res.status(400).json({ error: err.message });
     }
   }
 
@@ -65,11 +82,14 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
       const userId = req.user.id;
-      await service.deleteAddress(userId, Number(req.params.id));
-      res.json({ success: true });
+      const id = Number(req.params.id);
+
+      await service.deleteAddress(userId, id);
+      return res.json({ success: true });
     } catch (err: any) {
-      res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: err.message });
     }
   }
 
@@ -78,14 +98,14 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
+
       const userId = req.user.id;
-      const address = await service.setDefaultAddress(
-        userId,
-        Number(req.params.id)
-      );
-      res.json(address);
+      const id = Number(req.params.id);
+
+      const address = await service.setDefaultAddress(userId, id);
+      return res.json(address);
     } catch (err: any) {
-      res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: err.message });
     }
   }
 }

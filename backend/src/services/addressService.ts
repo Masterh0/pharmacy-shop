@@ -1,12 +1,12 @@
 import { prisma } from "../config/db";
-import  normalizePhone  from "../controllers/authController";
+import normalizePhone from "../controllers/authController";
+import { CreateAddressDto, UpdateAddressDto } from "../dto/address.dto";
 
 export class AddressService {
-  async createAddress(userId: number, data: any) {
-    // نرمال‌سازی شماره
+  async createAddress(userId: number, data: CreateAddressDto) {
     const phone = normalizePhone(data.phone);
 
-    // اگر آدرس جدید باید پیش‌فرض باشد، آدرس‌های قبلی را false کن
+    // اگر آدرس جدید پیش‌فرض باشد، همه‌ی آدرس‌های قبلی را غیرپیش‌فرض کن
     if (data.isDefault) {
       await prisma.address.updateMany({
         where: { userId },
@@ -38,9 +38,16 @@ export class AddressService {
     return address;
   }
 
-  async updateAddress(userId: number, id: number, data: any) {
+  async updateAddress(userId: number, id: number, data: UpdateAddressDto) {
     const phone = data.phone ? normalizePhone(data.phone) : undefined;
 
+    // فقط روی آدرس خود کاربر
+    const address = await prisma.address.findFirst({
+      where: { id, userId },
+    });
+    if (!address) throw new Error("آدرس یافت نشد");
+
+    // اگر آدرس جدید قرار است پیش‌فرض شود:
     if (data.isDefault) {
       await prisma.address.updateMany({
         where: { userId },
@@ -49,7 +56,7 @@ export class AddressService {
     }
 
     return prisma.address.update({
-      where: { id },
+      where: { id, userId },
       data: {
         ...data,
         ...(phone && { phone }),
@@ -58,13 +65,16 @@ export class AddressService {
   }
 
   async deleteAddress(userId: number, id: number) {
+    // فقط آدرس کاربر خودش پاک شود
     return prisma.address.delete({
-      where: { id },
+      where: { id, userId },
     });
   }
 
   async setDefaultAddress(userId: number, id: number) {
-    const address = await prisma.address.findFirst({ where: { id, userId } });
+    const address = await prisma.address.findFirst({
+      where: { id, userId },
+    });
     if (!address) throw new Error("آدرس یافت نشد");
 
     await prisma.address.updateMany({
@@ -73,7 +83,7 @@ export class AddressService {
     });
 
     return prisma.address.update({
-      where: { id },
+      where: { id, userId },
       data: { isDefault: true },
     });
   }
