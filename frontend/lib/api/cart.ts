@@ -3,15 +3,13 @@ import type { Cart, CartItem } from "@/lib/types/cart";
 
 export const cartApi = {
   /** 🛒 دریافت سبد خرید جاری کاربر (بر اساس userId یا sessionId) */
-  async get(params?: { userId?: number; sessionId?: string }): Promise<Cart> {
-    const { data } = await api.get("/cart", { params });
+  async get(): Promise<Cart> {
+    const { data } = await api.get("/cart");
     return data;
   },
 
   /** ➕ افزودن آیتم (محصول و واریانت) به سبد خرید */
   async add(payload: {
-    userId?: number;
-    sessionId?: string;
     productId: number;
     variantId: number;
     quantity: number;
@@ -36,11 +34,8 @@ export const cartApi = {
   },
 
   /** 🧹 خالی‌کردن کل سبد خرید */
-  async clear(params?: {
-    userId?: number;
-    sessionId?: string;
-  }): Promise<{ message: string }> {
-    const { data } = await api.delete("/cart/clear", { params });
+  async clear(): Promise<{ message: string }> {
+    const { data } = await api.delete("/cart/clear");
     return data;
   },
 };

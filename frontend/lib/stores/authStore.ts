@@ -1,72 +1,61 @@
+// /lib/stores/authStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Role } from "@/lib/api/auth";
 
 interface UserAuthData {
-  accessToken?: string;
-  refreshToken?: string;
-  role?: Role;
-  userId?: number;
-  phone?: string;
-  name?: string;
+  role?: string | null;
+  userId?: number | null;
+  phone?: string | null;
+  name?: string | null;
 }
 
 interface AuthState extends UserAuthData {
-  setAuth: (data: {
-    accessToken: string;
-    refreshToken: string;
-    role: Role;
-    userId: number;
-    phone: string;
-    name?: string;
-  }) => void;
-  setTokens: (data: { accessToken: string; refreshToken: string }) => void; // ✨ این تابع همینطور که هست درسته
-  logout: () => void; // ✨ این تابع هم درسته
+  hydrated: boolean;
+  setAuth: (data: UserAuthData) => void;
+  clearAuth: () => void;
+  markHydrated: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      accessToken: undefined,
-      refreshToken: undefined,
-      role: undefined,
-      userId: undefined,
-      phone: undefined,
-      name: undefined,
+      role: null,
+      userId: null,
+      phone: null,
+      name: null,
+      hydrated: false,
 
       setAuth: (data) => {
-        console.log("🟢 [AuthStore] setAuth called (full data)");
-        set({ ...data });
-      },
-      
-      setTokens: ({ accessToken, refreshToken }) => { // ✨ تعریف درست: دریافت یک شیء
-        console.log("🔄 [AuthStore] setTokens called (refresh flow)");
-        set({ accessToken, refreshToken });
-      },
-
-      logout: () => {
-        console.log("🟡 [AuthStore] logout called — clearing state...");
         set({
-          accessToken: undefined,
-          refreshToken: undefined,
-          role: undefined,
-          userId: undefined,
-          phone: undefined,
-          name: undefined,
+          role: data.role ?? get().role,
+          userId: data.userId ?? get().userId,
+          phone: data.phone ?? get().phone,
+          name: data.name ?? get().name,
         });
       },
+
+      clearAuth: () => {
+        set({
+          role: null,
+          userId: null,
+          phone: null,
+          name: null,
+        });
+      },
+
+      markHydrated: () => set({ hydrated: true }),
     }),
+
     {
-      name: "auth-store",
-      onRehydrateStorage: () => {
-        console.log("🔷 [AuthStore] Rehydration started — loading from storage...");
-        return (state, error) => {
-          if (error) {
-            console.error("❌ [AuthStore] Error during rehydration:", error);
-          } else {
-            console.log("🟣 [AuthStore] Rehydration complete — current state:", state);
-          }
-        };
+      name: "auth-ui",
+      partialize: (s) => ({
+        role: s.role,
+        userId: s.userId,
+        phone: s.phone,
+        name: s.name,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.markHydrated();
       },
     }
   )

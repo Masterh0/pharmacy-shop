@@ -60,9 +60,17 @@ export default function VariantList({ productId }: VariantListProps) {
                 <tr key={variant.id}>
                   <td className="border p-2">{variant.packageType}</td>
                   <td className="border p-2">{variant.packageQuantity}</td>
-                  <td className="border p-2">{variant.price} تومان</td>
                   <td className="border p-2">
-                    {variant.discountPrice ?? "-"}
+                    {typeof variant.price === "string"
+                      ? Number(variant.price).toLocaleString("fa-IR")
+                      : variant.price.toLocaleString("fa-IR")} تومان
+                  </td>
+                  <td className="border p-2">
+                    {variant.discountPrice
+                      ? (typeof variant.discountPrice === "string"
+                        ? Number(variant.discountPrice).toLocaleString("fa-IR")
+                        : variant.discountPrice.toLocaleString("fa-IR")) + " تومان"
+                      : "-"}
                   </td>
                   <td className="border p-2">{variant.stock}</td>
                   <td className="border p-2">

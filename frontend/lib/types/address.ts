@@ -1,15 +1,14 @@
 export interface Address {
   id: number;
 
-  /** عنوان آدرس، مثل "خانه" یا "محل کار" */
   /** نام دریافت‌کننده کالا */
-  fullName : string;
+  fullName: string;
 
   /** شماره تلفن، با فرمت نرمال‌سازی شده */
   phone: string;
 
-  /** استان */
-  province: string;
+  /** استان (اختیاری در schema) */
+  province?: string | null;
 
   /** شهر */
   city: string;
@@ -17,15 +16,17 @@ export interface Address {
   /** آدرس کامل (خیابان، کوچه، پلاک) */
   street: string;
 
-  /** کد پستی */
-  postalCode: string;
+  /** کد پستی (اختیاری در schema) */
+  postalCode?: string | null;
 
   /** آیا این آدرس پیش‌فرض کاربر است */
   isDefault: boolean;
 
-  /** مختصات موقعیت مکانی (اختیاری) */
-  latitude?: number;
-  longitude?: number;
+  /** مختصات موقعیت مکانی (lat در schema) */
+  lat?: number | null;
+
+  /** مختصات موقعیت مکانی (lng در schema) */
+  lng?: number | null;
 
   /** تاریخ ایجاد و بروزرسانی */
   createdAt: string; // ISO date string

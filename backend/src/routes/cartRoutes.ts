@@ -1,8 +1,9 @@
 // src/routes/cart.routes.ts
 import express from "express";
 import { CartController } from "../controllers/cartController";
-
+import { cartIdentity } from "../middlewares/cartIdentity";
 const router = express.Router();
+router.use(cartIdentity);
 const controller = new CartController();
 
 router.post("/add", controller.addToCart.bind(controller));

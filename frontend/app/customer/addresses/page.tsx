@@ -13,15 +13,15 @@ export default function AddressesPage() {
   const [form, setForm] = useState<
     Omit<Address, "id" | "userId" | "createdAt" | "updatedAt">
   >({
-    fullName : "",
+    fullName: "",
     phone: "",
     province: "",
     city: "",
     postalCode: "",
     street: "",
     isDefault: false,
-    latitude: undefined,
-    longitude: undefined,
+    lat: undefined,
+    lng: undefined,
   });
 
   useEffect(() => {
@@ -46,13 +46,15 @@ export default function AddressesPage() {
 
   const resetForm = () => {
     setForm({
-      fullName : "",
+      fullName: "",
       phone: "",
       province: "",
       city: "",
       postalCode: "",
       street: "",
       isDefault: false,
+      lat: undefined,
+      lng: undefined,
     });
   };
 
@@ -66,9 +68,9 @@ export default function AddressesPage() {
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="نام و نام خانوادگی"
-            value={form.fullName }
+            value={form.fullName}
             onChange={(e) =>
-              setForm({ ...form, fullName : e.target.value })
+              setForm({ ...form, fullName: e.target.value })
             }
           />
           <Input
@@ -132,7 +134,7 @@ export default function AddressesPage() {
             >
               <div className="text-right">
                 <p className="font-bold">
-                  {addr.fullName }
+                  {addr.fullName}
                 </p>
                 <p className="text-sm text-gray-600">{addr.street}</p>
                 <p className="text-sm text-gray-600">
@@ -145,9 +147,8 @@ export default function AddressesPage() {
                   onClick={() =>
                     addressApi.setDefault(addr.id).then(fetchAddresses)
                   }
-                  className={`px-3 py-1 rounded text-sm ${
-                    addr.isDefault ? "bg-green-500 text-white" : "bg-gray-200"
-                  }`}
+                  className={`px-3 py-1 rounded text-sm ${addr.isDefault ? "bg-green-500 text-white" : "bg-gray-200"
+                    }`}
                 >
                   پیش‌فرض
                 </button>

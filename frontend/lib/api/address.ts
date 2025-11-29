@@ -5,7 +5,6 @@ export const addressApi = {
   /** دریافت همه‌ی آدرس‌های کاربر جاری */
   async list(): Promise<Address[]> {
     const { data } = await api.get("/addresses");
-    
     return data;
   },
 

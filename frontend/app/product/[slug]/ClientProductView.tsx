@@ -7,9 +7,7 @@ import Link from "next/link";
 import { categoryApi } from "@/lib/api/category";
 import api from "@/lib/axios";
 import InnerImageZoom from "react-inner-image-zoom";
-import { useAuthStore } from "@/lib/stores/authStore";
 import { useCart } from "@/lib/hooks/useAddToCart";
-import { getOrCreateSessionId } from "@/lib/utils/session";
 import { toast } from "sonner";
 
 import CartSuccessModal from "@/src/components/CartSuccessModal"; // 👈 اضافه شد

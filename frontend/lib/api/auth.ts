@@ -1,32 +1,22 @@
-import axios from "axios";
+import api from "@/lib/axios"; 
 
 // نقش‌ها
 export type Role = "ADMIN" | "STAFF" | "CUSTOMER";
 
-// پاسخ‌ها
+// پاسخ لاگین/ثبت‌نام
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: { id: number; phone: string; email?: string; role: Role ,name:string };
-}
-export interface LoginOtpInput {
-  phone: string;
-}
-export interface AdminResponse {
-  message: string;
+  user: {
+    id: number;
+    phone: string;
+    email?: string;
+    role: Role;
+    name: string;
+  };
 }
 
-export interface ApiError {
-  error?: string;
-}
-export interface LoginOtpResponse {
-  message: string;
-  expiresAt?: string; // زمان انقضا OTP
-  remainingMs?: number; // زمان باقیمانده اگر OTP فعال موجود باشد
-}
 // ورودی‌ها
 export interface RegisterInput {
-  name:string;
+  name: string;
   phone: string;
   password: string;
   email?: string;
@@ -43,82 +33,102 @@ export interface VerifyOtpInput {
   code: string;
 }
 
-// پاسخ ثبت‌نام اولیه (OTP ارسال شد)
+export interface LoginOtpInput {
+  phone: string;
+}
+
+// پاسخ‌های خاص
 export interface RegisterOtpResponse {
   message: string;
   userId: number;
 }
-export interface Product {
-  id: number;
-  name: string;
-  price: number;
+
+export interface LoginOtpResponse {
+  message: string;
+  expiresAt?: string;
+  remainingMs?: number;
 }
 
-export interface UpdateProductDTO {
-  name?: string;
-  price?: number;
+export interface AdminResponse {
+  message: string;
 }
-const api = axios.create({
-  baseURL: "http://localhost:5000/auth", // آدرس backend
-});
+
+export interface ApiError {
+  error?: string;
+}
 
 // ----------------------
-// ثبت‌نام و OTP
+// ثبت‌نام + OTP
 // ----------------------
 export const register = async (data: RegisterInput) => {
-  const response = await api.post<RegisterOtpResponse>("/register", data);
-  return response.data;
+  const res = await api.post<RegisterOtpResponse>("/auth/register", data);
+  return res.data;
 };
 
 export const verifyRegisterOtp = async (data: VerifyOtpInput) => {
-  const response = await api.post<AuthResponse>("/register/verify-otp", data);
-  return response.data;
+  // بعد از موفقیت، بک‌اند کوکی HttpOnly رو ست می‌کنه
+  const res = await api.post<AuthResponse>("/auth/register/verify-otp", data);
+  return res.data;
 };
 
 // ----------------------
 // ورود با پسورد
 // ----------------------
 export const login = async (data: LoginInput) => {
-  const response = await api.post<AuthResponse>("/login", data);
-  return response.data;
+  const res = await api.post<AuthResponse>("/auth/login", data);
+  return res.data;
 };
 
 // ----------------------
 // ورود با OTP
 // ----------------------
 export const requestLoginOtp = async (phone: string) => {
-  const response = await api.post("/login/request-otp", { phone });
-  return response.data; // فقط پیام
+  const res = await api.post<{ message: string }>("/auth/login/request-otp", { phone });
+  return res.data;
 };
 
 export const verifyLoginOtp = async (data: VerifyOtpInput) => {
-  const res = await api.post<AuthResponse>("/login/verify-otp", data);
+  const res = await api.post<AuthResponse>("/auth/login/verify-otp", data);
   return res.data;
 };
 
 // ----------------------
-// رفرش توکن
+// رفرش‌توکن از بک‌اند (کوکی)
 // ----------------------
-export const refreshToken = async () => {
-  const refreshToken = localStorage.getItem("refreshToken");
-  if (!refreshToken) throw new Error("No refresh token found");
-  const response = await api.post<AuthResponse>("/refresh", { refreshToken });
-  return response.data;
-};
+// export const refreshToken = async () => {
+//   // در نسخه جدید نیازی به ارسال توکن در body نیست — بک‌اند از req.cookies.refreshToken استفاده می‌کند
+//   const res = await api.post<AuthResponse>("/auth/refresh");
+//   return res.data;
+// };
+
+// // ----------------------
+// // تست ادمین
+// // ----------------------
+// export const testAdmin = async () => {
+//   // کوکی HttpOnly به صورت خودکار ارسال می‌شود
+//   const res = await api.get<AdminResponse>("/auth/admin/test");
+//   return res.data;
+// };
 
 // ----------------------
-// تست ادمین
+// ارسال OTP برای لاگین
 // ----------------------
-export const testAdmin = async () => {
-  const accessToken = localStorage.getItem("accessToken");
-  if (!accessToken) throw new Error("No access token found");
-  const response = await api.get<AdminResponse>("/admin/test", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return response.data;
-};
-
 export const sendLoginOtp = async (data: LoginOtpInput) => {
-  const res = await api.post<LoginOtpResponse>("/login/request-otp", data);
+  const res = await api.post<LoginOtpResponse>("/auth/login/request-otp", data);
+  return res.data;
+};
+
+// ----------------------
+// لاگ‌اوت (پاک کردن کوکی‌ها)
+// ----------------------
+export const logout = async () => {
+  const res = await api.post<{ message: string }>("/auth/logout", null, {
+    withCredentials: true, // ارسال کوکی‌ها برای پاکسازی
+  });
+  return res.data;
+};
+export const me = async () => {
+  const res = await api.get<AuthResponse>("/auth/me", {
+  });
   return res.data;
 };

@@ -1,17 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { variantApi } from "../api/variantApi";
 import type { ProductVariant } from "@/lib/types/variant";
+import type { CreateVariantDTO } from "@/lib/validators/variantSchema";
 
 interface UpdateVariantParams {
   id: number;
-  payload: Partial<ProductVariant>;
+  payload: Partial<Omit<ProductVariant, "id" | "createdAt" | "updatedAt">>;
 }
 
 export const useVariants = (productId: number) => {
   const queryClient = useQueryClient();
 
   // 📦 گرفتن تمام واریانت‌های یک محصول
-  const getAll = useQuery<ProductVariant[]>({
+  const { data, isLoading, error } = useQuery<ProductVariant[]>({
     queryKey: ["productVariants", productId],
     queryFn: () => variantApi.getAllByProductId(productId),
     enabled: !!productId,
@@ -19,7 +20,7 @@ export const useVariants = (productId: number) => {
 
   // ➕ افزودن واریانت
   const add = useMutation({
-    mutationFn: (payload: Omit<ProductVariant, "id">) =>
+    mutationFn: (payload: Omit<ProductVariant, "id" | "createdAt" | "updatedAt">) =>
       variantApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -49,5 +50,12 @@ export const useVariants = (productId: number) => {
     },
   });
 
-  return { getAll, add, update, remove };
+  return {
+    data,
+    isLoading,
+    error,
+    add,
+    update,
+    remove
+  };
 };

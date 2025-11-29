@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "CommonJS",
-    "outDir": "./dist",
     "rootDir": "./",
+    "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,12 +11,13 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "baseUrl": ".",
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "paths": {
       "@controllers/*": ["src/controllers/*"],
       "@middlewares/*": ["src/middlewares/*"],
-      "@types/*": ["types/*"]
+      "@types/*": ["src/types/*"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": ["src", "src/types/**/*.d.ts"],  // ← این خط اضافه شده
   "exclude": ["node_modules", "dist"]
 }

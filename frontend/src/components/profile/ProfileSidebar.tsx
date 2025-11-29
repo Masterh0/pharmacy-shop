@@ -1,5 +1,8 @@
 "use client";
+
 import { useAuthStore } from "@/lib/stores/authStore";
+import { me, AuthResponse } from "@/lib/api/auth";
+import { useQuery } from "@tanstack/react-query";
 import {
   Home2,
   Bag2,
@@ -15,9 +18,8 @@ import {
   ShoppingCart,
 } from "iconsax-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-/* ---------------- Types ------------------ */
 type IconType = typeof Home2;
 
 interface BaseMenuItem {
@@ -27,14 +29,13 @@ interface BaseMenuItem {
 
 interface LinkMenuItem extends BaseMenuItem {
   href: string;
-  action?: never;
   children?: SubMenuItem[];
+  action?: never;
 }
 
 interface ActionMenuItem extends BaseMenuItem {
   action: "logout";
   href?: never;
-  children?: never;
 }
 
 interface SubMenuItem extends BaseMenuItem {
@@ -43,23 +44,42 @@ interface SubMenuItem extends BaseMenuItem {
 
 type MenuItem = LinkMenuItem | ActionMenuItem;
 
-/* ---------------- Component ------------------ */
 export default function ProfileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { name, role, accessToken, logout } = useAuthStore();
+  const { name, role, userId, hydrated, setAuth, clearAuth } = useAuthStore();
 
   const [expanded, setExpanded] = useState<string | null>(null);
-  const toggleExpand = (key: string) => setExpanded(expanded === key ? null : key);
+  const toggleExpand = (key: string) =>
+    setExpanded((p) => (p === key ? null : key));
 
-  // 🚨 برای جلوگیری از دسترسی بدون لاگین
-  useEffect(() => {
-    if (!accessToken || !role) router.replace("/login");
-  }, [accessToken, role, router]);
+  // ✅ React Query بدون ارور (Generic + onSuccess + onError)
+  useQuery<AuthResponse>({
+    queryKey: ["me"],
+    queryFn: me,
+    enabled: hydrated && (!userId || !role),
+    retry: false,
+    onSuccess: (data) => {
+      if (data?.user) {
+        setAuth({
+          role: data.user.role,
+          userId: data.user.id,
+          name: data.user.name,
+          phone: data.user.phone,
+        });
+      }
+    },
+    onError: () => {
+      clearAuth();
+      router.replace("/login");
+    },
+  });
 
-  if (!accessToken || !role) return null;
+  // ✅ هوک‌ها صدا زده شدند، حالا رندر مشروط مجازه
+  if (!hydrated) return null;
+  if (!userId || !role) return null;
 
-  /* -------------- منوهای مختلف -------------- */
+  const displayName = name?.trim() ? name : "کاربر محترم";
 
   const adminMenu: MenuItem[] = [
     { label: "پیشخوان", icon: Home2, href: "/manager/profile" },
@@ -106,106 +126,103 @@ export default function ProfileSidebar() {
 
   const menuItems = role === "ADMIN" ? adminMenu : customerMenu;
 
-  const displayName = name?.trim() && name !== "null" ? name : "کاربر محترم";
-  const showCompleteProfilePrompt = !name?.trim() || name === "null";
-
-  /* ---------------- Render ------------------ */
   return (
     <aside
       dir="rtl"
-      lang="fa"
-      className="w-[310px] bg-white rounded-2xl border border-[#EDEDED] shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-4 py-5 mr-[32px] flex flex-col self-start"
+      className="w-[310px] bg-white rounded-2xl border border-[#EDEDED] shadow px-4 py-5 mr-[32px] flex flex-col"
     >
-      {/* اطلاعات کاربر */}
-      <div className="flex flex-col text-center mb-4 leading-[160%]">
+      {/* User Info */}
+      <div className="text-center mb-4 leading-[160%]">
         <span className="text-[#434343] text-[16px] font-medium">{displayName}</span>
-        <span className="text-[#656565] text-[13px]">
+        <span className="text-[#656565] text-[13px] block">
           {role === "ADMIN" ? "مدیر سیستم" : "مشتری فروشگاه"}
         </span>
-
-        {showCompleteProfilePrompt && (
-          <button
-            onClick={() =>
-              router.push(role === "ADMIN" ? "/manager/profile/account" : "/customer/account")
-            }
-            className="mt-2 text-[13px] text-[#00B4D8] hover:text-[#0077B6] underline underline-offset-2"
-          >
-            جهت تکمیل اطلاعاتتان کلیک کنید
-          </button>
-        )}
       </div>
 
-      <div className="w-full h-[1px] bg-[#EDEDED] mb-4" />
+      <hr className="border-[#EDEDED] mb-4" />
 
-      {/* منو */}
       <nav className="flex flex-col gap-[6px]">
         {menuItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (pathname.startsWith(item.href + "/") && item.href !== "/profile");
-          const isExpanded = expanded === item.label;
           const Icon = item.icon;
+          const isExpanded = expanded === item.label;
+          const isActive =
+            "href" in item &&
+            (pathname === item.href || pathname.startsWith(item.href + "/"));
 
           const handleClick = () => {
             if (item.action === "logout") {
-              logout();
+              clearAuth();
               router.replace("/");
               return;
             }
-            if (item.children) toggleExpand(item.label);
-            else if (item.href) router.push(item.href);
+            if ("children" in item && item.children) {
+              toggleExpand(item.label);
+            } else if ("href" in item) {
+              router.push(item.href);
+            }
           };
 
           return (
             <div key={item.label}>
               <button
                 onClick={handleClick}
-                className={`w-full flex items-center justify-between py-[6px] px-[10px] border-b border-[#EDEDED] text-[15px]
-                ${
-                  isActive || isExpanded
-                    ? "bg-[#00B4D8] rounded-[10px] text-white shadow-[0_1px_4px_rgba(0,180,216,0.3)]"
-                    : "bg-white text-[#434343] hover:bg-[#F4FBFC]"
-                } transition-all duration-150`}
+                className={`w-full flex items-center justify-between py-[6px] px-[10px] rounded-[10px] border-b border-[#EDEDED]
+                  ${
+                    isActive || isExpanded
+                      ? "bg-[#00B4D8] text-white shadow"
+                      : "bg-white text-[#434343] hover:bg-[#F4FBFC]"
+                  }`}
               >
                 <div className="flex items-center gap-[6px]">
-                  <Icon size="18" color={isActive || isExpanded ? "#FFFFFF" : "#434343"} variant="Bold" />
+                  <Icon
+                    size="18"
+                    color={isActive || isExpanded ? "#FFFFFF" : "#434343"}
+                    variant="Bold"
+                  />
+                  <span>{item.label}</span>
+                </div>
+
+                {"children" in item && item.children && (
                   <span
-                    className={`${
-                      isActive || isExpanded ? "font-semibold text-white" : "font-normal"
+                    className={`transition-transform ${
+                      isExpanded ? "rotate-180" : ""
                     }`}
                   >
-                    {item.label}
-                  </span>
-                </div>
-                {item.children && (
-                  <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
                     ▼
                   </span>
                 )}
               </button>
 
-              {/* زیرمنو */}
-              {item.children && (
+              {"children" in item && item.children && (
                 <div
                   className={`pl-4 pr-2 overflow-hidden transition-all duration-300 ${
-                    isExpanded ? "max-h-[500px] opacity-100 mt-[4px]" : "max-h-0 opacity-0"
+                    isExpanded
+                      ? "max-h-[500px] opacity-100 mt-[4px]"
+                      : "max-h-0 opacity-0"
                   }`}
                 >
                   {item.children.map((sub) => {
                     const SubIcon = sub.icon;
-                    const subActive = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                    const subActive =
+                      pathname === sub.href ||
+                      pathname.startsWith(sub.href + "/");
 
                     return (
                       <button
                         key={sub.label}
                         onClick={() => router.push(sub.href)}
-                        className={`flex items-center gap-[6px] py-[5px] px-[12px] text-[14px] rounded-[8px] transition-colors duration-150 ${
-                          subActive
-                            ? "bg-[#E0F7FA] text-[#0077B6] font-medium"
-                            : "text-[#434343] hover:bg-[#F4FBFC]"
-                        }`}
+                        className={`flex items-center gap-[6px] py-[5px] px-[12px] text-[14px] rounded-[8px]
+                          ${
+                            subActive
+                              ? "bg-[#E0F7FA] text-[#0077B6] font-medium"
+                              : "text-[#434343] hover:bg-[#F4FBFC]"
+                          }`}
                       >
-                        <SubIcon size="16" color={subActive ? "#0077B6" : "#656565"} variant="Bold" />
+                        <SubIcon
+                          size="16"
+                          color={subActive ? "#0077B6" : "#656565"}
+                          variant="Bold"
+                        />
                         {sub.label}
                       </button>
                     );

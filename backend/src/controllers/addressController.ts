@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { AddressService } from "../services/addressService";
+import "../types";
 
 const service = new AddressService();
 
@@ -9,7 +10,7 @@ export class AddressController {
       if (!req.user) {
         return res.status(401).json({ error: "Unauthorized" });
       }
-      const userId = req.user.id; // نیاز به middleware احراز هویت
+      const userId = req.user.id;
       const address = await service.createAddress(userId, req.body);
       res.json(address);
     } catch (err: any) {

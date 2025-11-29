@@ -4,47 +4,8 @@ import ProductsToolbar from "./ProductsToolbar";
 import ProductsGrid from "./ProductsGrid";
 import ProductsPagination from "./ProductsPagination";
 import ProductsFilterBox from "./ProductsFilterBox";
-type Variant = {
-  id: number;
-  productId: number;
-  packageQuantity: number;
-  packageType: string;
-  price: string; // از API رشته میاد، ولی در UI می‌تونیم با Number() استفاده کنیم
-  discountPrice?: string;
-  stock: number;
-  expiryDate?: string | null;
-};
-
-// 🧩 Category (برگشتی از API داخل product)
-type Category = {
-  id: number;
-  name: string;
-  slug: string;
-  parentId?: number | null;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-// 🧩 Product (نهایی و منطبق با API)
-type Product = {
-  id: number;
-  name: string;
-  slug: string;
-  sku?: string | null;
-  description?: string;
-  imageUrl?: string;
-  price: string | number; // server returns string, UI converts to number
-  categoryId?: number;
-  brandId?: number;
-  category?: Category;
-  variants?: Variant[]; // ✅ اختیاری چون بعضی‌ها ممکنه نداشته باشن
-  soldCount?: number;
-  viewCount?: number;
-  expiryDate?: string | null;
-  isBlock?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-};
+import type { Product } from "@/lib/types/product";
+import type { Category } from "@/lib/types/category";
 type SortType =
   | "newest"
   | "bestseller"

@@ -4,7 +4,11 @@ import { verifyAccessToken  } from "../middlewares/auth";
 
 const router = Router();
 const controller = new AddressController();
-
+router.use((req, res, next) => {
+  console.log("➡️ [addressRoutes] Middleware called.");
+  console.log("🍪 req.cookies:", req.cookies);
+  next();
+});
 router.use(verifyAccessToken );
 
 router.post("/", controller.create.bind(controller));

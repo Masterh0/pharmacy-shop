@@ -7,32 +7,8 @@ import { useRouter } from "next/navigation";
 import { useCategoryStore } from "@/lib/stores/categoryStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useDeleteProduct } from "@/lib/hooks/useDeleteProduct";
-
-type Category = {
-  id: number;
-  name: string;
-  slug: string;
-  parentId?: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-interface Variant {
-  id: number;
-  price: number | string;
-  discountPrice?: number | string;
-  flavor?: string | null;
-  packageQuantity: number;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  category: Category;
-  variants?: Variant[];
-  imageUrl?: string;
-  slug: string;
-}
+import type { Product } from "@/lib/types/product";
+import type { Category } from "@/lib/types/category";
 
 export default function ProductsGrid({ products }: { products: Product[] }) {
   const router = useRouter();
@@ -81,8 +57,9 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-[85%] mx-auto mt-8">
       {products.map((p) => {
         const variant = p.variants?.[0];
-        const price = Number(variant?.price ?? 0);
-        const discount = Number(variant?.discountPrice ?? 0);
+        // تبدیل price از string به number (از API به صورت string می‌آید)
+        const price = variant?.price ? Number(variant.price) : 0;
+        const discount = variant?.discountPrice ? Number(variant.discountPrice) : 0;
         const hasDiscount = discount > 0 && discount < price;
         const discountPercent = hasDiscount
           ? Math.round(((price - discount) / price) * 100)
@@ -100,9 +77,8 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
         const imageSrc = !p.imageUrl
           ? "/no-image.png"
           : p.imageUrl.startsWith("http")
-          ? p.imageUrl
-          : `${BASE_URL}${
-              p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
+            ? p.imageUrl
+            : `${BASE_URL}${p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
             }`;
         const count = cartCount[p.id] || 0;
 
@@ -153,13 +129,17 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                 </h3>
                 {p.category?.name && (
                   <Link
-                    href={`/categories/${p.category.slug}?id=${p.category.id}`}
+                    href={p.category.slug
+                      ? `/categories/${p.category.slug}?id=${p.category.id}`
+                      : `/categories?id=${p.category.id}`}
                     onClick={(e) => {
                       e.stopPropagation(); // جلوگیری از ناوبری کارت
-                      setSelectedCategory({
-                        id: p.category.id,
-                        name: p.category.name,
-                      });
+                      if (p.category) {
+                        setSelectedCategory({
+                          id: p.category.id,
+                          name: p.category.name,
+                        });
+                      }
                     }}
                     className="text-[#6E6E6E] text-[14px] opacity-75 hover:text-[#0077B6] transition"
                   >
@@ -170,11 +150,10 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
 
               {/* قیمت و برچسب‌ها */}
               <div
-                className={`flex items-center mt-2 gap-2 w-full ${
-                  flavorCount > 1 || packageCount > 1
+                className={`flex items-center mt-2 gap-2 w-full ${flavorCount > 1 || packageCount > 1
                     ? "justify-between"
                     : "justify-end"
-                }`}
+                  }`}
               >
                 {flavorCount > 1 && (
                   <div className="bg-[#00B4D8]/90 text-white font-medium px-2 py-[2px] rounded-md shadow-md text-[12px] whitespace-nowrap">

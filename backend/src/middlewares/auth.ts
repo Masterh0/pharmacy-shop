@@ -1,6 +1,7 @@
 import jwt, { TokenExpiredError } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/db";
+import "../types";
 
 /* ============================================================
  * 🧩 Type Definitions
@@ -15,30 +16,17 @@ export interface JwtPayload {
 }
 
 // 🧠 افزودن تایپ req.user در Express
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: number;
-        role: UserRole;
-      };
-    }
-  }
-}
 
 /* ============================================================
  * 🧱 verifyAccessToken
- * توضیح: چک توکن دسترسی در تمام مسیرهای محافظت‌شده
+ * توضیح: بررسی توکن دسترسی موجود در کوکی HttpOnly
  * ============================================================ */
 export const verifyAccessToken = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ")
-    ? authHeader.split(" ")[1]
-    : null;
+  const token = req.cookies?.accessToken; // 👈 تغییر اصلی، خواندن از کوکی
 
   if (!token) {
     return res.status(401).json({ error: "No access token provided" });
@@ -53,9 +41,8 @@ export const verifyAccessToken = (
     req.user = { id: decoded.id, role: decoded.role };
     next();
   } catch (error) {
-    /** ✅ تفکیک خطاهای JWT برای هندل خاص */
     if (error instanceof TokenExpiredError) {
-      // ⏰ فرانت‌اند از این متن برای شروع Refresh استفاده می‌کند
+      // ⏰ از این متن بک‌اند یا فرانت برای Logout استفاده می‌کند
       return res.status(401).json({ error: "jwt expired" });
     }
 
@@ -66,58 +53,62 @@ export const verifyAccessToken = (
 
 /* ============================================================
  * 🧱 verifyRefreshToken
+ * توضیح: بررسی Refresh Token موجود در کوکی HttpOnly یا Body
+ * توجه: Refresh Token به صورت UUID در دیتابیس ذخیره می‌شود نه JWT
  * ============================================================ */
 export const verifyRefreshToken = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.body.refreshToken || req.cookies?.refreshToken;
+  const token = req.cookies?.refreshToken || req.body.refreshToken;
 
   if (!token) {
     return res.status(401).json({ error: "No refresh token provided" });
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.REFRESH_TOKEN_SECRET!
-    ) as { id: number };
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { id: true, role: true },
+    // بررسی وجود توکن در دیتابیس
+    const tokenRecord = await prisma.refreshToken.findUnique({
+      where: { token },
+      include: { user: { select: { id: true, role: true } } },
     });
 
-    if (!user) {
+    if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+      if (tokenRecord) {
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+      }
+      return res.status(401).json({ error: "Invalid or expired refresh token" });
+    }
+
+    if (!tokenRecord.user) {
+      await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
       return res.status(401).json({ error: "User not found" });
     }
 
-    req.user = { id: user.id, role: user.role };
+    req.user = { id: tokenRecord.user.id, role: tokenRecord.user.role };
     next();
   } catch (error) {
-    if (error instanceof TokenExpiredError) {
-      return res.status(401).json({ error: "jwt expired" });
-    }
-
-    console.error("Refresh token verification failed:", error);
+    console.error("🚨 Refresh token verification failed:", error);
     return res.status(401).json({ error: "Invalid or expired refresh token" });
   }
 };
 
 /* ============================================================
  * 🧱 checkRole
+ * توضیح: محدودکردن دسترسی به مسیرها بر اساس نقش کاربر
  * ============================================================ */
 export const checkRole =
-  (roles: UserRole[]) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user)
+  (roles: UserRole[]) => (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
       return res.status(401).json({ error: "User not authenticated" });
+    }
 
-    if (!roles.includes(req.user.role))
-      return res
-        .status(403)
-        .json({ error: `Access denied. Requires role: ${roles.join(" or ")}` });
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: `Access denied. Requires role: ${roles.join(" or ")}`,
+      });
+    }
 
     next();
   };

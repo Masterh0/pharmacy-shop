@@ -19,7 +19,7 @@ export default function LoginOtpPage() {
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
-  useAuthRedirect();
+  useAuthRedirect(); // ضد Flicker و کنترل مسیرها
 
   /* 🟦 Mutation ارسال OTP */
   const sendOtp = useMutation({
@@ -33,19 +33,10 @@ export default function LoginOtpPage() {
       }
       toast.success("کد ارسال شد ✅");
     },
-    onError: (
-      err: AxiosError<{
-        error?: string;
-        message?: string;
-        expiresAt?: string;
-        remainingMs?: number;
-      }>
-    ) => {
+    onError: (err: AxiosError<any>) => {
       const msg = err.response?.data?.error || err.response?.data?.message;
-
-      /* 💡 بررسی پیام "کد فعال ارسال شده" */
       if (err.response?.status === 429 && msg?.includes("کد فعال ارسال شده")) {
-        const { expiresAt, remainingMs } = err.response.data;
+        const { expiresAt, remainingMs } = err.response?.data || {};
         setStep("otp");
         setCountdown(Math.floor((remainingMs || 0) / 1000));
         setExpiresAt(expiresAt || null);
@@ -60,9 +51,8 @@ export default function LoginOtpPage() {
   const verifyOtp = useMutation({
     mutationFn: (data: { phone: string; code: string }) => verifyLoginOtp(data),
     onSuccess: (data) => {
+      // ✅ بک‌اند کوکی ست می‌کند، پس فقط کاربر را ذخیره می‌کنیم
       setAuth({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
         role: data.user.role,
         userId: data.user.id,
         phone: data.user.phone,
@@ -80,45 +70,26 @@ export default function LoginOtpPage() {
     },
   });
 
-  /* 🕒 شمارش معکوس ارسال مجدد */
+  /* 🕒 شمارش معکوس */
   useEffect(() => {
     if (!countdown) return;
-    const timer = setInterval(
-      () => setCountdown((t) => (t > 0 ? t - 1 : 0)),
-      1000
-    );
+    const timer = setInterval(() => setCountdown((t) => (t > 0 ? t - 1 : 0)), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
 
-  /* 🟢 رویداد Enter برای هر مرحله */
-  useEffect(() => {
-    const listener = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (step === "phone") handleSend();
-        else if (step === "otp") handleVerify();
-      }
-    };
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [step, phone, code]);
-
-  /* 🔘 هندل ارسال OTP */
+  /* 🔘 هندل ارسال و تأیید */
   const handleSend = () => {
     if (phone && !sendOtp.isPending) sendOtp.mutate({ phone });
   };
 
-  /* 🔘 هندل تأیید OTP */
   const handleVerify = () => {
     if (code && !verifyOtp.isPending) verifyOtp.mutate({ phone, code });
   };
 
-  /* 🔄 ارسال مجدد */
   const handleResend = () => {
     if (!countdown) sendOtp.mutate({ phone });
   };
 
-  /* 🔙 تغییر شماره */
   const resetToPhone = () => {
     setStep("phone");
     setCode("");
@@ -128,7 +99,6 @@ export default function LoginOtpPage() {
   return (
     <AuthLayout>
       <BackButton fallback="/" />
-
       <div className="flex flex-col items-center justify-center w-full mt-24 px-6 text-center">
         {step === "phone" && (
           <div className="flex flex-col gap-4 items-center w-[288px]">
@@ -158,15 +128,16 @@ export default function LoginOtpPage() {
 
         {step === "otp" && (
           <div className="flex flex-col gap-4 items-center w-[288px] relative">
-            {/* وضعیت بارگذاری در حال ورود */}
-            {verifyOtp.isPending ? (
+            {verifyOtp.isPending && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm rounded-lg">
                 <div className="animate-spin w-8 h-8 border-4 border-[#00B4D8] border-t-transparent rounded-full" />
                 <p className="mt-4 text-[#171717] text-[16px] font-medium">
                   در حال بررسی کد و ورود...
                 </p>
               </div>
-            ) : (
+            )}
+
+            {!verifyOtp.isPending && (
               <>
                 <p className="text-[#171717] text-[16px] mb-1">
                   کد به شماره زیر ارسال شد:

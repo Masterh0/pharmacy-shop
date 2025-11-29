@@ -8,8 +8,8 @@ import { useEffect, useState, useRef } from "react";
 import CartPreview from "./CartPreview";
 
 export default function HeaderActions() {
-  const { userId, accessToken, name } = useAuthStore();
-  const isLoggedIn = Boolean(accessToken && userId);
+  const { userId, name } = useAuthStore();
+  const isLoggedIn = Boolean( userId);
   const { cart } = useCart();
 
   const itemCount =

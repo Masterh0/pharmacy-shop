@@ -9,7 +9,7 @@ export const variantApi = {
   },
 
   /** ایجاد واریانت جدید */
-  async create(payload: Omit<ProductVariant, "id">): Promise<ProductVariant> {
+  async create(payload: Omit<ProductVariant, "id" | "createdAt" | "updatedAt">): Promise<ProductVariant> {
     const { data } = await api.post("/variants", payload);
     return data;
   },
@@ -17,7 +17,7 @@ export const variantApi = {
   /**‌ به‌روزرسانی واریانت */
   async update(
     id: number,
-    payload: Partial<ProductVariant>
+    payload: Partial<Omit<ProductVariant, "id" | "createdAt" | "updatedAt">>
   ): Promise<ProductVariant> {
     const { data } = await api.put(`/variants/${id}`, payload);
     return data;

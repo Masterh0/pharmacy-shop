@@ -7,12 +7,12 @@ import { toast } from "sonner";
 type Status = "checking" | "redirecting" | "render";
 
 /**
- * ✅ نسخه‌ی نهایی ضد Flicker با تشخیص ورود اولیه کاربر
+ * ✅ نسخه هماهنگ با معماری جدید (کوکی HttpOnly)
  */
 export function useAuthRedirect(): Status {
   const router = useRouter();
   const pathname = usePathname();
-  const { accessToken, role } = useAuthStore();
+  const { role, userId } = useAuthStore(); // حالا به جای accessToken، userId و role رو داریم
   const ready = useAuthReady();
   const [status, setStatus] = useState<Status>("checking");
   const [firstLogin, setFirstLogin] = useState(false);
@@ -20,15 +20,16 @@ export function useAuthRedirect(): Status {
   useEffect(() => {
     if (!ready) return;
 
-    // 🟢 شناسایی لاگین اولیه
-    // وقتی accessToken برای اولین بار ست می‌شود، یعنی verifyOtp موفق بوده
-    if (accessToken && status === "checking") {
+    // 🟢 تشخیص لاگین اولیه: تغییر از عدم وجود userId به وجودش
+    if (userId && status === "checking") {
       setFirstLogin(true);
-      setTimeout(() => setFirstLogin(false), 1500); // بعد از ۱.۵ ثانیه عادی بشه
+      setTimeout(() => setFirstLogin(false), 1500);
     }
 
+    const isLoggedIn = Boolean(userId);
+
     // 🔐 اگر لاگین کرده ولی تو صفحات auth هست
-    if (accessToken && ["/login", "/signup", "/login/otp"].includes(pathname)) {
+    if (isLoggedIn && ["/login", "/signup", "/login/otp"].includes(pathname)) {
       setStatus("redirecting");
       if (!firstLogin) {
         toast.warning(
@@ -43,7 +44,7 @@ export function useAuthRedirect(): Status {
 
     // 🚫 اگر لاگین نکرده ولی رفته صفحات محافظت‌شده
     if (
-      !accessToken &&
+      !isLoggedIn &&
       (pathname.startsWith("/account") || pathname.startsWith("/admin"))
     ) {
       setStatus("redirecting");
@@ -53,7 +54,7 @@ export function useAuthRedirect(): Status {
     }
 
     setStatus("render");
-  }, [ready, accessToken, pathname, router]);
+  }, [ready, userId, pathname, router]);
 
   return status;
 }

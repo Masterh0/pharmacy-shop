@@ -2,10 +2,11 @@
 export interface CreateProductVariantInput {
   packageQuantity: number;
   packageType?: string | null;
-  price: number;
-  discountPrice?: number | null;
+  price: string | number; // می‌تواند string یا number باشد (در FormData به string تبدیل می‌شود)
+  discountPrice?: string | number | null;
   stock: number;
   expiryDate?: string | null;
+  flavor?: string | null; // فیلد flavor از schema
 }
 
 export interface CreateProductDTO {

@@ -39,35 +39,59 @@ export default function VariantModal({
     resolver: zodResolver(variantSchema),
     defaultValues: editData
       ? {
-          packageType: editData.packageType,
-          packageQuantity: editData.packageQuantity,
-          price: Number(editData.price),
-          discountPrice: editData.discountPrice
-            ? Number(editData.discountPrice)
-            : undefined,
-          stock: editData.stock,
-          expiryDate: editData.expiryDate
-            ? editData.expiryDate.split("T")[0]
-            : "",
-        }
+        packageType: editData.packageType || "",
+        packageQuantity: editData.packageQuantity,
+        // schema انتظار string دارد
+        price: typeof editData.price === "string"
+          ? editData.price
+          : String(editData.price),
+        discountPrice: editData.discountPrice
+          ? (typeof editData.discountPrice === "string"
+            ? editData.discountPrice
+            : String(editData.discountPrice))
+          : undefined,
+        stock: editData.stock,
+        expiryDate: editData.expiryDate
+          ? editData.expiryDate.split("T")[0]
+          : "",
+        flavor: editData.flavor || undefined,
+      }
       : {
-          packageType: "",
-          packageQuantity: 1,
-          price: 0,
-          discountPrice: undefined,
-          stock: 0,
-          expiryDate: "",
-        },
+        packageType: "",
+        packageQuantity: 1,
+        price: "0", // schema انتظار string دارد
+        discountPrice: undefined,
+        stock: 0,
+        expiryDate: "",
+        flavor: undefined,
+      },
   });
 
   // 🟢 ثبت
   const onSubmit = async (data: CreateVariantDTO) => {
     try {
+      // تبدیل price از number (بعد از transform در schema) به number برای API
+      // backend انتظار number دارد و خودش تبدیل می‌کند
+      const payload = {
+        packageType: data.packageType,
+        packageQuantity: data.packageQuantity,
+        price: typeof data.price === "number" ? data.price : Number(data.price),
+        discountPrice: data.discountPrice
+          ? (typeof data.discountPrice === "number" ? data.discountPrice : Number(data.discountPrice))
+          : undefined,
+        stock: data.stock,
+        expiryDate: data.expiryDate || undefined,
+        flavor: data.flavor || undefined,
+      };
+
       if (isEdit) {
-        await update.mutateAsync({ id: editData!.id, ...data });
+        await update.mutateAsync({
+          id: editData!.id,
+          ...payload
+        });
         toast.success("✅ واریانت با موفقیت ویرایش شد");
       } else {
-        await add.mutateAsync({ ...data, productId });
+        await add.mutateAsync({ ...payload, productId });
         toast.success("✅ واریانت جدید اضافه شد");
       }
 

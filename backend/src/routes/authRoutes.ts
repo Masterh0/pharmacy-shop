@@ -7,12 +7,14 @@ import {
   sendLoginOtp,
   verifyLoginOtp,
   refresh,
+  logout,
+  me
 } from "../controllers/authController";
 
 import { verifyAccessToken, verifyRefreshToken, checkRole } from "../middlewares/auth";
+import { cartIdentity } from "../middlewares/cartIdentity";
 
 const router = Router();
-
 // -----------------------------
 // ثبت‌نام و تایید OTP
 // -----------------------------
@@ -34,19 +36,20 @@ router.post("/login/verify-otp", verifyLoginOtp);
 // رفرش توکن
 // -----------------------------
 router.post("/refresh", refresh);
-
+router.post("/logout", logout);
+router.get("/me", verifyAccessToken, me);
 // -----------------------------
 // مسیر تست فقط برای ADMINS
 // -----------------------------
-    // router.get(
-    //   "/admin/test",
-    //   verifyAccessToken,
-    //   checkRole(["ADMIN"]),
-    //   (req, res) => {
-    //     res.json({
-    //       message: `Welcome ${req.user.role}! This is an admin-only endpoint`,
-    //     });
-    //   }
-    // );
+// router.get(
+//   "/admin/test",
+//   verifyAccessToken,
+//   checkRole(["ADMIN"]),
+//   (req, res) => {
+//     res.json({
+//       message: `Welcome ${req.user.role}! This is an admin-only endpoint`,
+//     });
+//   }
+// );
 
 export default router;

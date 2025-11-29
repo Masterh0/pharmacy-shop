@@ -4,10 +4,12 @@ import { prisma } from "../config/db";
 import { Request, Response } from "express";
 import { v4 as uuid } from "uuid";
 import crypto from "crypto";
-const generateOtp = () => {
-  // کد ۶ رقمی امن و تصادفی
-  return crypto.randomInt(100000, 999999).toString();
-};
+import { CartService } from "../services/cartService";
+
+const cartService = new CartService();
+
+const generateOtp = () => crypto.randomInt(100000, 999999).toString();
+
 /* ------------------ Helper ------------------ */
 export default function normalizePhone(input: string): string {
   if (!input) return "";
@@ -20,7 +22,61 @@ export default function normalizePhone(input: string): string {
   return phone;
 }
 
-/* ------------------ JWT + Refresh ------------------ */
+/**
+ * تنظیم کوکی‌های احراز هویت
+ * 
+ * چرا این تنظیمات لازم است؟
+ * - Edge و Safari سخت‌گیری بیشتری در Cookie دارند
+ * - sameSite: "lax" بهترین تعادل بین امنیت و سازگاری
+ * - domain: undefined برای localhost ضروری است
+ * 
+ * @see BROWSER_COMPATIBILITY.md برای جزئیات بیشتر
+ */
+function sendAuthCookies(
+  res: Response,
+  accessToken: string,
+  refreshToken: string
+) {
+  // تنظیمات کوکی برای سازگاری با Edge و تمام مرورگرها
+  // این تنظیمات برای سخت‌گیرترین مرورگر (Edge) بهینه شده است
+  const cookieOptions = {
+    httpOnly: true,
+    secure: false, // در production باید true باشد
+    sameSite: "lax" as const, // بهترین تعادل - برای Edge ضروری است
+    path: "/",
+    domain: undefined, // برای localhost - Edge به این نیاز دارد
+  };
+
+  // تنظیم accessToken
+  res.cookie("accessToken", accessToken, {
+    ...cookieOptions,
+    maxAge: 15 * 60 * 1000, // 15 دقیقه
+  });
+
+  // تنظیم refreshToken
+  res.cookie("refreshToken", refreshToken, {
+    ...cookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 روز
+  });
+
+  // برای Edge: اضافه کردن header اضافی
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+}
+
+function clearAuthCookies(res: Response) {
+  // تنظیمات clearCookie برای سازگاری با تمام مرورگرها
+  const clearOptions = {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax" as const,
+    path: "/",
+  };
+
+  res.clearCookie("accessToken", clearOptions);
+  res.clearCookie("refreshToken", clearOptions);
+}
+
+/* ------------------ JWT Generator ------------------ */
 async function generateTokens(userId: number, role: string) {
   const accessToken = jwt.sign(
     { id: userId, role },
@@ -29,9 +85,8 @@ async function generateTokens(userId: number, role: string) {
   );
 
   const refreshToken = uuid();
-  const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const refreshExpiry = new Date(Date.now() + 7 * 86400000);
 
-  // این خط یک رکورد جدید در دیتابیس برای رفرش‌توکن جدید ایجاد می‌کند
   await prisma.refreshToken.create({
     data: { userId, token: refreshToken, expiresAt: refreshExpiry },
   });
@@ -39,15 +94,8 @@ async function generateTokens(userId: number, role: string) {
   return { accessToken, refreshToken };
 }
 
-/* ------------------ ثبت‌نام ------------------ */
-interface RegisterBody {
-  name: string;
-  email?: string;
-  password?: string;
-  phone: string;
-}
-
-const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
+/* ------------------ REGISTER ------------------ */
+const register = async (req: Request, res: Response) => {
   const { name, email, password, phone } = req.body;
   if (!phone)
     return res.status(400).json({ error: "شماره موبایل الزامی است." });
@@ -59,15 +107,16 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
     if (existingUser)
       return res
         .status(400)
-        .json({ error: "کاربر با این شماره  قبلاً ثبت‌نام کرده است." });
+        .json({ error: "کاربر با این شماره قبلاً ثبت‌نام کرده است." });
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
+    const normalizedPhone = normalizePhone(phone);
     const user = await prisma.user.create({
       data: {
         name,
         email: email || null,
-        phone,
+        phone: normalizedPhone,
         password: hashedPassword,
         hasPassword: !!password,
         role: "CUSTOMER",
@@ -78,259 +127,362 @@ const register = async (req: Request<{}, {}, RegisterBody>, res: Response) => {
     const code = generateOtp();
     const expireAt = new Date(Date.now() + 2 * 60 * 1000);
     await prisma.otp.create({
-      data: { phone: normalizePhone(phone), code, expiresAt: expireAt },
+      data: { phone: normalizedPhone, code, expiresAt: expireAt },
     });
 
-    console.log(`OTP برای ${phone}: ${code}`);
+    // OTP sent (in production, send via SMS service)
+    console.log(`OTP برای ${normalizedPhone}: ${code}`);
 
     res.json({
       message: "ثبت‌نام موفقیت‌آمیز بود. لطفاً کد ارسال‌شده را وارد کنید.",
       userId: user.id,
     });
   } catch (error) {
+    console.error("Register error:", error);
     res.status(500).json({ error: "خطای داخلی سرور رخ داده است." });
   }
 };
 
-/* ------------------ تأیید OTP ثبت‌نام ------------------ */
-const verifyRegisterOtp = async (
-  req: Request<{}, {}, { phone: string; code: string }>,
-  res: Response
-) => {
+/* ------------------ VERIFY REGISTER OTP ------------------ */
+const verifyRegisterOtp = async (req: Request, res: Response) => {
   const { phone, code } = req.body;
   try {
+    const normalizedPhone = normalizePhone(phone);
     const otpRecord = await prisma.otp.findFirst({
-      where: { phone, code, used: false, expiresAt: { gt: new Date() } },
+      where: { phone: normalizedPhone, code, used: false, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
     });
     if (!otpRecord)
       return res
         .status(400)
-        .json({ error: "کد تأیید نامعتبر است یا مهلت آن به پایان رسیده است." });
+        .json({ error: "کد تأیید نامعتبر است یا منقضی شده." });
 
     await prisma.otp.updateMany({
-      where: { phone: normalizePhone(phone) },
+      where: { phone: normalizedPhone },
       data: { used: true },
     });
 
     const user = await prisma.user.update({
-      where: { phone: normalizePhone(phone) },
+      where: { phone: normalizedPhone },
       data: { isVerified: true },
     });
+
+    // ✅ Merge Guest Cart
+    const sessionId = req.cookies.sessionId;
+
+    if (typeof sessionId === "string" && sessionId.trim() !== "") {
+      try {
+        await cartService.mergeGuestCartToUserCart(sessionId, user.id);
+      } catch (mergeError) {
+        console.error("Cart merge error (non-blocking):", mergeError);
+        // Continue with login even if merge fails
+      }
+
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
+      });
+    }
 
     const { accessToken, refreshToken } = await generateTokens(
       user.id,
       user.role
     );
-    return res.status(200).json({ accessToken, refreshToken, user });
-  } catch {
+    sendAuthCookies(res, accessToken, refreshToken);
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Verify register OTP error:", error);
     return res.status(500).json({ error: "خطای داخلی سرور رخ داده است." });
   }
 };
 
-/* ------------------ ورود با پسورد ------------------ */
-const login = async (
-  req: Request<{}, {}, { identifier: string; password: string }>,
-  res: Response
-) => {
+/* ------------------ LOGIN (PASSWORD) ------------------ */
+const login = async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
+
   if (!identifier || !password)
     return res
       .status(400)
-      .json({ error: "شماره موبایل یا ایمیل و رمز عبور الزامی است." });
+      .json({ error: "شماره موبایل/ایمیل و رمز عبور لازم است." });
 
   try {
+    const normalizedIdentifier = normalizePhone(identifier);
     const user = await prisma.user.findFirst({
-      where: { OR: [{ email: identifier }, { phone: identifier }] },
+      where: {
+        OR: [
+          { email: identifier },
+          { phone: normalizedIdentifier }
+        ]
+      },
     });
 
-    if (!user)
-      return res.status(401).json({ error: "اطلاعات ورود صحیح نیست." });
-
+    if (!user) return res.status(401).json({ error: "ورود نامعتبر." });
     if (!user.isVerified)
-      return res
-        .status(401)
-        .json({ error: "شماره موبایل شما هنوز تأیید نشده است." });
+      return res.status(401).json({ error: "شماره موبایل تأیید نشده." });
+    if (!user.hasPassword)
+      return res.status(400).json({ error: "این حساب رمز عبور ندارد." });
 
-    if (!user.hasPassword || !user.password)
-      return res.status(400).json({
-        error: "این حساب رمز عبور ندارد. لطفاً ورود با کد تأیید را انجام دهید.",
+    const isValid = await bcrypt.compare(password, user.password!);
+    if (!isValid) return res.status(401).json({ error: "ورود نامعتبر." });
+
+    // ✅ Merge Guest Cart
+    const sessionId = req.cookies.sessionId;
+
+    if (typeof sessionId === "string" && sessionId.trim() !== "") {
+      try {
+        await cartService.mergeGuestCartToUserCart(sessionId, user.id);
+      } catch (mergeError) {
+        console.error("Cart merge error (non-blocking):", mergeError);
+        // Continue with login even if merge fails
+      }
+
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
       });
-
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid)
-      return res.status(401).json({ error: "اطلاعات ورود صحیح نیست." });
+    }
 
     const { accessToken, refreshToken } = await generateTokens(
       user.id,
       user.role
     );
-    res.json({ accessToken, refreshToken, user });
-  } catch {
-    res.status(500).json({ error: "خطای داخلی سرور رخ داده است." });
+    sendAuthCookies(res, accessToken, refreshToken);
+
+    res.json({ user });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "خطای داخلی سرور." });
   }
 };
 
-/* ------------------ ارسال OTP ورود ------------------ */
-const sendLoginOtp = async (
-  req: Request<{}, {}, { phone: string }>,
-  res: Response
-) => {
+/* ------------------ SEND LOGIN OTP ------------------ */
+const sendLoginOtp = async (req: Request, res: Response) => {
   try {
     const { phone } = req.body;
     if (!/^09\d{9}$/.test(phone))
       return res.status(400).json({ error: "فرمت شماره موبایل صحیح نیست." });
 
+    const normalizedPhone = normalizePhone(phone);
     const user = await prisma.user.findUnique({
-      where: { phone: normalizePhone(phone) },
+      where: { phone: normalizedPhone },
     });
-    if (!user)
-      return res.status(404).json({ error: "کاربری با این شماره یافت نشد." });
+    if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
     if (!user.isVerified)
-      return res
-        .status(401)
-        .json({ error: "شماره موبایل شما تأیید نشده است." });
+      return res.status(401).json({ error: "شماره تأیید نشده." });
 
     const activeOtp = await prisma.otp.findFirst({
-      where: { phone, used: false, expiresAt: { gt: new Date() } },
+      where: { phone: normalizedPhone, used: false, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
     });
 
     if (activeOtp) {
       const remainingMs = activeOtp.expiresAt.getTime() - Date.now();
-      return res.status(429).json({
-        error:
-          "برای شما یک کد فعال ارسال شده است. لطفاً کد فعلی را وارد کنید یا پس از پایان اعتبار مجدداً تلاش کنید.",
-        expiresAt: activeOtp.expiresAt,
-        remainingMs,
-      });
+      // اگر OTP هنوز معتبر است، همان را برگردان
+      if (remainingMs > 0) {
+        return res.status(429).json({
+          error: "کد فعال دارید",
+          expiresAt: activeOtp.expiresAt,
+          remainingMs,
+        });
+      }
     }
 
+    // فقط OTP های منقضی شده را mark می‌کنیم
     await prisma.otp.updateMany({
-      where: { phone, used: false },
-      data: { used: true },
+      where: {
+        phone: normalizedPhone,
+        expiresAt: { lt: new Date() }
+      },
+      data: { used: true }
     });
 
     const code = generateOtp();
-    const expiresAt = new Date(Date.now() + 2 * 60 * 1000);
-    await prisma.otp.create({ data: { phone, code, expiresAt } });
+    const expiresAt = new Date(Date.now() + 2 * 60000);
+    await prisma.otp.create({ data: { phone: normalizedPhone, code, expiresAt } });
 
-    if (process.env.NODE_ENV !== "production")
-      console.log(`Login OTP برای ${phone}: ${code}`);
+    // OTP sent (in production, send via SMS service)
+    console.log(`Login OTP برای ${normalizedPhone}: ${code}`);
 
-    return res.status(200).json({
-      message: "کد تأیید با موفقیت ارسال شد.",
-      expiresAt,
-    });
-  } catch {
-    return res.status(500).json({ error: "خطای داخلی سرور رخ داده است." });
+    return res.status(200).json({ message: "کد ارسال شد", expiresAt });
+  } catch (error) {
+    console.error("Send login OTP error:", error);
+    return res.status(500).json({ error: "خطای داخلی" });
   }
 };
 
-/* ------------------ تأیید OTP ورود ------------------ */
-const verifyLoginOtp = async (
-  req: Request<{}, {}, { phone: string; code: string }>,
-  res: Response
-) => {
+/* ------------------ VERIFY LOGIN OTP ------------------ */
+const verifyLoginOtp = async (req: Request, res: Response) => {
   try {
     const { phone, code } = req.body;
-
-    if (!/^09\d{9}$/.test(phone))
-      return res.status(400).json({ error: "فرمت شماره موبایل صحیح نیست." });
+    const normalizedPhone = normalizePhone(phone);
 
     const otpRecord = await prisma.otp.findFirst({
-      where: { phone, code, used: false, expiresAt: { gt: new Date() } },
+      where: { phone: normalizedPhone, code, used: false, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
     });
 
-    if (!otpRecord)
-      return res
-        .status(400)
-        .json({ error: "کد تأیید نادرست است یا مهلت آن تمام شده است." });
+    if (!otpRecord) {
+      console.log(`OTP verification failed for ${normalizedPhone}: Invalid or expired code`);
+      return res.status(400).json({ error: "کد اشتباه است." });
+    }
 
-    await prisma.otp.updateMany({
-      where: { phone: normalizePhone(phone) },
-      data: { used: true },
-    });
+    // Mark this specific OTP as used
     await prisma.otp.update({
       where: { id: otpRecord.id },
-      data: { isVerified: true },
+      data: { used: true },
     });
 
     const user = await prisma.user.findUnique({
-      where: { phone: normalizePhone(phone) },
+      where: { phone: normalizedPhone },
     });
+
     if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
+
+    // ✅ Merge Guest Cart - این کار را بعد از mark کردن OTP انجام می‌دهیم
+    // تا حتی اگر merge با خطا مواجه شود، OTP استفاده شده باشد
+    const sessionId = req.cookies?.sessionId || req.body?.sessionId;
+
+    console.log("verifyLoginOtp - sessionId from cookies:", req.cookies?.sessionId);
+    console.log("verifyLoginOtp - all cookies:", Object.keys(req.cookies || {}));
+
+    if (typeof sessionId === "string" && sessionId.trim() !== "") {
+      try {
+        await cartService.mergeGuestCartToUserCart(sessionId, user.id);
+        console.log("Cart merged successfully for user:", user.id);
+      } catch (mergeError: any) {
+        console.error("Cart merge error (non-blocking):", mergeError?.message || mergeError);
+        // Continue with login even if merge fails
+        // Don't throw - allow login to proceed
+      }
+
+      // Clear sessionId cookie regardless of merge success
+      // تنظیمات برای Edge
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
+      });
+    } else {
+      console.log("No sessionId found, skipping cart merge");
+    }
 
     const { accessToken, refreshToken } = await generateTokens(
       user.id,
       user.role
     );
-    return res.status(200).json({ accessToken, refreshToken, user });
-  } catch {
-    return res.status(500).json({ error: "خطای داخلی سرور رخ داده است." });
+    sendAuthCookies(res, accessToken, refreshToken);
+
+    return res.status(200).json({ user });
+  } catch (error: any) {
+    console.error("Verify login OTP error:", error?.message || error);
+    // اگر OTP استفاده شده باشد اما خطای دیگری رخ دهد، پیام مناسب بده
+    return res.status(500).json({ error: "خطای داخلی" });
   }
 };
 
-/* ------------------ رفرش توکن (اصلاح شده) ------------------ */
-const refresh = async (
-  req: Request<{}, {}, { refreshToken: string }>,
-  res: Response
-) => {
-  const { refreshToken: clientRefreshToken } = req.body; // تغییر نام برای جلوگیری از تداخل
-  if (!clientRefreshToken)
-    return res.status(400).json({ error: "رفرش‌توکن ارسال نشده است." });
-
-  let tokenRecord;
+/* ------------------ REFRESH TOKEN ------------------ */
+const refresh = async (req: Request, res: Response) => {
   try {
-    // 1. رکورد رفرش‌توکن را بر اساس توکن دریافتی از کلاینت پیدا کن
-    tokenRecord = await prisma.refreshToken.findUnique({
+    const clientRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    if (!clientRefreshToken)
+      return res.status(400).json({ error: "رفرش‌توکن یافت نشد." });
+
+    const tokenRecord = await prisma.refreshToken.findUnique({
       where: { token: clientRefreshToken },
     });
-  } catch (error) {
-    console.error("خطا در یافتن رکورد رفرش‌توکن:", error);
-    return res.status(500).json({ error: "خطای داخلی سرور." });
-  }
 
-  // 2. اگر توکن یافت نشد یا منقضی شده بود، خطا برگردان
-  if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
-    // اگر توکن منقضی شده پیدا شد، آن را از دیتابیس حذف کن تا پاکسازی شود
-    if (tokenRecord) {
-      await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+    if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+      if (tokenRecord)
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+      clearAuthCookies(res);
+      return res.status(401).json({ error: "رفرش‌توکن نامعتبر." });
     }
-    return res
-      .status(401)
-      .json({ error: "رفرش‌توکن نامعتبر است یا منقضی شده است." });
-  }
 
-  // 3. کاربر مربوط به این توکن را پیدا کن
-  const user = await prisma.user.findUnique({
-    where: { id: tokenRecord.userId },
-  });
-  if (!user) {
-    // اگر کاربر یافت نشد، رفرش‌توکن را حذف کن تا امنیت حفظ شود
+    const user = await prisma.user.findUnique({
+      where: { id: tokenRecord.userId },
+    });
+
+    if (!user) {
+      await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+      clearAuthCookies(res);
+      return res.status(401).json({ error: "کاربر یافت نشد." });
+    }
+
     await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
-    return res.status(401).json({ error: "کاربر مربوط به این توکن یافت نشد." });
+    const { accessToken, refreshToken } = await generateTokens(
+      user.id,
+      user.role
+    );
+
+    sendAuthCookies(res, accessToken, refreshToken);
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    clearAuthCookies(res);
+    res.status(500).json({ error: "خطای داخلی سرور." });
   }
+};
 
-  // --- منطق چرخش توکن (Token Rotation) ---
-  // 4. رفرش‌توکن قدیمی را از دیتابیس حذف کن (بی‌اعتبار کردن توکن استفاده شده)
-  await prisma.refreshToken.deleteMany({
-    where: { id: tokenRecord.id },
-  });
+/* ------------------ LOGOUT ------------------ */
+const logout = async (req: Request, res: Response) => {
+  try {
+    const clearOptions = {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax" as const,
+      path: "/",
+    };
 
-  // 5. یک Access Token جدید و یک Refresh Token جدید تولید کن.
-  //    تابع `generateTokens` خودش رکورد جدید رفرش‌توکن را در دیتابیس ایجاد می‌کند.
-  const {
-    accessToken: newAccessToken,
-    refreshToken: newGeneratedRefreshToken,
-  } = await generateTokens(user.id, user.role);
+    res.clearCookie("accessToken", clearOptions);
+    res.clearCookie("refreshToken", clearOptions);
+    res.clearCookie("sessionId", {
+      httpOnly: false,
+      secure: false,
+      sameSite: "lax" as const,
+      path: "/",
+      domain: undefined,
+    });
+    return res.status(200).json({ message: "خروج موفقیت‌آمیز." });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({ error: "خطا در خروج." });
+  }
+};
 
-  // 6. توکن‌های جدید را به کلاینت برگردان
-  res.json({
-    accessToken: newAccessToken,
-    refreshToken: newGeneratedRefreshToken,
-  });
+/* ------------------ ME ------------------ */
+const me = async (req: Request, res: Response) => {
+  try {
+    const accessToken = req.cookies.accessToken;
+    if (!accessToken) return res.status(401).json({ error: "توکن یافت نشد." });
+
+    const decoded = jwt.verify(
+      accessToken,
+      process.env.ACCESS_TOKEN_SECRET as jwt.Secret
+    ) as { id: number; role: string };
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, name: true, phone: true, email: true, role: true },
+    });
+
+    if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Me endpoint error:", error);
+    return res.status(401).json({ error: "توکن نامعتبر." });
+  }
 };
 
 export {
@@ -340,4 +492,6 @@ export {
   sendLoginOtp,
   verifyLoginOtp,
   refresh,
+  logout,
+  me,
 };
