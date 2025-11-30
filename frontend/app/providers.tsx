@@ -11,6 +11,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster
+        richColors
         position="top-center" // یا top-left برای RTL
         reverseOrder={false}
         toastOptions={{

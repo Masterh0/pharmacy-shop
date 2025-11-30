@@ -22,7 +22,7 @@ export default function Header() {
           absolute left-1/2 -translate-x-1/2
           flex items-center justify-between
           w-[1440px] h-[104px]
-          px-[108px] py-3
+          px-[108px] py-3 z-30
           top-[40px]    /* پایین‌تر از نوار اعلان */
         "
       >

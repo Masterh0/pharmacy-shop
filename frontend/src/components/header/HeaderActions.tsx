@@ -9,7 +9,7 @@ import CartPreview from "./CartPreview";
 
 export default function HeaderActions() {
   const { userId, name } = useAuthStore();
-  const isLoggedIn = Boolean( userId);
+  const isLoggedIn = Boolean(userId);
   const { cart } = useCart();
 
   const itemCount =
@@ -69,9 +69,9 @@ export default function HeaderActions() {
             />
             {itemCount > 0 && (
               <span
-                className="absolute -top-[5px] -right-[9px] flex items-center justify-center 
+                className="absolute -top-[5px] z-50 -right-[9px] flex items-center justify-center 
           min-w-[18px] h-[18px] px-[4px] bg-[#90E0EF] text-[10px]
-          text-[#242424] font-bold rounded-full border border-white shadow"
+          text-[#242424] font-bold rounded-full border border-white shadow "
               >
                 {itemCount}
               </span>
@@ -83,7 +83,7 @@ export default function HeaderActions() {
         {/* پنل پاپ‌آور */}
         <div
           className={`
-      absolute left-[-70px] top-[52px] w-[360px] z-20
+      absolute left-[-70px] top-[52px] w-[360px] z-50
       bg-white rounded-xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.1)]
       overflow-hidden transition-all duration-200 ease-in-out
       ${

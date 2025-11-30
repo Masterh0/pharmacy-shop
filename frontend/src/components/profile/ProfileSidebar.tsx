@@ -47,13 +47,14 @@ type MenuItem = LinkMenuItem | ActionMenuItem;
 export default function ProfileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { name, role, userId, hydrated, setAuth, clearAuth } = useAuthStore();
+
+  // ❗ اصلاح این خط
+  const { name, role, userId, hydrated, setAuth, logout } = useAuthStore();
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const toggleExpand = (key: string) =>
     setExpanded((p) => (p === key ? null : key));
 
-  // ✅ React Query بدون ارور (Generic + onSuccess + onError)
   useQuery<AuthResponse>({
     queryKey: ["me"],
     queryFn: me,
@@ -70,12 +71,11 @@ export default function ProfileSidebar() {
       }
     },
     onError: () => {
-      clearAuth();
+      logout();
       router.replace("/login");
     },
   });
 
-  // ✅ هوک‌ها صدا زده شدند، حالا رندر مشروط مجازه
   if (!hydrated) return null;
   if (!userId || !role) return null;
 
@@ -90,7 +90,11 @@ export default function ProfileSidebar() {
       href: "/manager/profile/categories",
       children: [
         { label: "افزودن دسته", icon: Add, href: "/manager/profile/categorie" },
-        { label: "تغییر دسته", icon: Edit2, href: "/manager/profile/categories/edit" },
+        {
+          label: "تغییر دسته",
+          icon: Edit2,
+          href: "/manager/profile/categories/edit",
+        },
       ],
     },
     {
@@ -99,7 +103,11 @@ export default function ProfileSidebar() {
       href: "/manager/profile/brands",
       children: [
         { label: "افزودن برند", icon: Add, href: "/manager/profile/brand" },
-        { label: "ویرایش برند", icon: Edit2, href: "/manager/profile/brands/edit" },
+        {
+          label: "ویرایش برند",
+          icon: Edit2,
+          href: "/manager/profile/brands/edit",
+        },
       ],
     },
     {
@@ -107,11 +115,23 @@ export default function ProfileSidebar() {
       icon: Box,
       href: "/manager/profile/products",
       children: [
-        { label: "افزودن محصول", icon: Add, href: "/manager/profile/add-product" },
-        { label: "ویرایش محصول", icon: Edit2, href: "/manager/profile/edit-product" },
+        {
+          label: "افزودن محصول",
+          icon: Add,
+          href: "/manager/profile/add-product",
+        },
+        {
+          label: "ویرایش محصول",
+          icon: Edit2,
+          href: "/manager/profile/edit-product",
+        },
       ],
     },
-    { label: "اطلاعات حساب کاربری", icon: User, href: "/manager/profile/account" },
+    {
+      label: "اطلاعات حساب کاربری",
+      icon: User,
+      href: "/manager/profile/account",
+    },
     { label: "خروج", icon: LogoutCurve, action: "logout" },
   ];
 
@@ -120,7 +140,11 @@ export default function ProfileSidebar() {
     { label: "آدرس‌های من", icon: Location, href: "/customer/addresses" },
     { label: "سبد خرید", icon: ShoppingCart, href: "/customer/cart" },
     { label: "اطلاعات حساب کاربری", icon: User, href: "/customer/account" },
-    { label: "پیش‌فاکتورها و ارسال‌ها", icon: TruckFast, href: "/customer/shipments" },
+    {
+      label: "پیش‌فاکتورها و ارسال‌ها",
+      icon: TruckFast,
+      href: "/customer/shipments",
+    },
     { label: "خروج", icon: LogoutCurve, action: "logout" },
   ];
 
@@ -131,9 +155,10 @@ export default function ProfileSidebar() {
       dir="rtl"
       className="w-[310px] bg-white rounded-2xl border border-[#EDEDED] shadow px-4 py-5 mr-[32px] flex flex-col"
     >
-      {/* User Info */}
       <div className="text-center mb-4 leading-[160%]">
-        <span className="text-[#434343] text-[16px] font-medium">{displayName}</span>
+        <span className="text-[#434343] text-[16px] font-medium">
+          {displayName}
+        </span>
         <span className="text-[#656565] text-[13px] block">
           {role === "ADMIN" ? "مدیر سیستم" : "مشتری فروشگاه"}
         </span>
@@ -151,8 +176,7 @@ export default function ProfileSidebar() {
 
           const handleClick = () => {
             if (item.action === "logout") {
-              clearAuth();
-              router.replace("/");
+              router.push("/logout");
               return;
             }
             if ("children" in item && item.children) {

@@ -18,7 +18,7 @@ export default function MegaMenu({ categories }: MegaMenuProps) {
         rounded-b-[16px]
         px-[30px] py-[22px]
         flex flex-col items-end gap-[16px]
-        shadow-md z-50
+        shadow-md z-20
       "
     >
       {categories.map((category) => (

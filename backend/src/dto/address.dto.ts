@@ -6,7 +6,7 @@ export const createAddressSchema = z.object({
     .string()
     .regex(/^09\d{9}$/, "شماره موبایل معتبر نیست"),
   city: z.string().min(2, "شهر الزامی است"),
-  street: z.string().min(2, "خیابان الزامی است"),
+  street: z.string().min(2, "آدرس الزامی است"),
   province: z.string().optional(),
   postalCode: z.string().optional(),
   isDefault: z.boolean().optional(),

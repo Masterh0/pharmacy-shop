@@ -24,12 +24,12 @@ export default function normalizePhone(input: string): string {
 
 /**
  * تنظیم کوکی‌های احراز هویت
- * 
+ *
  * چرا این تنظیمات لازم است؟
  * - Edge و Safari سخت‌گیری بیشتری در Cookie دارند
  * - sameSite: "lax" بهترین تعادل بین امنیت و سازگاری
  * - domain: undefined برای localhost ضروری است
- * 
+ *
  * @see BROWSER_COMPATIBILITY.md برای جزئیات بیشتر
  */
 function sendAuthCookies(
@@ -149,7 +149,12 @@ const verifyRegisterOtp = async (req: Request, res: Response) => {
   try {
     const normalizedPhone = normalizePhone(phone);
     const otpRecord = await prisma.otp.findFirst({
-      where: { phone: normalizedPhone, code, used: false, expiresAt: { gt: new Date() } },
+      where: {
+        phone: normalizedPhone,
+        code,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { createdAt: "desc" },
     });
     if (!otpRecord)
@@ -178,13 +183,13 @@ const verifyRegisterOtp = async (req: Request, res: Response) => {
         // Continue with login even if merge fails
       }
 
-      res.clearCookie("sessionId", {
-        httpOnly: false,
-        secure: false,
-        sameSite: "lax" as const,
-        path: "/",
-        domain: undefined,
-      });
+      // res.clearCookie("sessionId", {
+      //   httpOnly: false,
+      //   secure: false,
+      //   sameSite: "lax" as const,
+      //   path: "/",
+      //   domain: undefined,
+      // });
     }
 
     const { accessToken, refreshToken } = await generateTokens(
@@ -213,10 +218,7 @@ const login = async (req: Request, res: Response) => {
     const normalizedIdentifier = normalizePhone(identifier);
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: identifier },
-          { phone: normalizedIdentifier }
-        ]
+        OR: [{ email: identifier }, { phone: normalizedIdentifier }],
       },
     });
 
@@ -240,13 +242,13 @@ const login = async (req: Request, res: Response) => {
         // Continue with login even if merge fails
       }
 
-      res.clearCookie("sessionId", {
-        httpOnly: false,
-        secure: false,
-        sameSite: "lax" as const,
-        path: "/",
-        domain: undefined,
-      });
+      // res.clearCookie("sessionId", {
+      //   httpOnly: false,
+      //   secure: false,
+      //   sameSite: "lax" as const,
+      //   path: "/",
+      //   domain: undefined,
+      // });
     }
 
     const { accessToken, refreshToken } = await generateTokens(
@@ -278,7 +280,11 @@ const sendLoginOtp = async (req: Request, res: Response) => {
       return res.status(401).json({ error: "شماره تأیید نشده." });
 
     const activeOtp = await prisma.otp.findFirst({
-      where: { phone: normalizedPhone, used: false, expiresAt: { gt: new Date() } },
+      where: {
+        phone: normalizedPhone,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -298,14 +304,16 @@ const sendLoginOtp = async (req: Request, res: Response) => {
     await prisma.otp.updateMany({
       where: {
         phone: normalizedPhone,
-        expiresAt: { lt: new Date() }
+        expiresAt: { lt: new Date() },
       },
-      data: { used: true }
+      data: { used: true },
     });
 
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + 2 * 60000);
-    await prisma.otp.create({ data: { phone: normalizedPhone, code, expiresAt } });
+    await prisma.otp.create({
+      data: { phone: normalizedPhone, code, expiresAt },
+    });
 
     // OTP sent (in production, send via SMS service)
     console.log(`Login OTP برای ${normalizedPhone}: ${code}`);
@@ -324,12 +332,19 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
     const normalizedPhone = normalizePhone(phone);
 
     const otpRecord = await prisma.otp.findFirst({
-      where: { phone: normalizedPhone, code, used: false, expiresAt: { gt: new Date() } },
+      where: {
+        phone: normalizedPhone,
+        code,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { createdAt: "desc" },
     });
 
     if (!otpRecord) {
-      console.log(`OTP verification failed for ${normalizedPhone}: Invalid or expired code`);
+      console.log(
+        `OTP verification failed for ${normalizedPhone}: Invalid or expired code`
+      );
       return res.status(400).json({ error: "کد اشتباه است." });
     }
 
@@ -349,28 +364,37 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
     // تا حتی اگر merge با خطا مواجه شود، OTP استفاده شده باشد
     const sessionId = req.cookies?.sessionId || req.body?.sessionId;
 
-    console.log("verifyLoginOtp - sessionId from cookies:", req.cookies?.sessionId);
-    console.log("verifyLoginOtp - all cookies:", Object.keys(req.cookies || {}));
+    console.log(
+      "verifyLoginOtp - sessionId from cookies:",
+      req.cookies?.sessionId
+    );
+    console.log(
+      "verifyLoginOtp - all cookies:",
+      Object.keys(req.cookies || {})
+    );
 
     if (typeof sessionId === "string" && sessionId.trim() !== "") {
       try {
         await cartService.mergeGuestCartToUserCart(sessionId, user.id);
         console.log("Cart merged successfully for user:", user.id);
       } catch (mergeError: any) {
-        console.error("Cart merge error (non-blocking):", mergeError?.message || mergeError);
+        console.error(
+          "Cart merge error (non-blocking):",
+          mergeError?.message || mergeError
+        );
         // Continue with login even if merge fails
         // Don't throw - allow login to proceed
       }
 
       // Clear sessionId cookie regardless of merge success
       // تنظیمات برای Edge
-      res.clearCookie("sessionId", {
-        httpOnly: false,
-        secure: false,
-        sameSite: "lax" as const,
-        path: "/",
-        domain: undefined,
-      });
+      // res.clearCookie("sessionId", {
+      //   httpOnly: false,
+      //   secure: false,
+      //   sameSite: "lax" as const,
+      //   path: "/",
+      //   domain: undefined,
+      // });
     } else {
       console.log("No sessionId found, skipping cart merge");
     }
@@ -392,7 +416,8 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
 /* ------------------ REFRESH TOKEN ------------------ */
 const refresh = async (req: Request, res: Response) => {
   try {
-    const clientRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const clientRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
 
     if (!clientRefreshToken)
       return res.status(400).json({ error: "رفرش‌توکن یافت نشد." });
@@ -446,13 +471,13 @@ const logout = async (req: Request, res: Response) => {
 
     res.clearCookie("accessToken", clearOptions);
     res.clearCookie("refreshToken", clearOptions);
-    res.clearCookie("sessionId", {
-      httpOnly: false,
-      secure: false,
-      sameSite: "lax" as const,
-      path: "/",
-      domain: undefined,
-    });
+    // res.clearCookie("sessionId", {
+    //   httpOnly: false,
+    //   secure: false,
+    //   sameSite: "lax" as const,
+    //   path: "/",
+    //   domain: undefined,
+    // });
     return res.status(200).json({ message: "خروج موفقیت‌آمیز." });
   } catch (error) {
     console.error("Logout error:", error);

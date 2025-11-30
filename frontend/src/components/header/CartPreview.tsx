@@ -2,15 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { useCart } from "@/lib/hooks/useAddToCart";
+import clsx from "clsx";
 
 export default function CartPreview() {
   const { cart, isLoading, isError, removeItem, isRemoving } = useCart();
+  const [removingId, setRemovingId] = useState<number | null>(null);
   const items = cart?.items ?? [];
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
   if (isLoading)
     return <div className="p-4 text-center">در حال بارگذاری سبد...</div>;
+
   if (isError)
     return (
       <div className="p-4 text-center text-red-500">مشکل در دریافت اطلاعات</div>
@@ -23,7 +27,7 @@ export default function CartPreview() {
       </div>
     );
 
-  // 💰 محاسبه منطق مجموع‌ها
+  // محاسبات مجموع
   const totalBeforeDiscount = items.reduce(
     (sum, item) =>
       sum + Number(item.variant?.price || item.priceAtAdd) * item.quantity,
@@ -42,19 +46,41 @@ export default function CartPreview() {
 
   const totalDiscount = totalBeforeDiscount - totalAfterDiscount;
 
+  // انیمیشن حذف
+  const handleRemove = async (id: number) => {
+    setRemovingId(id);
+    await new Promise((r) => setTimeout(r, 250)); // زمان انیمیشن
+    await removeItem(id);
+    setRemovingId(null);
+  };
+
   return (
-    <div className="p-4 w-[360px] flex flex-col rounded-xl bg-white shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-      {/* 📦 نمایش آیتم‌ها */}
-      <div className="max-h-[250px] overflow-y-auto pr-2 divide-y divide-gray-100 scrollbar-thin scrollbar-thumb-gray-300">
+    <div
+      className={clsx(
+        "p-4 w-[360px] flex flex-col rounded-xl bg-white shadow-[0_4px_20px_rgba(0,0,0,0.1)]",
+        "animate-[fadeIn_0.25s_ease-out]"
+      )}
+    >
+      {/* آیتم‌ها */}
+      <div
+        className="
+          max-h-[250px] overflow-y-auto pr-2 divide-y divide-gray-100
+          scrollbar-thin scrollbar-thumb-gray-300
+        "
+      >
         {items.map((item) => {
           const price = Number(item.variant?.price ?? item.priceAtAdd);
           const discountPrice = Number(item.variant?.discountPrice) || price;
-          const totalItem = discountPrice * item.quantity;
 
           return (
             <div
               key={item.id}
-              className="flex items-center justify-between gap-3 py-3"
+              className={clsx(
+                "flex items-center justify-between gap-3 py-3 transition-all duration-300",
+                removingId === item.id
+                  ? "opacity-0 -translate-x-4"
+                  : "opacity-100 translate-x-0"
+              )}
             >
               <Image
                 src={
@@ -74,6 +100,7 @@ export default function CartPreview() {
                 unoptimized
               />
 
+              {/* متن */}
               <div className="flex-1 text-right">
                 <p className="text-[13px] font-medium text-[#242424]">
                   {item.product.name}
@@ -87,28 +114,31 @@ export default function CartPreview() {
                   </p>
                 )}
 
+                {/* قیمت‌ها */}
                 {discountPrice < price ? (
                   <div dir="rtl" className="text-[13px] space-y-0.5 mt-[2px]">
-                    {/* قیمت قبل از تخفیف */}
                     <p className="line-through text-[#D32F2F]">
                       {price.toLocaleString("fa-IR")} تومان
                     </p>
 
-                    {/* قیمت بعد از تخفیف */}
                     <p className="text-gray-800 font-bold">
                       {item.quantity} × {discountPrice.toLocaleString("fa-IR")}{" "}
                       تومان
                     </p>
                   </div>
                 ) : (
-                  <p dir="rtl" className="text-[13px] text-gray-800 font-bold mt-[2px]">
+                  <p
+                    dir="rtl"
+                    className="text-[13px] text-gray-800 font-bold mt-[2px]"
+                  >
                     {item.quantity} × {price.toLocaleString("fa-IR")} تومان
                   </p>
                 )}
               </div>
 
+              {/* دکمه حذف */}
               <button
-                onClick={() => removeItem(item.id)}
+                onClick={() => handleRemove(item.id)}
                 disabled={isRemoving}
                 className="text-red-500 text-[26px] font-bold hover:text-red-600 disabled:opacity-50"
               >
@@ -119,7 +149,7 @@ export default function CartPreview() {
         })}
       </div>
 
-      {/* 📊 بخش پایینی مجموع */}
+      {/* بخش مجموع */}
       <div className="sticky bottom-0 bg-white border-t border-gray-200 pt-3 mt-2">
         {totalDiscount > 0 && (
           <div className="flex justify-between items-center text-[13px] text-[#E53935] mb-[2px]">
@@ -142,7 +172,10 @@ export default function CartPreview() {
 
         <Link
           href="/cart"
-          className="block text-center text-white bg-[#0077B6] rounded-lg py-2 text-[14px] font-medium hover:bg-[#0096C7] mt-2 transition-all"
+          className="
+            block text-center text-white bg-[#0077B6] rounded-lg py-2 text-[14px] font-medium 
+            hover:bg-[#0096C7] mt-2 transition-all
+          "
         >
           مشاهده سبد خرید
         </Link>

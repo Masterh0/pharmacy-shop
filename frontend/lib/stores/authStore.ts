@@ -2,45 +2,54 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface UserAuthData {
-  role?: string | null;
-  userId?: number | null;
-  phone?: string | null;
-  name?: string | null;
+/* ---------------------------
+ * 🧩 Types
+ * --------------------------- */
+export type UserRole = "ADMIN" | "STAFF" | "CUSTOMER";
+
+export interface UserAuthData {
+  userId: number | null;
+  role: UserRole | null;
+  phone: string | null;
+  name: string | null;
 }
 
-interface AuthState extends UserAuthData {
+export interface AuthState extends UserAuthData {
   hydrated: boolean;
-  setAuth: (data: UserAuthData) => void;
-  clearAuth: () => void;
+  setAuth: (data: Partial<UserAuthData>) => void;
+  logout: () => void;
   markHydrated: () => void;
 }
 
+/* ---------------------------
+ * 🧩 Default Values
+ * --------------------------- */
+const defaultUser: UserAuthData = {
+  userId: null,
+  role: null,
+  phone: null,
+  name: null,
+};
+
+/* ---------------------------
+ * 🧩 Store
+ * --------------------------- */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      role: null,
-      userId: null,
-      phone: null,
-      name: null,
+      ...defaultUser,
       hydrated: false,
 
-      setAuth: (data) => {
+      setAuth: (data) =>
         set({
-          role: data.role ?? get().role,
           userId: data.userId ?? get().userId,
+          role: data.role ?? get().role,
           phone: data.phone ?? get().phone,
           name: data.name ?? get().name,
-        });
-      },
+        }),
 
-      clearAuth: () => {
-        set({
-          role: null,
-          userId: null,
-          phone: null,
-          name: null,
-        });
+      logout: () => {
+        set({ ...defaultUser });
       },
 
       markHydrated: () => set({ hydrated: true }),
@@ -48,13 +57,16 @@ export const useAuthStore = create<AuthState>()(
 
     {
       name: "auth-ui",
+
       partialize: (s) => ({
-        role: s.role,
         userId: s.userId,
+        role: s.role,
         phone: s.phone,
         name: s.name,
       }),
-      onRehydrateStorage: () => (state) => {
+
+      onRehydrateStorage: () => (state, err) => {
+        if (err) console.error("Hydration error:", err);
         state?.markHydrated();
       },
     }
