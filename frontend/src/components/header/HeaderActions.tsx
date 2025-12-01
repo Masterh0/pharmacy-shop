@@ -51,13 +51,14 @@ export default function HeaderActions() {
         }}
       >
         {/* دکمه */}
-        <button
+        <Link
+          href="/cart"
           className="
-      relative flex flex-row-reverse items-center gap-[8px]
-      text-[#434343] text-[14px] font-IRANYekanX font-medium
-      transition-all duration-200 hover:text-[#00B4D8]
-      focus:outline-none
-    "
+    relative flex flex-row-reverse items-center gap-[8px]
+    text-[#434343] text-[14px] font-IRANYekanX font-medium
+    transition-all duration-200 hover:text-[#00B4D8]
+    focus:outline-none
+  "
         >
           <div className="relative">
             <Image
@@ -67,6 +68,7 @@ export default function HeaderActions() {
               height={24}
               className="transition-all duration-200 hover:brightness-125"
             />
+
             {itemCount > 0 && (
               <span
                 className="absolute -top-[5px] z-50 -right-[9px] flex items-center justify-center 
@@ -77,8 +79,9 @@ export default function HeaderActions() {
               </span>
             )}
           </div>
+
           <span>سبد خرید</span>
-        </button>
+        </Link>
 
         {/* پنل پاپ‌آور */}
         <div

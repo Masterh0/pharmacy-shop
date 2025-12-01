@@ -171,7 +171,7 @@ export default function CartPreview() {
         </div>
 
         <Link
-          href="/cart"
+          href="/checkout/cart"
           className="
             block text-center text-white bg-[#0077B6] rounded-lg py-2 text-[14px] font-medium 
             hover:bg-[#0096C7] mt-2 transition-all
