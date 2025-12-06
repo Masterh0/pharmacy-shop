@@ -23,7 +23,7 @@ export const cartApi = {
     itemId: number,
     quantity: number
   ): Promise<CartItem> {
-    const { data } = await api.patch(`/cart/item/${itemId}`, { quantity });
+    const { data } = await api.put(`/cart/item/${itemId}/quantity`, { quantity });
     return data;
   },
 

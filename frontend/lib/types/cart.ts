@@ -1,27 +1,29 @@
-export interface Cart {
-  id: number;
-  userId?: number;
-  sessionId?: string;
-  createdAt: string;
-  updatedAt: string;
-  items: CartItem[];
-}
-
 export interface CartItem {
   id: number;
   cartId: number;
   productId: number;
   variantId: number;
   quantity: number;
-  priceAtAdd: string; // Decimal در Prisma → string در JSON
-  product?: {
+  priceAtAdd: string; // Decimal → string in JSON
+
+  product: {
     id: number;
     name: string;
-    thumbnail: string;
+    imageUrl: string | null;
+    price: string | null; // Product.price (Decimal?) 
+    brandId: number;
+    categoryId: number;
   };
-  variant?: {
+
+  variant: {
     id: number;
-    title: string;
+    productId: number;
+    packageQuantity: number;
+    packageType: string | null;
+    price: string;              // Decimal(12,2)
+    discountPrice: string | null; // Decimal?
     stock: number;
+    expiryDate: string | null;
+    flavor: string | null;
   };
 }

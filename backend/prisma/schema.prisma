@@ -10,7 +10,6 @@ datasource db {
 model User {
   id                    Int                  @id @default(autoincrement())
   email                 String?              @unique
-  name                  String?
   phone                 String               @unique
   password              String?
   role                  Role                 @default(CUSTOMER)
@@ -19,6 +18,8 @@ model User {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   isVerified            Boolean              @default(false)
+  hasPassword           Boolean              @default(false)
+  name                  String?
   addresses             Address[]
   carts                 Cart[]
   comments              Comment[]
@@ -27,7 +28,6 @@ model User {
   reviewedPrescriptions Prescription[]       @relation("PrescriptionReviewer")
   prescriptions         Prescription[]
   refreshTokens         RefreshToken[]       @relation("UserRefreshTokens")
-  hasPassword           Boolean              @default(false)
 }
 
 model RefreshToken {
@@ -76,6 +76,8 @@ model Product {
   updatedAt       DateTime         @updatedAt
   isBlock         Boolean          @default(false)
   soldCount       Int              @default(0)
+  price           Decimal?
+  viewCount       Int              @default(0)
   cartItems       CartItem[]
   comments        Comment[]
   inventoryLogs   InventoryLog[]
@@ -83,12 +85,7 @@ model Product {
   packageProducts PackageProduct[]
   brand           Brand            @relation(fields: [brandId], references: [id])
   category        Category         @relation(fields: [categoryId], references: [id])
-
-  // ✅ فقط یک رابطه با نام ثابت
-  variants ProductVariant[] @relation("ProductToProductVariant")
-
-  price     Decimal?
-  viewCount Int      @default(0)
+  variants        ProductVariant[] @relation("ProductToProductVariant")
 
   @@index([name])
   @@index([categoryId])
@@ -97,20 +94,18 @@ model Product {
 }
 
 model ProductVariant {
-  id              Int       @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   productId       Int
   packageQuantity Int
   packageType     String?
-  price           Decimal   @db.Decimal(12, 2)
-  discountPrice   Decimal?  @db.Decimal(12, 2)
-  stock           Int       @default(0)
+  price           Decimal     @db.Decimal(12, 2)
+  discountPrice   Decimal?    @db.Decimal(12, 2)
+  stock           Int         @default(0)
   expiryDate      DateTime?
   flavor          String?
-  // ✅ سمت فرزند رابطه با Cascade درست تعریف شده
-  product         Product   @relation(name: "ProductToProductVariant", fields: [productId], references: [id], onDelete: Cascade)
-
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  product         Product     @relation("ProductToProductVariant", fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Package {
@@ -149,9 +144,9 @@ model CartItem {
   id         Int            @id @default(autoincrement())
   cartId     Int
   productId  Int
-  variantId  Int
   quantity   Int            @default(1)
   priceAtAdd Decimal        @db.Decimal(12, 2)
+  variantId  Int
   cart       Cart           @relation(fields: [cartId], references: [id])
   product    Product        @relation(fields: [productId], references: [id])
   variant    ProductVariant @relation(fields: [variantId], references: [id])
@@ -190,10 +185,10 @@ model OrderItem {
   id         Int            @id @default(autoincrement())
   orderId    Int
   productId  Int
-  variantId  Int
   quantity   Int
   unitPrice  Decimal        @db.Decimal(12, 2)
   totalPrice Decimal        @db.Decimal(12, 2)
+  variantId  Int
   order      Order          @relation(fields: [orderId], references: [id])
   product    Product        @relation(fields: [productId], references: [id])
   variant    ProductVariant @relation(fields: [variantId], references: [id])

@@ -1,72 +1,129 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { MoneySend, ShoppingCart, Location } from "iconsax-react";
 
-export const metadata = {
-  title: "تکمیل سفارش | داروخانه بهوندی",
-};
+export default function CheckoutLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
 
-export default function CheckoutLayout({ children }: { children: React.ReactNode }) {
-  const step = (children as any)?.props?.step || "cart";
+  // تشخیص مرحله فعلی از روی URL
+  const step = pathname.includes("/payment")
+    ? "payment"
+    : pathname.includes("/address")
+    ? "address"
+    : "cart";
 
-  const isActive = (name: string) => step === name;
+  // ترتیب مراحل
+  const steps = ["cart", "address", "payment"] as const;
+  const currentStepIndex = steps.indexOf(step); // 0 = cart, 1 = address, 2 = payment
+
+  // آیا این مرحله کامل شده یا فعاله؟
+  const isStepCompleted = (index: number) => index <= currentStepIndex;
+
+  // آیا خط بین دو مرحله کامل شده؟
+  const isLineCompleted = (lineIndex: number) => lineIndex < currentStepIndex;
 
   return (
     <div className="w-full flex flex-col items-center bg-white min-h-screen">
       {/* Stepper */}
-      <div className="flex flex-row items-center justify-center gap-6 mt-[30px] mb-[48px]">
-
+      <div className="flex flex-row items-center justify-center gap-6 mt-[30px] mb-[48px] px-4">
         {/* Step 1 — Cart */}
-        <div className="flex flex-col items-center gap-1">
-          {isActive("cart") ? (
-            <ShoppingCart size="24" variant="Bold" color="#00B4D8" />
+        <div className="flex flex-col items-center gap-2 min-w-[80px]">
+          {isStepCompleted(0) ? (
+            <ShoppingCart size="28" variant="Bold" color="#00B4D8" />
           ) : (
-            <ShoppingCart size="24" variant="Outline" color="#90E0EF" />
+            <ShoppingCart size="28" variant="Outline" color="#90E0EF" />
           )}
-          <span className={isActive("cart") ? "text-[#00B4D8]" : "text-[#90E0EF]"}>
+          <span
+            className={`text-sm font-medium ${
+              isStepCompleted(0) ? "text-[#00B4D8]" : "text-[#90E0EF]"
+            }`}
+          >
             سبد خرید
           </span>
         </div>
 
-        {/* خط چین بین 1 و 2 */}
-        <div className="flex items-center">
-          <div className="w-[8px] h-[8px] rounded-full bg-[#90E0EF]" />
-          <div className="w-[80px] h-[2px] border-t border-dashed border-[#90E0EF]" />
-          <div className="w-[8px] h-[8px] rounded-full bg-[#90E0EF]" />
+        {/* خط اول */}
+        <div className="flex items-center -translate-y-1">
+          <div
+            className={`w-2 h-2 rounded-full transition-colors ${
+              isLineCompleted(0) ? "bg-[#00B4D8]" : "bg-[#90E0EF]"
+            }`}
+          />
+          <div
+            className={`w-20 h-[3px] mx-1 transition-all ${
+              isLineCompleted(0)
+                ? "border-t-4 border-solid border-[#00B4D8]"
+                : "border-t border-dashed border-[#90E0EF]"
+            }`}
+          />
+          <div
+            className={`w-2 h-2 rounded-full transition-colors ${
+              isLineCompleted(0) ? "bg-[#00B4D8]" : "bg-[#90E0EF]"
+            }`}
+          />
         </div>
 
         {/* Step 2 — Address */}
-        <div className="flex flex-col items-center gap-1">
-          {isActive("address") ? (
-            <Location size="24" variant="Bold" color="#00B4D8" />
+        <div className="flex flex-col items-center gap-2 min-w-[80px]">
+          {isStepCompleted(1) ? (
+            <Location size="28" variant="Bold" color="#00B4D8" />
           ) : (
-            <Location size="24" variant="Outline" color="#90E0EF" />
+            <Location size="28" variant="Outline" color="#90E0EF" />
           )}
-          <span className={isActive("address") ? "text-[#00B4D8]" : "text-[#90E0EF]"}>
+          <span
+            className={`text-sm font-medium ${
+              isStepCompleted(1) ? "text-[#00B4D8]" : "text-[#90E0EF]"
+            }`}
+          >
             آدرس
           </span>
         </div>
 
-        {/* خط چین بین 2 و 3 */}
-        <div className="flex items-center">
-          <div className="w-[8px] h-[8px] rounded-full bg-[#90E0EF]" />
-          <div className="w-[80px] h-[2px] border-t border-dashed border-[#90E0EF]" />
-          <div className="w-[8px] h-[8px] rounded-full bg-[#90E0EF]" />
+        {/* خط دوم */}
+        <div className="flex items-center -translate-y-1">
+          <div
+            className={`w-2 h-2 rounded-full transition-colors ${
+              isLineCompleted(1) ? "bg-[#00B4D8]" : "bg-[#90E0EF]"
+            }`}
+          />
+          <div
+            className={`w-20 h-[3px] mx-1 transition-all ${
+              isLineCompleted(1)
+                ? "border-t-4 border-solid border-[#00B4D8]"
+                : "border-t border-dashed border-[#90E0EF]"
+            }`}
+          />
+          <div
+            className={`w-2 h-2 rounded-full transition-colors ${
+              isLineCompleted(1) ? "bg-[#00B4D8]" : "bg-[#90E0EF]"
+            }`}
+          />
         </div>
 
         {/* Step 3 — Payment */}
-        <div className="flex flex-col items-center gap-1">
-          {isActive("payment") ? (
-            <MoneySend size="24" variant="Bold" color="#00B4D8" />
+        <div className="flex flex-col items-center gap-2 min-w-[80px]">
+          {isStepCompleted(2) ? (
+            <MoneySend size="28" variant="Bold" color="#00B4D8" />
           ) : (
-            <MoneySend size="24" variant="Outline" color="#90E0EF" />
+            <MoneySend size="28" variant="Outline" color="#90E0EF" />
           )}
-          <span className={isActive("payment") ? "text-[#00B4D8]" : "text-[#90E0EF]"}>
+          <span
+            className={`text-sm font-medium ${
+              isStepCompleted(2) ? "text-[#00B4D8]" : "text-[#90E0EF]"
+            }`}
+          >
             پرداخت
           </span>
         </div>
       </div>
 
-      {/* Page content */}
-      <div className="w-full flex justify-center">{children}</div>
+      {/* محتوای صفحه */}
+      <div className="w-full flex justify-center pb-10">{children}</div>
     </div>
   );
 }

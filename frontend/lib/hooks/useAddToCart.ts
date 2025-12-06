@@ -2,12 +2,15 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cartApi } from "@/lib/api/cart";
-import type { Cart } from "@/lib/types/cart";
+import type { Cart, CartItem } from "@/lib/types/cart";
+import { toast } from "sonner";
 
 export function useCart() {
   const queryClient = useQueryClient();
 
-  // ✅ 1) گرفتن سبد خرید — بدون userId/sessionId
+  // -------------------------------
+  // 1) GET CART
+  // -------------------------------
   const {
     data: cart,
     isLoading,
@@ -17,33 +20,141 @@ export function useCart() {
     queryFn: () => cartApi.get(),
   });
 
-  // ✅ 2) افزودن آیتم — فقط 3 پارامتر
+  // -------------------------------
+  // 2) ADD ITEM (with optimistic)
+  // -------------------------------
   const addItemMutation = useMutation({
     mutationFn: (payload: {
       productId: number;
       variantId: number;
       quantity: number;
     }) => cartApi.add(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["cart"] });
+
+      const previous = queryClient.getQueryData<Cart>(["cart"]);
+
+      // optimistic add
+      if (previous) {
+        const fakeItem: CartItem = {
+          id: Math.random(),
+          productId: payload.productId,
+          variantId: payload.variantId,
+          quantity: payload.quantity,
+          priceAtAdd: 0,
+          product: undefined,
+          variant: undefined,
+        };
+
+        queryClient.setQueryData<Cart>(["cart"], {
+          ...previous,
+          items: [...previous.items, fakeItem],
+        });
+      }
+
+      return { previous };
+    },
+
+    onError: (_err, _payload, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(["cart"], ctx.previous);
+
+      toast.error("مشکلی پیش آمد. دوباره امتحان کنید.");
+    },
+
+    onSuccess: () => {
+      toast.success("به سبد اضافه شد");
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
   });
 
-  // ✅ 3) حذف آیتم با id
+  // -------------------------------
+  // 3) REMOVE ITEM (with optimistic)
+  // -------------------------------
   const removeItemMutation = useMutation({
     mutationFn: (itemId: number) => cartApi.removeItem(itemId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: ["cart"] });
+      const previous = queryClient.getQueryData<Cart>(["cart"]);
+
+      if (previous) {
+        queryClient.setQueryData<Cart>(["cart"], {
+          ...previous,
+          items: previous.items.filter((x) => x.id !== itemId),
+        });
+      }
+
+      return { previous };
+    },
+
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(["cart"], ctx.previous);
+      toast.error("حذف با خطا مواجه شد");
+    },
+
+    onSuccess: () => {
+      toast.success("حذف شد");
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
   });
 
-  // ✅ 4) آپدیت تعداد
+  // -------------------------------
+  // 4) UPDATE QUANTITY (optimistic)
+  // -------------------------------
   const updateItemMutation = useMutation({
     mutationFn: (payload: { itemId: number; quantity: number }) =>
       cartApi.updateItemQuantity(payload.itemId, payload.quantity),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+
+    onMutate: async ({ itemId, quantity }) => {
+      await queryClient.cancelQueries({ queryKey: ["cart"] });
+
+      const previous = queryClient.getQueryData<Cart>(["cart"]);
+
+      if (previous) {
+        queryClient.setQueryData<Cart>(["cart"], {
+          ...previous,
+          items: previous.items.map((x) =>
+            x.id === itemId ? { ...x, quantity } : x
+          ),
+        });
+      }
+
+      return { previous };
+    },
+
+    onError: (_err, _payload, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(["cart"], ctx.previous);
+      toast.error("بروزرسانی ناموفق بود");
+    },
+
+    onSuccess: () => {
+      toast.success("تعداد بروزرسانی شد");
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
   });
 
-  // ✅ 5) خالی کردن سبد
+  // -------------------------------
+  // 5) CLEAR CART
+  // -------------------------------
   const clearCartMutation = useMutation({
     mutationFn: () => cartApi.clear(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onSuccess: () => {
+      toast.success("سبد خرید خالی شد");
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+    },
+    onError: () => {
+      toast.error("خطا در خالی کردن سبد");
+    },
   });
 
   return {
@@ -51,13 +162,11 @@ export function useCart() {
     isLoading,
     isError,
 
-    /** عملیات CRUD */
     addItem: addItemMutation.mutate,
     removeItem: removeItemMutation.mutate,
     updateItem: updateItemMutation.mutate,
     clearCart: clearCartMutation.mutate,
 
-    /** وضعیت‌ها */
     isAdding: addItemMutation.isPending,
     isUpdating: updateItemMutation.isPending,
     isRemoving: removeItemMutation.isPending,

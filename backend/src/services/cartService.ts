@@ -85,13 +85,23 @@ export class CartService {
   async getCart(userId?: number, sessionId?: string) {
     const cart = userId
       ? await prisma.cart.findFirst({
-        where: { userId },
-        include: { items: { include: { product: true, variant: true } } },
-      })
+          where: { userId },
+          include: {
+            items: {
+              include: { product: true, variant: true },
+              orderBy: { id: "asc" },
+            },
+          },
+        })
       : await prisma.cart.findUnique({
-        where: { sessionId },
-        include: { items: { include: { product: true, variant: true } } },
-      });
+          where: { sessionId },
+          include: {
+            items: {
+              include: { product: true, variant: true },
+              orderBy: { id: "asc" },
+            },
+          },
+        });
 
     return cart || { items: [] };
   }
@@ -108,6 +118,17 @@ export class CartService {
    * - اگر سبد مهمان وجود داشته باشد → تمام آیتم‌هایش را به سبد کاربر اضافه یا افزایش می‌کند
    * - سبد مهمان را بعد از مرج حذف می‌کند
    */
+  async updateItemQuantity(itemId: number, quantity: number) {
+    if (quantity < 1) {
+      // اگر کم‌تر از 1 بود، به‌جای آپدیت کردن، آیتم حذف شود
+      return this.removeItem(itemId);
+    }
+
+    return prisma.cartItem.update({
+      where: { id: itemId },
+      data: { quantity },
+    });
+  }
   async mergeGuestCartToUserCart(sessionId: string, userId: number) {
     if (!sessionId || !userId) {
       console.log("mergeGuestCartToUserCart: Missing sessionId or userId");
@@ -178,7 +199,9 @@ export class CartService {
         select: { id: true },
       });
 
-      console.log(`Found ${cartItemsToDelete.length} cart items to delete from guest cart ${guestCart.id}`);
+      console.log(
+        `Found ${cartItemsToDelete.length} cart items to delete from guest cart ${guestCart.id}`
+      );
 
       // حذف تک‌تک CartItem ها
       for (const item of cartItemsToDelete) {
@@ -187,7 +210,10 @@ export class CartService {
             where: { id: item.id },
           });
         } catch (deleteError: any) {
-          console.error(`Error deleting cart item ${item.id}:`, deleteError?.message);
+          console.error(
+            `Error deleting cart item ${item.id}:`,
+            deleteError?.message
+          );
           // Continue with other items
         }
       }
@@ -198,7 +224,9 @@ export class CartService {
       });
 
       if (remainingItems > 0) {
-        console.warn(`Warning: ${remainingItems} cart items still exist for cart ${guestCart.id}`);
+        console.warn(
+          `Warning: ${remainingItems} cart items still exist for cart ${guestCart.id}`
+        );
         // استفاده از raw query برای حذف مستقیم
         await prisma.$executeRaw`
           DELETE FROM "CartItem" WHERE "cartId" = ${guestCart.id}

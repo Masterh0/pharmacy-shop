@@ -52,7 +52,7 @@ export default function HeaderActions() {
       >
         {/* دکمه */}
         <Link
-          href="/cart"
+          href="/checkout/cart"
           className="
     relative flex flex-row-reverse items-center gap-[8px]
     text-[#434343] text-[14px] font-IRANYekanX font-medium

@@ -6,31 +6,27 @@ import type { Address } from "@/lib/types/address";
 import ProvinceSelect from "./ProvinceSelect";
 import CitySelect from "./CitySelect";
 import { toast } from "sonner";
+import { Edit2, Trash2, MapPin, Plus, Check } from "lucide-react";
 
 const isValidIranPhone = (value: string) => /^09\d{9}$/.test(value);
 
 export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  const [phoneValid, setPhoneValid] = useState(false);
-  const [phoneInvalid, setPhoneInvalid] = useState(false);
-
-  const [form, setForm] = useState<
-    Omit<Address, "id" | "userId" | "createdAt" | "updatedAt">
-  >({
+  const [form, setForm] = useState({
     fullName: "",
     phone: "",
     province: "",
     city: "",
     postalCode: "",
     street: "",
-    isDefault: false,
-    lat: undefined,
-    lng: undefined,
+    isDefault: true,
   });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [phoneValid, setPhoneValid] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   useEffect(() => {
     fetchAddresses();
@@ -42,35 +38,61 @@ export default function AddressesPage() {
       const data = await addressApi.list();
       setAddresses(data);
     } catch {
-      toast.error("خطا در دریافت اطلاعات");
+      toast.error("خطا در بارگذاری آدرس‌ها");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreate = async () => {
-    setFieldErrors({});
+  const handleSubmit = async () => {
+    setErrors({});
+
+    if (
+      !form.fullName ||
+      !form.phone ||
+      !form.province ||
+      !form.city ||
+      !form.street ||
+      !form.postalCode
+    ) {
+      toast.error("لطفاً همه فیلدهای اجباری را پر کنید");
+      return;
+    }
+
+    if (!isValidIranPhone(form.phone)) {
+      toast.error("شماره موبایل معتبر نیست");
+      return;
+    }
 
     try {
-      const newAddress = await addressApi.create(form);
-      setAddresses([...addresses, newAddress]);
-      toast.success("آدرس ثبت شد");
+      const newAddr = await addressApi.create({
+        fullName: form.fullName,
+        phone: form.phone,
+        province: form.province || null,
+        city: form.city,
+        street: form.street,
+        postalCode: form.postalCode || null,
+        isDefault: form.isDefault,
+      });
+
+      setAddresses((prev) => [...prev, newAddr]);
+      toast.success("آدرس با موفقیت اضافه شد");
       resetForm();
-    } catch (err: any) {
-      const issues = err?.response?.data?.errors;
+    } catch (err: unknown) {
+      const axiosErr = err as {
+        response?: { data?: { errors?: Array<{ path: string[]; message: string }> } };
+      };
 
+      const issues = axiosErr.response?.data?.errors;
       if (Array.isArray(issues)) {
-        const newE: Record<string, string> = {};
+        const newErrs: Record<string, string> = {};
         issues.forEach((i) => {
-          const f = i.path?.[0];
-          if (f) newE[f] = i.message;
+          if (i.path?.[0]) newErrs[i.path[0]] = i.message;
         });
-
-        setFieldErrors(newE);
-        return;
+        setErrors(newErrs);
+      } else {
+        toast.error("خطا در ثبت آدرس");
       }
-
-      toast.error(err?.response?.data?.message || "خطای ناشناخته");
     }
   };
 
@@ -82,165 +104,208 @@ export default function AddressesPage() {
       city: "",
       postalCode: "",
       street: "",
-      isDefault: false,
-      lat: undefined,
-      lng: undefined,
+      isDefault: true,
     });
-
     setPhoneValid(false);
-    setPhoneInvalid(false);
-    setFieldErrors({});
+    setPhoneTouched(false);
+    setErrors({});
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("مطمئنید می‌خواهید این آدرس را حذف کنید؟")) return;
+    try {
+      await addressApi.remove(id);
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+      toast.success("آدرس حذف شد");
+    } catch {
+      toast.error("حذف انجام نشد");
+    }
+  };
+
+  const handleSetDefault = async (id: number) => {
+    try {
+      await addressApi.setDefault(id);
+      setAddresses((prev) =>
+        prev.map((a) => ({ ...a, isDefault: a.id === id }))
+      );
+      toast.success("آدرس پیش‌فرض تغییر کرد");
+    } catch {
+      toast.error("تغییر پیش‌فرض انجام نشد");
+    }
   };
 
   return (
-    <div className="max-w-[808px] mx-auto border border-[#EDEDED] rounded-xl p-6 font-[IRANYekanX]">
-      <h2 className="text-[#242424] text-xl font-bold mb-4 text-right">
-        افزودن آدرس
-      </h2>
+    <div className="max-w-5xl mx-auto p-6">
+      <h1 className="text-2xl font-bold text-gray-800 mb-8 text-right flex items-center gap-3">
+        <MapPin className="text-[#00B4D8]" size={28} />
+        مدیریت آدرس‌ها
+      </h1>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      {/* فرم افزودن آدرس */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-10">
+        <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <Plus size={22} className="text-[#00B4D8]" />
+          افزودن آدرس جدید
+        </h2>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Input
-            label="نام و نام خانوادگی"
+            label="نام و نام خانوادگی *"
             value={form.fullName}
-            error={fieldErrors.fullName}
-            onChange={(e) =>
-              setForm({ ...form, fullName: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            error={errors.fullName}
           />
 
           <Input
-            label="شماره تماس"
+            label="شماره موبایل *"
             value={form.phone}
-            valid={phoneValid}
-            invalid={phoneInvalid}
-            error={fieldErrors.phone}
             onChange={(e) => {
-              let v = e.target.value;
-
-              if (!/^\d*$/.test(v)) return;
-              if (v.length > 11) return;
-
+              const v = e.target.value.replace(/[^\d]/g, "").slice(0, 11);
               setForm({ ...form, phone: v });
-
-              const ok = isValidIranPhone(v);
-              setPhoneValid(ok);
-
-              setPhoneInvalid(!ok && v.length > 0);
-
-              if (ok) {
-                setFieldErrors((p) => ({ ...p, phone: "" }));
-              }
+              setPhoneTouched(true);
+              setPhoneValid(isValidIranPhone(v));
             }}
-          />
-
-          <Input
-            label="کد پستی"
-            value={form.postalCode}
-            error={fieldErrors.postalCode}
-            onChange={(e) =>
-              setForm({ ...form, postalCode: e.target.value })
-            }
+            valid={phoneValid && phoneTouched}
+            invalid={phoneTouched && !phoneValid && form.phone.length > 0}
+            error={errors.phone}
+            placeholder="09123456789"
           />
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+              استان *
+            </label>
             <ProvinceSelect
               value={form.province}
-              onChange={(province) =>
-                setForm({ ...form, province, city: "" })
-              }
+              onChange={(v: string) => setForm({ ...form, province: v, city: "" })}
             />
-            {fieldErrors.province && (
-              <p className="text-xs text-red-500 mt-1 text-right">
-                {fieldErrors.province}
-              </p>
+            {errors.province && (
+              <p className="text-red-500 text-xs mt-1 text-right">{errors.province}</p>
             )}
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+              شهر *
+            </label>
             <CitySelect
               province={form.province}
               value={form.city}
-              onChange={(city) => setForm({ ...form, city })}
+              onChange={(v: string) => setForm({ ...form, city: v })}
             />
-            {fieldErrors.city && (
-              <p className="text-xs text-red-500 mt-1 text-right">
-                {fieldErrors.city}
-              </p>
+            {errors.city && (
+              <p className="text-red-500 text-xs mt-1 text-right">{errors.city}</p>
             )}
           </div>
 
-          <div className="col-span-2">
+          <Input
+            label="کد پستی *"
+            value={form.postalCode}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                postalCode: e.target.value.replace(/[^\d]/g, ""),
+              })
+            }
+            error={errors.postalCode}
+            placeholder="1234567890"
+          />
+
+          <div className="md:col-span-2">
             <Input
-              label="آدرس کامل"
+              label="آدرس کامل *"
               value={form.street}
-              error={fieldErrors.street}
-              onChange={(e) =>
-                setForm({ ...form, street: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, street: e.target.value })}
+              error={errors.street}
+              placeholder="مثال: خیابان آزادی، کوچه بهار، بن‌بست اول"
             />
           </div>
-
         </div>
 
-        <div className="flex justify-center mt-4">
+        <div className="flex items-center gap-3 mt-6">
+          <input
+            type="checkbox"
+            id="default"
+            checked={form.isDefault}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setForm({ ...form, isDefault: e.target.checked })
+            }
+            className="w-5 h-5 text-[#00B4D8] rounded"
+          />
+          <label htmlFor="default" className="text-sm text-gray-700 cursor-pointer">
+            این آدرس را به عنوان پیش‌فرض تنظیم کن
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-4 mt-8">
           <button
-            onClick={handleCreate}
-            className="bg-[#00B4D8] text-white rounded-lg px-6 py-2 hover:bg-[#0096c7] transition"
+            onClick={resetForm}
+            className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition"
           >
+            انصراف
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-8 py-3 bg-[#00B4D8] text-white rounded-xl hover:bg-[#0096c7] transition font-medium flex items-center gap-2"
+          >
+            <Check size={20} />
             ثبت آدرس
           </button>
         </div>
       </div>
 
-      <div className="mt-8 border-t border-[#EDEDED] pt-4 space-y-3">
-        آدرس‌ها
+      {/* لیست آدرس‌ها */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-5">آدرس‌های من</h2>
+
         {loading ? (
-          <p className="text-center text-gray-500">در حال بارگذاری...</p>
+          <div className="text-center py-12 text-gray-500">در حال بارگذاری...</div>
         ) : addresses.length === 0 ? (
-          <p className="text-center text-gray-500">
-            هیچ آدرسی ثبت نشده است
-          </p>
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <p className="text-gray-500 mb-6">هنوز آدرسی ثبت نکرده‌اید</p>
+          </div>
         ) : (
           addresses.map((addr) => (
             <div
               key={addr.id}
-              className="border border-[#D6D6D6] p-4 rounded-lg flex justify-between items-center"
+              className={`p-6 rounded-2xl border-2 transition-all ${
+                addr.isDefault
+                  ? "border-[#00B4D8] bg-blue-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
             >
-              <div className="text-right">
-                <p className="font-bold">{addr.fullName}</p>
-                <p className="text-sm text-gray-600">{addr.street}</p>
-                <p className="text-sm text-gray-600">
-                  {addr.city}, {addr.province}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {addr.postalCode}
-                </p>
-              </div>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-bold text-lg">{addr.fullName}</h3>
+                    {addr.isDefault && (
+                      <span className="bg-[#00B4D8] text-white text-xs px-3 py-1 rounded-full flex items-center gap-1">
+                        <Check size={14} />
+                        پیش‌فرض
+                      </span>
+                    )}
+                  </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() =>
-                    addressApi.setDefault(addr.id).then(fetchAddresses)
-                  }
-                  className={`px-3 py-1 rounded text-sm ${
-                    addr.isDefault
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-200"
-                  }`}
-                >
-                  پیش‌فرض
-                </button>
+                  <p className="text-sm text-gray-500 mt-1">کد پستی: {addr.postalCode}</p>
+                  <p className="text-sm text-gray-600 mt-2">موبایل: {addr.phone}</p>
+                </div>
 
-                <button
-                  onClick={() =>
-                    addressApi.remove(addr.id).then(fetchAddresses)
-                  }
-                  className="px-3 py-1 rounded bg-red-500 text-white text-sm"
-                >
-                  حذف
-                </button>
+                <div className="flex gap-3">
+                  {!addr.isDefault && (
+                    <button
+                      onClick={() => handleSetDefault(addr.id)}
+                      className="px-4 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                    >
+                      پیش‌فرض
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(addr.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -250,45 +315,63 @@ export default function AddressesPage() {
   );
 }
 
-function Input({ label, value, onChange, error, valid, invalid }) {
+/* ------------------------------------------
+   کامپوننت Input بدون any
+------------------------------------------ */
+
+interface InputProps {
+  label: string;
+  value: string;
+  error?: string;
+  valid?: boolean;
+  invalid?: boolean;
+  placeholder?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function Input({
+  label,
+  value,
+  onChange,
+  error,
+  valid,
+  invalid,
+  placeholder,
+}: InputProps) {
   return (
-    <div className="flex flex-col gap-1 relative">
-      <label className="text-[#656565] text-sm text-right">{label}</label>
+    <div className="flex flex-col gap-2">
+      <label className="text-sm font-medium text-gray-700 text-right">{label}</label>
 
       <div className="relative">
         <input
+          type="text"
           value={value}
           onChange={onChange}
-          className={`
-            border rounded-lg px-3 py-2 text-sm w-full focus:outline-none transition
-            ${
-              valid
-                ? "border-green-500 text-green-700"
-                : invalid
-                ? "border-red-500 text-red-700"
-                : "border-[#656565] text-[#656565]"
-            }
-          `}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3 rounded-xl border transition-all outline-none ${
+            valid
+              ? "border-green-500"
+              : invalid
+              ? "border-red-500"
+              : "border-gray-300 focus:border-[#00B4D8]"
+          } ${error ? "border-red-500" : ""}`}
         />
 
         {valid && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600 text-xl">
-            ✓
-          </span>
+          <Check
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-green-600"
+            size={20}
+          />
         )}
 
-        {invalid && !valid && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-red-600 text-xl">
-            ✕
+        {invalid && (
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-red-600 text-xl">
+            ×
           </span>
         )}
       </div>
 
-      {error && (
-        <span className="text-xs text-red-500 mt-1 text-right">
-          {error}
-        </span>
-      )}
+      {error && <p className="text-red-500 text-xs text-right">{error}</p>}
     </div>
   );
 }

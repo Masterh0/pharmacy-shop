@@ -44,4 +44,19 @@ export class CartController {
       res.status(500).json({ error: err.message });
     }
   }
+  async updateItemQuantity(req: Request, res: Response) {
+  try {
+    const itemId = Number(req.params.id);
+    const { quantity } = req.body;
+
+    if (!quantity || isNaN(quantity)) {
+      return res.status(400).json({ error: "quantity is required" });
+    }
+
+    const result = await cartService.updateItemQuantity(itemId, Number(quantity));
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+}
 }

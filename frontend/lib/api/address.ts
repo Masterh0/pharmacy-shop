@@ -15,7 +15,17 @@ export const addressApi = {
   },
 
   /** ایجاد آدرس جدید */
-  async create(payload: Omit<Address, "id" | "userId">): Promise<Address> {
+  async create(payload: {
+    fullName: string;
+    phone: string;
+    province?: string | null;
+    city: string;
+    street: string;
+    postalCode?: string | null;
+    isDefault: boolean;
+    lat?: number | null;
+    lng?: number | null;
+  }): Promise<Address> {
     const { data } = await api.post("/addresses", payload);
     return data;
   },
