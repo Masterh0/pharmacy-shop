@@ -1,9 +1,9 @@
 import api from "@/lib/axios";
-import type { Cart, CartItem } from "@/lib/types/cart";
+import type { CartItem } from "@/lib/types/cart";
 
 export const cartApi = {
   /** 🛒 دریافت سبد خرید جاری کاربر (بر اساس userId یا sessionId) */
-  async get(): Promise<Cart> {
+  async get(): Promise<CartItem> {
     const { data } = await api.get("/cart");
     return data;
   },
