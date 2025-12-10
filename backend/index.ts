@@ -11,8 +11,10 @@ import categoryRoutes from "./src/routes/categoryRoutes";
 import addressRoutes from "./src/routes/addressRouts";
 import cartRoutes from "./src/routes/cartRoutes";
 import shippingRouts from "./src/routes/shippingRouts";
+import searchRoutes from "./src/routes/searchRoutes";
 import { notFoundMiddleware } from "./src/middlewares/notFoundMiddleware"; // برای مدیریت مسیرهای ناموجود 404
 import { errorMiddleware } from "./src/middlewares/errorMiddleware"; // میان‌افزار مرکزی مدیریت خطا
+
 import orderRoutes from "./src/routes/orderRoutes";
 
 import authRoutes from "./src/routes/authRoutes";
@@ -82,6 +84,7 @@ app.use("/variants", variantRoutes);
 app.use("/brands", brandRoutes);
 app.use("/addresses", addressRoutes);
 app.use("/cart", cartRoutes);
+app.use("/search", searchRoutes);
 app.use("/shipping", shippingRouts);
 app.use("/orders", orderRoutes);
 

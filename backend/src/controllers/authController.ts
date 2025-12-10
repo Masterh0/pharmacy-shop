@@ -183,13 +183,13 @@ const verifyRegisterOtp = async (req: Request, res: Response) => {
         // Continue with login even if merge fails
       }
 
-      // res.clearCookie("sessionId", {
-      //   httpOnly: false,
-      //   secure: false,
-      //   sameSite: "lax" as const,
-      //   path: "/",
-      //   domain: undefined,
-      // });
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
+      });
     }
 
     const { accessToken, refreshToken } = await generateTokens(
@@ -242,13 +242,13 @@ const login = async (req: Request, res: Response) => {
         // Continue with login even if merge fails
       }
 
-      // res.clearCookie("sessionId", {
-      //   httpOnly: false,
-      //   secure: false,
-      //   sameSite: "lax" as const,
-      //   path: "/",
-      //   domain: undefined,
-      // });
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
+      });
     }
 
     const { accessToken, refreshToken } = await generateTokens(
@@ -388,13 +388,13 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
 
       // Clear sessionId cookie regardless of merge success
       // تنظیمات برای Edge
-      // res.clearCookie("sessionId", {
-      //   httpOnly: false,
-      //   secure: false,
-      //   sameSite: "lax" as const,
-      //   path: "/",
-      //   domain: undefined,
-      // });
+      res.clearCookie("sessionId", {
+        httpOnly: false,
+        secure: false,
+        sameSite: "lax" as const,
+        path: "/",
+        domain: undefined,
+      });
     } else {
       console.log("No sessionId found, skipping cart merge");
     }
@@ -471,13 +471,13 @@ const logout = async (req: Request, res: Response) => {
 
     res.clearCookie("accessToken", clearOptions);
     res.clearCookie("refreshToken", clearOptions);
-    // res.clearCookie("sessionId", {
-    //   httpOnly: false,
-    //   secure: false,
-    //   sameSite: "lax" as const,
-    //   path: "/",
-    //   domain: undefined,
-    // });
+    res.clearCookie("sessionId", {
+      httpOnly: false,
+      secure: false,
+      sameSite: "lax" as const,
+      path: "/",
+      domain: undefined,
+    });
     return res.status(200).json({ message: "خروج موفقیت‌آمیز." });
   } catch (error) {
     console.error("Logout error:", error);
