@@ -11,7 +11,7 @@ router.get("/", categoryController.getAll);
 
 // 📁 گرفتن دسته‌ها همراه زیردسته‌ها (غیربازگشتی تا یک سطح)
 router.get("/children", categoryController.getAllWithChildren);
-
+router.get("/:slug/products", categoryController.getCategoryProductsBySlug);
 // 🛒 گرفتن محصولات یک دسته و زیردسته‌های آن
 router.get("/:id/products", categoryController.getCategoryProducts);
 

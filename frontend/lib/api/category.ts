@@ -10,7 +10,11 @@ export interface Category {
   subCategories?: Category[];
   products?: Product[];
 }
-
+export interface ProductsByCategoryBySlugResponse {
+  category: Pick<Category, "id" | "name" | "slug">;
+  data: Product[];
+  pagination: PaginationMeta;
+}
 export interface CreateCategoryDTO {
   name: string;
   parentId?: number | null;
@@ -90,4 +94,24 @@ export const categoryApi = {
     );
     return res.data || [];
   },
+  getProductsByCategoryBySlug: async (
+  slug: string,
+  options: { sort?: string; page?: number; limit?: number }
+): Promise<ProductsByCategoryBySlugResponse> => {
+  if (!slug) {
+    throw new Error("Category slug is required");
+  }
+
+  const params = new URLSearchParams({
+    sort: options.sort || "newest",
+    page: String(options.page || 1),
+    limit: String(options.limit || 24),
+  });
+
+  const res = await api.get(
+    `${API_URL}/${slug}/products?${params}`
+  );
+
+  return res.data as ProductsByCategoryBySlugResponse;
+},
 };

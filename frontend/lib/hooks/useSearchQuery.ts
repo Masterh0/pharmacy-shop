@@ -15,7 +15,8 @@ export function useSearchQuery(query: string) {
 
   const result = useQuery({
     queryKey: ["search", debounced],
-    queryFn: () => searchApi.search(debounced),
+    // ❌ خطای اینجا بود: به جای ارسال رشته، باید یک شیء ارسال کنید
+    queryFn: () => searchApi.search({ q: debounced }), // ✅ تصحیح شد
     enabled: debounced.length >= 2,
     staleTime: 1000 * 10, // 10 seconds
   });

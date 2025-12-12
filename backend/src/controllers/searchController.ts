@@ -25,6 +25,7 @@ type ProductRow = {
 type FuzzyRow = {
   id: number;
   name: string;
+  slug: string; // ✅ اضافه شد
   sim: number;
 };
 
@@ -32,6 +33,11 @@ export const search = async (req: Request, res: Response) => {
   try {
     const raw = (req.query.q as string) || "";
     const q = normalize(raw);
+
+    // ✅ pagination فقط برای products
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Number(req.query.limit) || 12, 24);
+    const offset = (page - 1) * limit;
 
     if (q.length < 2) {
       return res.json({
@@ -43,7 +49,7 @@ export const search = async (req: Request, res: Response) => {
     }
 
     // ===============================
-    // 1) Fuzzy Products
+    // 1) Fuzzy Products (paginated)
     // ===============================
     const products = await prisma.$queryRawUnsafe<ProductRow[]>(
       `
@@ -67,7 +73,7 @@ export const search = async (req: Request, res: Response) => {
         FROM "Product" p
         WHERE similarity(p.name::text, $1::text) >= 0.1
         ORDER BY sim DESC
-        LIMIT 12
+        LIMIT $2 OFFSET $3
       ),
       ilike_fallback AS (
         SELECT
@@ -94,13 +100,28 @@ export const search = async (req: Request, res: Response) => {
       UNION ALL
       SELECT * FROM ilike_fallback
       ORDER BY sim DESC
-      LIMIT 12;
+      LIMIT $2;
+      `,
+      q,
+      limit,
+      offset
+    );
+
+    // ✅ total واقعی محصولات
+    const totalRow = await prisma.$queryRawUnsafe<{ count: bigint }[]>(
+      `
+      SELECT COUNT(*)::bigint AS count
+      FROM "Product" p
+      WHERE similarity(p.name::text, $1::text) >= 0.1
+         OR p.name ILIKE '%' || $1 || '%';
       `,
       q
     );
 
+    const total = Number(totalRow[0]?.count ?? 0);
+
     // ===============================
-    // 2) Fuzzy Categories
+    // 2) Fuzzy Categories (با slug)
     // ===============================
     const categories = await prisma.$queryRawUnsafe<FuzzyRow[]>(
       `
@@ -108,6 +129,7 @@ export const search = async (req: Request, res: Response) => {
         SELECT 
           c.id,
           c.name,
+          c.slug,
           similarity(c.name::text, $1::text) AS sim
         FROM "Category" c
         WHERE similarity(c.name::text, $1::text) >= 0.1
@@ -118,6 +140,7 @@ export const search = async (req: Request, res: Response) => {
         SELECT
           c.id,
           c.name,
+          c.slug,
           0.0 AS sim
         FROM "Category" c
         WHERE c.name ILIKE '%' || $1 || '%'
@@ -133,7 +156,7 @@ export const search = async (req: Request, res: Response) => {
     );
 
     // ===============================
-    // 3) Fuzzy Brands
+    // 3) Fuzzy Brands (با slug)
     // ===============================
     const brands = await prisma.$queryRawUnsafe<FuzzyRow[]>(
       `
@@ -141,6 +164,7 @@ export const search = async (req: Request, res: Response) => {
         SELECT 
           b.id,
           b.name,
+          b.slug,
           similarity(b.name::text, $1::text) AS sim
         FROM "Brand" b
         WHERE similarity(b.name::text, $1::text) >= 0.1
@@ -151,6 +175,7 @@ export const search = async (req: Request, res: Response) => {
         SELECT
           b.id,
           b.name,
+          b.slug,
           0.0 AS sim
         FROM "Brand" b
         WHERE b.name ILIKE '%' || $1 || '%'
@@ -166,7 +191,7 @@ export const search = async (req: Request, res: Response) => {
     );
 
     // ===============================
-    // Mapping
+    // Response
     // ===============================
     return res.json({
       products: products.map((p) => ({
@@ -178,7 +203,7 @@ export const search = async (req: Request, res: Response) => {
       })),
       categories,
       brands,
-      total: products.length + categories.length + brands.length,
+      total, // ✅ total واقعی محصولات
     });
   } catch (error) {
     console.error("SEARCH ERROR:", error);

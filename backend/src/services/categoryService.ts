@@ -97,7 +97,33 @@ export const categoryService = {
 
     return [categoryId, ...nestedIds.flat()];
   },
+  async getAllProductsByCategoryBySlug(
+    slug: string,
+    sort?: string,
+    page: number = 1,
+    limit: number = 12
+  ) {
+    const category = await prisma.category.findUnique({
+      where: { slug },
+      select: { id: true, name: true, slug: true },
+    });
 
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    const result = await this.getAllProductsByCategory(
+      category.id,
+      sort,
+      page,
+      limit
+    );
+
+    return {
+      ...result,
+      category,
+    };
+  },
   // 🆕 گرفتن همه محصولات متصل به دسته و زیر‌دسته‌ها
   async getAllProductsByCategory(
     categoryId: number,

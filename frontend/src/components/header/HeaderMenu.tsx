@@ -54,7 +54,7 @@ export default function HeaderMenu() {
               href={
                 role === "ADMIN"
                   ? `/manager/categories/${cat.slug}?id=${cat.id}`
-                  : `/categories/${cat.slug}?id=${cat.id}`
+                  : `/categories/${cat.slug}`
               }
               onClick={() =>
                 setSelectedCategory({ id: cat.id, name: cat.name })

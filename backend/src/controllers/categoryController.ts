@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { categoryService } from "../services/categoryService";
 
@@ -49,7 +48,6 @@ export const update = async (req: Request, res: Response) => {
 export const remove = async (req: Request, res: Response) => {
   await categoryService.delete(Number(req.params.id));
   res.status(204).send();
-
 };
 export const getCategoryProducts = async (req: Request, res: Response) => {
   try {
@@ -61,7 +59,13 @@ export const getCategoryProducts = async (req: Request, res: Response) => {
     const sort = (req.query.sort as string) || "newest";
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 24;
-    const {products,pagination} = await categoryService.getAllProductsByCategory(categoryId, sort, page, limit);
+    const { products, pagination } =
+      await categoryService.getAllProductsByCategory(
+        categoryId,
+        sort,
+        page,
+        limit
+      );
 
     res.json({
       success: true,
@@ -71,5 +75,46 @@ export const getCategoryProducts = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "خطا در دریافت محصولات دسته‌بندی" });
+  }
+};
+export const getCategoryProductsBySlug = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const { slug } = req.params;
+
+    if (!slug || typeof slug !== "string") {
+      return res.status(400).json({ message: "اسلاگ معتبر نیست" });
+    }
+
+    const sort = (req.query.sort as string) || "newest";
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 24;
+
+    const { products, pagination, category } =
+      await categoryService.getAllProductsByCategoryBySlug(
+        slug,
+        sort,
+        page,
+        limit
+      );
+
+    res.json({
+      success: true,
+      category,
+      data: products,
+      pagination,
+    });
+  } catch (error: any) {
+    console.error("Category products by slug error:", error);
+
+    if (error.message === "Category not found") {
+      return res.status(404).json({ message: "دسته‌بندی یافت نشد" });
+    }
+
+    res.status(500).json({
+      message: "خطا در دریافت محصولات دسته‌بندی",
+    });
   }
 };
