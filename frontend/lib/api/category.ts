@@ -1,6 +1,18 @@
 import api from "../axios";
 import { Product } from "../types/product";
-
+export interface CategoryFilters {
+  brands: {
+    id: number;
+    name: string;
+    slug?: string; // slug هم میتونه باشه
+  }[];
+  price: {
+    min: number;
+    max: number;
+  };
+  hasDiscount: boolean;
+  hasInStock: boolean;
+}
 export interface Category {
   id: number;
   name: string;
@@ -12,7 +24,7 @@ export interface Category {
 }
 export interface ProductsByCategoryBySlugResponse {
   category: Pick<Category, "id" | "name" | "slug">;
-  data: Product[];
+  products: Product[]; // تغییر نام از data به products برای همخوانی با بک‌اند
   pagination: PaginationMeta;
 }
 export interface CreateCategoryDTO {
@@ -31,6 +43,19 @@ export interface ProductsByCategoryResponse {
   products: Product[];
   pagination: PaginationMeta;
 }
+
+// 🆕 اینترفیس جدید برای Options فیلترینگ
+export interface FilteredProductsOptions {
+  sort?: string;
+  page?: number;
+  limit?: number;
+  brandIds?: number[];
+  minPrice?: number;
+  maxPrice?: number;
+  hasDiscount?: boolean;
+  inStock?: boolean;
+}
+
 const API_URL = "/categories";
 
 export const categoryApi = {
@@ -46,21 +71,40 @@ export const categoryApi = {
     return res.data || [];
   },
 
-  // ✅ دریافت محصولات یک کتگوری و زیردسته‌ها
+  // ✅ دریافت محصولات یک کتگوری و زیردسته‌ها (بر اساس ID)
+  // ⛔️ توصیه می‌شود که به جای این متد، از getProductsByCategoryBySlug استفاده کنید.
+  // در صورتی که نیاز باشد، باید به صورت دستی categoryId را به slug تبدیل کنید.
   getProductsByCategory: async (
     id: number,
-    options: { sort?: string; page?: number; limit?: number }
+    options: FilteredProductsOptions // از اینترفیس جدید استفاده می‌کنیم
   ): Promise<ProductsByCategoryResponse> => {
     const params = new URLSearchParams({
-      sort: options.sort || "newest",
+      sort: options.sort || "latest", // default changed to latest for consistency
       page: String(options.page || 1),
       limit: String(options.limit || 24),
     });
 
-    const res = await api.get(`${API_URL}/${id}/products?${params}`, 
-    );
+    // اضافه کردن پارامترهای فیلتر به URLSearchParams
+    if (options.brandIds && options.brandIds.length > 0) {
+      options.brandIds.forEach((id) => params.append("brandIds[]", String(id)));
+    }
+    if (options.minPrice !== undefined) {
+      params.append("minPrice", String(options.minPrice));
+    }
+    if (options.maxPrice !== undefined) {
+      params.append("maxPrice", String(options.maxPrice));
+    }
+    if (options.hasDiscount !== undefined) {
+      params.append("hasDiscount", String(options.hasDiscount));
+    }
+    if (options.inStock !== undefined) {
+      params.append("inStock", String(options.inStock));
+    }
+
+    const res = await api.get(`${API_URL}/${id}/products?${params}`);
     return res.data as ProductsByCategoryResponse;
   },
+
   // ✅ دریافت یک کتگوری خاص
   getById: async (id: number): Promise<Category | null> => {
     if (!id || isNaN(id)) return null;
@@ -94,24 +138,34 @@ export const categoryApi = {
     );
     return res.data || [];
   },
+
+  // ✅ دریافت محصولات یک کتگوری بر اساس Slug همراه با فیلترینگ
   getProductsByCategoryBySlug: async (
-  slug: string,
-  options: { sort?: string; page?: number; limit?: number }
-): Promise<ProductsByCategoryBySlugResponse> => {
-  if (!slug) {
-    throw new Error("Category slug is required");
-  }
+    slug: string,
+    search = ""
+  ): Promise<ProductsByCategoryBySlugResponse> => {
+    if (!slug) {
+      throw new Error("Category slug is required");
+    }
 
-  const params = new URLSearchParams({
-    sort: options.sort || "newest",
-    page: String(options.page || 1),
-    limit: String(options.limit || 24),
-  });
+    const res = await api.get(`/categories/${slug}/products${search}`);
 
-  const res = await api.get(
-    `${API_URL}/${slug}/products?${params}`
-  );
+    const data = res.data;
 
-  return res.data as ProductsByCategoryBySlugResponse;
-},
+    return {
+      category: data.category,
+      products: data.products ?? data.data,
+      pagination: data.pagination,
+    };
+  },
+
+  // ✅ دریافت فیلترهای پویا برای یک کتگوری
+  getCategoryFilters: async (categoryId: number): Promise<CategoryFilters> => {
+    if (!categoryId || isNaN(categoryId)) {
+      throw new Error("Category id is required");
+    }
+
+    const res = await api.get(`${API_URL}/${categoryId}/filters`);
+    return res.data.data as CategoryFilters; // فرض بر این است که بک‌اند در یک فیلد 'data' پاسخ می‌دهد
+  },
 };

@@ -2,27 +2,24 @@ import { prisma } from "../config/db";
 import { CreateCategoryDTO, UpdateCategoryDTO } from "../../dto/categoryDto";
 import { makeSlug } from "../utils/slugify";
 import { getPagination, buildPaginationMeta } from "../utils/pagination";
+import { Prisma } from "@prisma/client";
+
 export const categoryService = {
   async getAllWithChildren(parentId: number | null = null): Promise<any[]> {
     const categories = await prisma.category.findMany({
       where: { parentId },
-      include: {
-        // ممکنه لازم نباشد اینجا include کنی چون ما بازگشتی خودمون می‌سازیم
-      },
     });
 
     const nested = await Promise.all(
       categories.map(async (category) => {
         const subCategories = await this.getAllWithChildren(category.id);
-        return {
-          ...category,
-          subCategories,
-        };
+        return { ...category, subCategories };
       })
     );
 
     return nested;
   },
+
   async getAll() {
     return prisma.category.findMany({
       where: { parentId: null },
@@ -51,7 +48,7 @@ export const categoryService = {
     return prisma.category.create({
       data: {
         ...data,
-        slug: slug || undefined, // تا اگه خالی بود، Prisma خطا نده
+        slug: slug || undefined,
       },
     });
   },
@@ -64,6 +61,7 @@ export const categoryService = {
   async delete(id: number) {
     return prisma.category.delete({ where: { id } });
   },
+
   async search(query: string) {
     const text = query?.trim();
     if (!text) return [];
@@ -75,14 +73,11 @@ export const categoryService = {
           { slug: { contains: text, mode: "insensitive" } },
         ],
       },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-      },
+      select: { id: true, name: true, slug: true },
       take: 10,
     });
   },
+
   async getAllSubCategoryIds(categoryId: number): Promise<number[]> {
     const subCategories = await prisma.category.findMany({
       where: { parentId: categoryId },
@@ -97,100 +92,285 @@ export const categoryService = {
 
     return [categoryId, ...nestedIds.flat()];
   },
-  async getAllProductsByCategoryBySlug(
-    slug: string,
-    sort?: string,
-    page: number = 1,
-    limit: number = 12
-  ) {
-    const category = await prisma.category.findUnique({
-      where: { slug },
-      select: { id: true, name: true, slug: true },
-    });
 
-    if (!category) {
-      throw new Error("Category not found");
-    }
+  _getEffectiveProductPrice(product: any, mode: "min" | "max" = "min"): number {
+    if (!product.variants?.length) return mode === "min" ? Infinity : -Infinity;
 
-    const result = await this.getAllProductsByCategory(
-      category.id,
-      sort,
-      page,
-      limit
+    const prices = product.variants.map((v: any) =>
+      v.discountPrice && Number(v.discountPrice) > 0
+        ? Number(v.discountPrice)
+        : Number(v.price) || 0
     );
 
-    return {
-      ...result,
-      category,
-    };
+    return mode === "min" ? Math.min(...prices) : Math.max(...prices);
   },
-  // 🆕 گرفتن همه محصولات متصل به دسته و زیر‌دسته‌ها
-  async getAllProductsByCategory(
-    categoryId: number,
-    sort?: string,
-    page: number = 1,
-    limit: number = 12
-  ) {
-    // ۱. گرفتن همه زیر‌دسته‌ها
-    const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
-    const uniqueIds = Array.from(new Set([...subCategoryIds, categoryId]));
 
-    // ۲. واکشی کل محصولات مرتبط بدون پیجینیشن (برای سورت دقیق کل دیتا)
-    const allProducts = await prisma.product.findMany({
-      where: {
-        categoryId: { in: uniqueIds },
-        isBlock: false,
-      },
+  // ✅ MAIN METHOD
+  async getFilteredProducts(
+    categorySlug: string,
+    filters: {
+      brand?: number | number[];
+      discount?: any;
+      available?: any;
+      page?: any;
+      limit?: any;
+      minPrice?: number;
+      maxPrice?: number;
+      sort?: string;
+    }
+  ) {
+    /* ========================
+   ✅ NORMALIZE
+  ======================== */
+    const parseBoolean = (v: any): boolean | undefined => {
+      if (Array.isArray(v)) v = v[0];
+
+      if (v === "1" || v === 1 || v === true || v === "true" || v === "on") {
+        return true;
+      }
+
+      if (v === "0" || v === 0 || v === false || v === "false") {
+        return false;
+      }
+
+      return undefined;
+    };
+
+    const brandIds = filters.brand
+      ? Array.isArray(filters.brand)
+        ? filters.brand.map(Number).filter(Boolean)
+        : [Number(filters.brand)]
+      : undefined;
+
+    const hasDiscount = parseBoolean(filters.discount);
+    const inStock = parseBoolean(filters.available);
+
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 12;
+
+    const minPrice =
+      filters.minPrice !== undefined && !isNaN(Number(filters.minPrice))
+        ? Number(filters.minPrice)
+        : undefined;
+
+    const maxPrice =
+      filters.maxPrice !== undefined && !isNaN(Number(filters.maxPrice))
+        ? Number(filters.maxPrice)
+        : undefined;
+
+    /* ======================== */
+
+    const category = await prisma.category.findUnique({
+      where: { slug: categorySlug },
+      select: { id: true, name: true },
+    });
+    if (!category) throw new Error("Category not found");
+
+    const categoryIds = await this.getAllSubCategoryIds(category.id);
+
+    /* ========================
+   ✅ PRODUCT WHERE
+  ======================== */
+    const where: Prisma.ProductWhereInput = {
+      categoryId: { in: categoryIds },
+      isBlock: false,
+    };
+
+    if (brandIds?.length) {
+      where.brandId = { in: brandIds };
+    }
+
+    /* ========================
+   ✅ VARIANT WHERE — FIXED
+  ======================== */
+    /* ========================
+ /* ========================
+ ✅ VARIANT WHERE — FINAL
+======================== */
+
+    const variantWhere: Prisma.ProductVariantWhereInput = {};
+
+    // ✅ intent واقعی URL
+    const hasVariantFilter =
+      inStock ||
+      hasDiscount ||
+      minPrice !== undefined ||
+      maxPrice !== undefined;
+
+    if (inStock) {
+      variantWhere.stock = { gt: 0 };
+    }
+
+    if (hasDiscount) {
+      variantWhere.discountPrice = { gt: 0 };
+    }
+
+    const hasMin = typeof minPrice === "number";
+    const hasMax = typeof maxPrice === "number";
+
+    if (hasMin || hasMax) {
+      variantWhere.OR = [
+        // ✅ variants تخفیف‌دار
+        {
+          discountPrice: {
+            gt: 0,
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+        // ✅ variants بدون تخفیف
+        {
+          discountPrice: { equals: 0 },
+          price: {
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+      ];
+    }
+
+    // ✅ فقط این attach
+    if (hasVariantFilter) {
+      where.variants = { some: variantWhere };
+    }
+    console.log("🧠 hasDiscount:", hasDiscount, "inStock:", inStock);
+    console.log("🧠 variantWhere:", JSON.stringify(variantWhere, null, 2));
+    console.log("FINAL PRODUCT QUERY WHERE:", JSON.stringify(where, null, 2));
+    const products = await prisma.product.findMany({
+      where,
       include: {
+        brand: true,
         category: true,
         variants: true,
       },
     });
 
-    const getPrice = (product: any, mode: "min" | "max" = "min") => {
-      if (!product.variants?.length) return Infinity; // اگر هیچ واریانتی نبود
+    /* ========================
+   ✅ SORT
+  ======================== */
+    let sorted = [...products];
 
-      const prices = product.variants.map((v: any) => {
-        // اگر تخفیف وجود داره، همون ملاکه وگرنه قیمت اصلی
-        const basePrice =
-          v.discountPrice && Number(v.discountPrice) > 0
-            ? Number(v.discountPrice)
-            : Number(v.price) || 0;
-        return basePrice;
-      });
-
-      // در حالت min یا max مقدار نهایی رو برمی‌گردونیم
-      return mode === "min" ? Math.min(...prices) : Math.max(...prices);
-    };
-
-    // ۳. سورت روی کل محصولات
-    switch (sort) {
+    switch (filters.sort) {
       case "cheapest":
-        allProducts.sort((a, b) => getPrice(a, "min") - getPrice(b, "min"));
+        sorted.sort(
+          (a, b) =>
+            this._getEffectiveProductPrice(a, "min") -
+            this._getEffectiveProductPrice(b, "min")
+        );
         break;
+
       case "expensive":
-        allProducts.sort((a, b) => getPrice(b, "max") - getPrice(a, "max"));
+        sorted.sort(
+          (a, b) =>
+            this._getEffectiveProductPrice(b, "max") -
+            this._getEffectiveProductPrice(a, "max")
+        );
         break;
-      case "bestseller":
-        allProducts.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0));
-        break;
-      case "mostViewed":
-        allProducts.sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0));
-        break;
+
       default:
-        // جدیدترین
-        allProducts.sort(
+        sorted.sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
     }
 
-    // ۴. پیجینیشن بعد از سورت
-    const totalCount = allProducts.length;
+    const total = sorted.length;
     const { skip, take } = getPagination(page, limit);
-    const paginatedProducts = allProducts.slice(skip, skip + take);
-    const pagination = buildPaginationMeta(totalCount, page, limit);
 
-    return { products: paginatedProducts, pagination };
+    return {
+      category,
+      products: sorted.slice(skip, skip + take),
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  },
+
+  async getAllProductsByCategoryBySlug(
+    slug: string,
+    sort?: string,
+    page = 1,
+    limit = 12
+  ) {
+    return this.getFilteredProducts(slug, { sort, page, limit });
+  },
+
+  async getAllProductsByCategory(
+    categoryId: number,
+    sort?: string,
+    page = 1,
+    limit = 12
+  ) {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { slug: true },
+    });
+
+    if (!category?.slug) throw new Error("Category not found or slug missing");
+
+    return this.getFilteredProducts(category.slug, { sort, page, limit });
+  },
+
+  async getCategoryFilters(categoryId: number) {
+    const subCategoryIds = await this.getAllSubCategoryIds(categoryId);
+    const categoryIds = [...new Set([categoryId, ...subCategoryIds])];
+
+    const products = await prisma.product.findMany({
+      where: {
+        categoryId: { in: categoryIds },
+        isBlock: false,
+      },
+      include: {
+        brand: true,
+        variants: true,
+      },
+    });
+
+    const brandMap = new Map<
+      number,
+      { id: number; name: string; count: number }
+    >();
+
+    let minPrice = Infinity;
+    let maxPrice = 0;
+    let hasDiscount = false;
+    let hasInStock = false;
+
+    for (const product of products) {
+      if (product.brand) {
+        const current = brandMap.get(product.brand.id);
+        if (current) current.count += 1;
+        else {
+          brandMap.set(product.brand.id, {
+            id: product.brand.id,
+            name: product.brand.name,
+            count: 1,
+          });
+        }
+      }
+
+      for (const v of product.variants) {
+        const price =
+          v.discountPrice && Number(v.discountPrice) > 0
+            ? Number(v.discountPrice)
+            : Number(v.price);
+
+        if (price > 0) {
+          minPrice = Math.min(minPrice, price);
+          maxPrice = Math.max(maxPrice, price);
+        }
+
+        if (v.discountPrice && Number(v.discountPrice) > 0) hasDiscount = true;
+        if (v.stock && v.stock > 0) hasInStock = true;
+      }
+    }
+
+    return {
+      brands: Array.from(brandMap.values()),
+      price: {
+        min: minPrice === Infinity ? 0 : minPrice,
+        max: maxPrice,
+      },
+      hasDiscount,
+      hasInStock,
+    };
   },
 };

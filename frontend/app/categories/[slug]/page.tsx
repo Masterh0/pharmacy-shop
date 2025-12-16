@@ -1,63 +1,114 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+
 import { categoryApi } from "@/lib/api/category";
-import { useEffect, useState, useMemo } from "react";
 import type { Product } from "@/lib/types/product";
 import ProductsListingLayout from "@/src/components/products/ProductsListingLayout";
+
+/* =============================
+ ✅ types & constants
+============================= */
 export type SortType =
-  | "newest"
+  | "latest"
   | "bestseller"
   | "cheapest"
   | "expensive"
-  | "mostViewed";
+  | "most_viewed";
+
+const DEFAULT_SORT: SortType = "latest";
+const DEFAULT_PAGE = 1;
+
+/* =============================
+ ✅ helpers
+============================= */
+const safeNumber = (v: string | null): number | undefined => {
+  if (!v) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 export default function CategoryProductsPage() {
-  console.log("🟢 [Render] CategoryProductsPage mounted");
-
   const { slug } = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const [sort, setSort] = useState<SortType>("newest");
-  const [page, setPage] = useState(1);
-  const [categoryName, setCategoryName] = useState("دسته‌بندی");
+  /* =============================
+   ✅ URL = SOT (read only)
+  ============================= */
+  const sort = (searchParams.get("sort") as SortType) ?? DEFAULT_SORT;
 
-  /* ✅ load sort from localStorage */
-  useEffect(() => {
-    const savedSort =
-      (localStorage.getItem("productSort") as SortType) || "newest";
-    setSort(savedSort);
-  }, []);
+  const page = safeNumber(searchParams.get("page")) ?? DEFAULT_PAGE;
 
-  /* 🔥 fetch data by slug */
+  // فقط برای UI استفاده می‌شن (نه API)
+  const minPrice = safeNumber(searchParams.get("minPrice"));
+  const maxPrice = safeNumber(searchParams.get("maxPrice"));
+  const discount = searchParams.get("discount") === "1";
+  const available = searchParams.get("available") === "1";
+
+  const selectedBrandIds = useMemo(() => {
+    const ids = searchParams.getAll("brand").map(Number).filter(Boolean);
+    return ids.length ? ids : undefined;
+  }, [searchParams]);
+
+  /* =============================
+   ✅ URL writers
+  ============================= */
+  const setSort = (nextSort: SortType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("sort", nextSort);
+    params.set("page", "1");
+    router.push(`?${params.toString()}`);
+  };
+
+  const setPage = (nextPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(nextPage));
+    router.push(`?${params.toString()}`);
+  };
+
+  /* =============================
+   🔥 products (FINAL ✅)
+  ============================= */
+  const search = useMemo(
+    () => (searchParams.size ? `?${searchParams.toString()}` : ""),
+    [searchParams]
+  );
+
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["category-products", slug, sort, page],
-    queryFn: () =>
-      categoryApi.getProductsByCategoryBySlug(slug!, {
-        sort,
-        page,
-        limit: 24,
-      }),
     enabled: !!slug,
+    queryKey: ["category-products", slug, search], // ✅ SAME SOURCE
+    queryFn: () => {
+      console.log("🚀 FETCHING WITH:", search);
+      return categoryApi.getProductsByCategoryBySlug(slug!, search);
+    },
   });
 
-  const products = data?.data ?? [];
-  const pagination = data?.pagination;
+  const products: Product[] = data?.products ?? [];
   const category = data?.category;
+  const pagination = data?.pagination;
 
-  /* ✅ category name */
-  useEffect(() => {
-    if (category?.name) {
-      setCategoryName(category.name);
-    }
-  }, [category?.name]);
-
-  /* ✅ filter blocked products */
   const activeProducts = useMemo(
-    () => products.filter((p: Product) => !p.isBlock),
+    () => products.filter((p) => !p.isBlock),
     [products]
   );
 
-  /* ✅ states */
+  /* =============================
+   🔥 filters (brands list)
+  ============================= */
+  const { data: filtersData } = useQuery({
+    enabled: !!category?.id,
+    queryKey: ["category-filters", category?.id],
+    queryFn: () => categoryApi.getCategoryFilters(category!.id),
+  });
+
+  const brands = filtersData?.brands ?? [];
+
+  /* =============================
+   ✅ states
+  ============================= */
   if (isLoading) {
     return (
       <div className="text-center py-20 text-gray-600">در حال بارگذاری...</div>
@@ -73,26 +124,21 @@ export default function CategoryProductsPage() {
     );
   }
 
-  if (!activeProducts.length) {
-    return (
-      <div className="text-center py-20 text-gray-600">
-        محصولی برای این دسته یافت نشد.
-      </div>
-    );
-  }
-
-  /* ✅ render with reusable layout */
+  /* =============================
+   ✅ render
+  ============================= */
   return (
     <ProductsListingLayout
-      title={`محصولات ${categoryName}`}
+      title={`محصولات ${category?.name ?? ""}`}
       products={activeProducts}
       sort={sort}
       setSort={setSort}
       pagination={{
-        totalPages: pagination?.totalPages || 1,
+        totalPages: pagination?.totalPages ?? 1,
         currentPage: page,
       }}
       setPage={setPage}
+      brands={brands}
     />
   );
 }

@@ -39,12 +39,12 @@ export default function ProductGridView({
   }, [sort]);
 
   return (
-    <div className="flex flex-row w-full  ">
+    <div className="w-full flex gap-8 mt-12">
       {/* ستون فیلتر سمت راست */}
       <ProductsFilterBox />
 
       {/* ستون محصولات */}
-      <div className="flex-1 flex flex-col items-center">
+      <div className="flex-1 flex flex-col">
         <h2 className="text-[#0077B6] text-3xl font-bold mb-8">{title}</h2>
         <ProductsToolbar sort={sort} setSort={setSort} />
         <ProductsGrid products={products} />

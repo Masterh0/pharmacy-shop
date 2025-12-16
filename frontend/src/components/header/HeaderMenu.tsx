@@ -53,7 +53,7 @@ export default function HeaderMenu() {
             <Link
               href={
                 role === "ADMIN"
-                  ? `/manager/categories/${cat.slug}?id=${cat.id}`
+                  ? `/manager/categories/${cat.slug}`
                   : `/categories/${cat.slug}`
               }
               onClick={() =>

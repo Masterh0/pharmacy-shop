@@ -237,3 +237,33 @@ body {
   -ms-transform: rotate(45deg);
   transform: rotate(45deg);
 }
+.range-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  appearance: none;
+  background: none;
+  pointer-events: none;
+}
+
+.range-thumb::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #00b4d8;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #00b4d8;
+  cursor: pointer;
+}
+
+.range-thumb::-moz-range-thumb {
+  pointer-events: auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #00b4d8;
+  border: 2px solid white;
+  cursor: pointer;
+}

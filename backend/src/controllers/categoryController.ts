@@ -50,6 +50,8 @@ export const remove = async (req: Request, res: Response) => {
   res.status(204).send();
 };
 export const getCategoryProducts = async (req: Request, res: Response) => {
+  console.log("ORIGINAL URL:", req.originalUrl);
+  console.log("QUERY:", req.query);
   try {
     const categoryId = Number(req.params.id);
     if (isNaN(categoryId)) {
@@ -77,10 +79,12 @@ export const getCategoryProducts = async (req: Request, res: Response) => {
     res.status(500).json({ message: "خطا در دریافت محصولات دسته‌بندی" });
   }
 };
+
 export const getCategoryProductsBySlug = async (
   req: Request,
   res: Response
 ) => {
+  console.log("✅ SLUG ROUTE QUERY:", req.query);
   try {
     const { slug } = req.params;
 
@@ -88,23 +92,16 @@ export const getCategoryProductsBySlug = async (
       return res.status(400).json({ message: "اسلاگ معتبر نیست" });
     }
 
-    const sort = (req.query.sort as string) || "newest";
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 24;
+    // ✅ کل query به عنوان filters
+    const filters = req.query;
 
-    const { products, pagination, category } =
-      await categoryService.getAllProductsByCategoryBySlug(
-        slug,
-        sort,
-        page,
-        limit
-      );
+    const result = await categoryService.getFilteredProducts(slug, filters);
 
     res.json({
       success: true,
-      category,
-      data: products,
-      pagination,
+      category: result.category,
+      data: result.products,
+      pagination: result.pagination,
     });
   } catch (error: any) {
     console.error("Category products by slug error:", error);
@@ -115,6 +112,27 @@ export const getCategoryProductsBySlug = async (
 
     res.status(500).json({
       message: "خطا در دریافت محصولات دسته‌بندی",
+    });
+  }
+};
+export const getCategoryFilters = async (req: Request, res: Response) => {
+  try {
+    const categoryId = Number(req.params.id);
+
+    if (!categoryId || isNaN(categoryId)) {
+      return res.status(400).json({ message: "شناسه دسته معتبر نیست" });
+    }
+
+    const filters = await categoryService.getCategoryFilters(categoryId);
+
+    res.json({
+      success: true,
+      data: filters,
+    });
+  } catch (error) {
+    console.error("Category filters error:", error);
+    res.status(500).json({
+      message: "خطا در دریافت فیلترهای دسته‌بندی",
     });
   }
 };

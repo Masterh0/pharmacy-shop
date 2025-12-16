@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import { useCategoryStore } from "@/lib/stores/categoryStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useDeleteProduct } from "@/lib/hooks/useDeleteProduct";
+import { useCart } from "@/lib/hooks/useAddToCart";
+
 import type { Product } from "@/lib/types/product";
-import type { Category } from "@/lib/types/category";
+import type { CartItem } from "@/lib/types/cart";
 
 export default function ProductsGrid({ products }: { products: Product[] }) {
   const router = useRouter();
@@ -16,243 +18,258 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
   const { setSelectedCategory } = useCategoryStore();
   const { mutate: deleteProduct, isPending } = useDeleteProduct();
 
-  const BASE_URL = "http://localhost:5000";
+  const { cart, addItem, removeItem, updateItem, isAdding } = useCart();
+  const cartItems: CartItem[] = cart?.items ?? [];
+
   const isManager = role === "ADMIN";
-
-  const [cartCount, setCartCount] = useState<{ [id: number]: number }>({});
-
-  const handleAdd = (id: number) => {
-    setCartCount((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-  };
-
-  const handleRemoveOne = (id: number) => {
-    setCartCount((prev) => {
-      const c = (prev[id] || 0) - 1;
-      if (c <= 0) {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [id]: c };
-    });
-  };
-
-  const handleDeleteFromCart = (id: number) => {
-    setCartCount((prev) => {
-      const { [id]: _, ...rest } = prev;
-      return rest;
-    });
-  };
-
-  const handleDeleteProduct = (name: string, id: number) => {
-    if (confirm(`آیا مطمئن هستی می‌خوای "${name}" رو حذف کنی؟`)) {
-      deleteProduct(id);
-    }
-  };
-
-  const handleEdit = (id: number) => {
-    router.push(`/manager/profile/edit-product/${id}`);
-  };
+  const BASE_URL = "http://localhost:5000";
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-[85%] mx-auto mt-8">
+    <div
+      className="
+        grid grid-cols-2 lg:grid-cols-3
+        gap-4 lg:gap-8
+        w-full lg:w-[85%]
+        mx-auto
+        mt-4 lg:mt-8
+        px-3 lg:px-0
+      "
+    >
       {products.map((p) => {
-        const variant = p.variants?.[0];
-        // تبدیل price از string به number (از API به صورت string می‌آید)
-        const price = variant?.price ? Number(variant.price) : 0;
-        const discount = variant?.discountPrice ? Number(variant.discountPrice) : 0;
+        const variants = p.variants ?? [];
+        const availableVariants = variants.filter(v => v.stock > 0);
+        const displayVariant =
+          availableVariants[0] ?? variants[0] ?? null;
+
+        const isOutOfStock = availableVariants.length === 0;
+        const category = p.category;
+
+        const cartItem = displayVariant
+          ? cartItems.find(
+              (i: CartItem) => i.variantId === displayVariant.id
+            )
+          : undefined;
+
+        const count = cartItem?.quantity ?? 0;
+
+        const price = Number(displayVariant?.price ?? 0);
+        const discount = Number(displayVariant?.discountPrice ?? 0);
         const hasDiscount = discount > 0 && discount < price;
         const discountPercent = hasDiscount
           ? Math.round(((price - discount) / price) * 100)
           : null;
 
-        const flavors = Array.from(
-          new Set(p.variants?.map((v) => v.flavor).filter(Boolean))
-        );
-        const packageQuantities = Array.from(
-          new Set(p.variants?.map((v) => v.packageQuantity).filter(Boolean))
-        );
-        const flavorCount = flavors.length;
-        const packageCount = packageQuantities.length;
-
         const imageSrc = !p.imageUrl
           ? "/no-image.png"
           : p.imageUrl.startsWith("http")
-            ? p.imageUrl
-            : `${BASE_URL}${p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
-            }`;
-        const count = cartCount[p.id] || 0;
+          ? p.imageUrl
+          : `${BASE_URL}${p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`}`;
 
         return (
           <div
             key={p.id}
-            onClick={() => router.push(`/product/${p.slug}?id=${p.id}`)}
-            className="relative flex flex-col justify-between items-center 
-                       bg-white border border-[#CBCBCB] rounded-[16px] p-4 
-                       h-[480px] shadow-sm hover:shadow-md transition-all 
-                       duration-200 cursor-pointer"
+            onClick={() => {
+              if (!isOutOfStock) {
+                router.push(`/product/${p.slug}?id=${p.id}`);
+              }
+            }}
+            className={`
+              relative flex flex-col
+              bg-white border border-[#CBCBCB]
+              rounded-[14px] lg:rounded-[16px]
+              p-3 lg:p-4
+              h-auto lg:h-[480px]
+              transition
+              ${isOutOfStock
+                ? "opacity-50"
+                : "cursor-pointer lg:hover:shadow-md"}
+            `}
           >
+            {/* Discount */}
             {hasDiscount && (
               <div
-                className="absolute top-0 right-0 w-[50px] h-[50px] bg-[#E63946] 
-                           text-white font-bold flex items-center justify-center 
-                           rounded-bl-[80%] shadow-md text-[20px]"
+                className="
+                  absolute top-2 right-2
+                  bg-[#E63946] text-white
+                  text-[12px] lg:text-[18px] font-bold
+                  px-2 py-1 lg:w-[50px] lg:h-[50px]
+                  lg:flex lg:items-center lg:justify-center
+                  rounded-full lg:rounded-bl-[80%]
+                  z-10
+                "
               >
                 %{discountPercent}
               </div>
             )}
 
-            {/* تصویر محصول */}
-            <div className="w-[256px] h-[256px] flex items-center justify-center p-1 border-b-2 border-black">
+            {/* Image */}
+            <div
+              className="
+                w-full aspect-square
+                flex items-center justify-center
+                bg-white
+                border-b border-[#E5E5E5]
+                rounded-t-[12px]
+                p-2 lg:p-3
+              "
+            >
               <Image
                 src={imageSrc}
                 alt={p.name}
                 width={200}
                 height={200}
-                className="object-contain rounded-md transition-transform duration-300 hover:scale-[1.03]"
+                className="object-contain"
               />
             </div>
 
-            {/* اطلاعات محصول */}
-            <div className="flex flex-col w-full mt-4 text-right justify-between">
+            {/* Info */}
+            <div className="flex flex-col justify-between flex-1 w-full mt-3">
               <div dir="ltr" className="flex flex-col items-end gap-1">
-                <h3
-                  className="text-[#000000] font-bold text-[16px] leading-[25px] max-w-[256px]"
-                  style={{
-                    wordBreak: "break-word",
-                    display: "-webkit-box",
-                    WebkitBoxOrient: "vertical",
-                    WebkitLineClamp: 1,
-                    overflow: "hidden",
-                  }}
-                >
+                <h3 className="font-bold text-[14px] lg:text-[16px] line-clamp-2">
                   {p.name}
                 </h3>
-                {p.category?.name && (
+
+                {category && (
                   <Link
-                    href={p.category.slug
-                      ? `/categories/${p.category.slug}?id=${p.category.id}`
-                      : `/categories?id=${p.category.id}`}
+                    href={`/categories/${category.slug}?id=${category.id}`}
                     onClick={(e) => {
-                      e.stopPropagation(); // جلوگیری از ناوبری کارت
-                      if (p.category) {
-                        setSelectedCategory({
-                          id: p.category.id,
-                          name: p.category.name,
-                        });
-                      }
+                      e.stopPropagation();
+                      setSelectedCategory({
+                        id: category.id,
+                        name: category.name,
+                      });
                     }}
-                    className="text-[#6E6E6E] text-[14px] opacity-75 hover:text-[#0077B6] transition"
+                    className="text-[12px] lg:text-[14px] text-[#6E6E6E]"
                   >
-                    {p.category.name}
+                    {category.name}
                   </Link>
                 )}
               </div>
 
-              {/* قیمت و برچسب‌ها */}
-              <div
-                className={`flex items-center mt-2 gap-2 w-full ${flavorCount > 1 || packageCount > 1
-                    ? "justify-between"
-                    : "justify-end"
-                  }`}
-              >
-                {flavorCount > 1 && (
-                  <div className="bg-[#00B4D8]/90 text-white font-medium px-2 py-[2px] rounded-md shadow-md text-[12px] whitespace-nowrap">
-                    +{flavorCount} طعم
-                  </div>
-                )}
-                {packageCount > 1 && (
-                  <div className="bg-[#00B4D8]/90 text-white font-medium px-2 py-[2px] rounded-md shadow-md text-[12px] whitespace-nowrap">
-                    +{packageCount} نوع بسته
-                  </div>
-                )}
-
+              {/* Price */}
+              <div className="flex justify-end mt-2">
                 {!hasDiscount ? (
-                  <span
-                    className="text-[#000000] font-bold text-[20px]"
-                    dir="rtl"
-                  >
-                    {price ? `${price.toLocaleString("fa-IR")} تومان` : "—"}
+                  <span className="font-bold text-[16px] lg:text-[20px]">
+                    {price.toLocaleString("fa-IR")} تومان
                   </span>
                 ) : (
                   <div className="flex flex-col items-end">
-                    <span className="text-red-500 line-through text-[16px]">
+                    <span className="line-through text-red-500 text-[13px] lg:text-[16px]">
                       {price.toLocaleString("fa-IR")} تومان
                     </span>
-                    <span className="text-[#000000] font-bold text-[20px]">
+                    <span className="font-bold text-[16px] lg:text-[20px]">
                       {discount.toLocaleString("fa-IR")} تومان
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* دکمه‌ها */}
-              <div className="mt-3 flex items-center justify-center w-full gap-3">
+              {/* Actions */}
+              <div className="mt-3 flex justify-center">
                 {!isManager ? (
-                  count === 0 ? (
+                  isOutOfStock || !displayVariant ? (
                     <button
+                      disabled
+                      className="w-full py-2 bg-gray-300 rounded-full text-[14px]"
+                    >
+                      ناموجود
+                    </button>
+                  ) : count === 0 ? (
+                    <button
+                      disabled={isAdding}
                       onClick={(e) => {
-                        e.stopPropagation(); // جلوگیری از رفتن به صفحه محصول
-                        handleAdd(p.id);
+                        e.stopPropagation();
+                        addItem({
+                          productId: p.id,
+                          variantId: displayVariant.id,
+                          quantity: 1,
+                        });
                       }}
-                      className="bg-[#00B4D8] text-white w-[80%] py-2 rounded-full text-[16px] hover:bg-[#0077B6] transition"
+                      className="
+                        bg-[#00B4D8] text-white
+                        w-full py-2.5
+                        rounded-full
+                        text-[14px] font-medium
+                      "
                     >
                       افزودن به سبد خرید
                     </button>
                   ) : (
-                    <div className="flex items-center justify-center gap-3 w-[80%]">
+                    <div className="flex gap-4 items-center">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (count === 1) handleDeleteFromCart(p.id);
-                          else handleRemoveOne(p.id);
+                          if (!cartItem) return;
+
+                          if (count === 1) {
+                            removeItem(cartItem.id);
+                          } else {
+                            updateItem({
+                              itemId: cartItem.id,
+                              quantity: count - 1,
+                            });
+                          }
                         }}
-                        className="bg-[#FF6B6B] text-white w-8 h-8 rounded-full text-[18px] flex items-center justify-center hover:bg-red-600 transition"
+                        className="
+                          bg-[#FF6B6B] text-white
+                          w-10 h-10
+                          rounded-full text-lg
+                        "
                       >
                         {count === 1 ? "🗑" : "-"}
                       </button>
 
-                      <span className="text-[18px] font-bold w-8 text-center">
+                      <span className="font-bold text-[16px]">
                         {count}
                       </span>
 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAdd(p.id);
+                          addItem({
+                            productId: p.id,
+                            variantId: displayVariant.id,
+                            quantity: 1,
+                          });
                         }}
-                        className="bg-[#00B4D8] text-white w-8 h-8 rounded-full text-[18px] flex items-center justify-center hover:bg-[#0077B6] transition"
+                        className="
+                          bg-[#00B4D8] text-white
+                          w-10 h-10
+                          rounded-full text-lg
+                        "
                       >
                         +
                       </button>
                     </div>
                   )
                 ) : (
-                  <div className="flex justify-center gap-3 w-full">
+                  <div className="flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEdit(p.id);
+                        router.push(`/manager/profile/edit-product/${p.id}`);
                       }}
-                      className="px-4 py-2 border border-[#0077B6] text-[#0077B6] text-[14px] rounded-full hover:bg-[#0077B6] hover:text-white transition"
+                      className="px-3 py-1.5 border border-[#0077B6] text-[#0077B6] rounded-full text-[13px]"
                     >
                       ✏️ ویرایش
                     </button>
+
                     <button
+                      disabled={isPending}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteProduct(p.name, p.id);
+                        if (confirm(`حذف "${p.name}"؟`))
+                          deleteProduct(p.id);
                       }}
-                      disabled={isPending}
-                      className="px-4 py-2 border border-red-500 text-red-500 text-[14px] rounded-full hover:bg-red-500 hover:text-white transition disabled:opacity-50"
+                      className="px-3 py-1.5 border border-red-500 text-red-500 rounded-full text-[13px]"
                     >
-                      {isPending ? "در حال حذف..." : "🗑 حذف"}
+                      🗑 حذف
                     </button>
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        );
+          </div>        );
       })}
     </div>
   );

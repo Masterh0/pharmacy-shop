@@ -19,3 +19,12 @@ export const useCreateCategory = () => {
     },
   });
 };
+export const useCategoryFilters = (categoryId?: number) => {
+  return useQuery({
+    queryKey: ["category-filters", categoryId],
+    queryFn: () => categoryApi.getCategoryFilters(categoryId!),
+    enabled: !!categoryId, // ✅ فقط وقتی id داریم
+    staleTime: 1000 * 60 * 5, // ✅ 5 دقیقه (metadata زیاد تغییر نمی‌کنه)
+    refetchOnWindowFocus: false,
+  });
+};
