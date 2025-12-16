@@ -50,8 +50,6 @@ export const remove = async (req: Request, res: Response) => {
   res.status(204).send();
 };
 export const getCategoryProducts = async (req: Request, res: Response) => {
-  console.log("ORIGINAL URL:", req.originalUrl);
-  console.log("QUERY:", req.query);
   try {
     const categoryId = Number(req.params.id);
     if (isNaN(categoryId)) {

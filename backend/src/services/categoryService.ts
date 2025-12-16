@@ -3,7 +3,41 @@ import { CreateCategoryDTO, UpdateCategoryDTO } from "../../dto/categoryDto";
 import { makeSlug } from "../utils/slugify";
 import { getPagination, buildPaginationMeta } from "../utils/pagination";
 import { Prisma } from "@prisma/client";
+type ProductSort = "cheapest" | "expensive" | "default";
 
+const normalizeSort = (sort?: string): ProductSort => {
+  if (sort === "cheapest" || sort === "expensive") return sort;
+  return "default";
+};
+const sortProducts = (products: any[], sort: ProductSort) => {
+  return [...products].sort((a, b) => {
+    const aInStock = a.variants?.some((v: any) => v.stock > 0);
+    const bInStock = b.variants?.some((v: any) => v.stock > 0);
+
+    if (aInStock !== bInStock) {
+      return aInStock ? -1 : 1;
+    }
+
+    switch (sort) {
+      case "cheapest":
+        return (
+          categoryService._getEffectiveProductPrice(a, "min") -
+          categoryService._getEffectiveProductPrice(b, "min")
+        );
+
+      case "expensive":
+        return (
+          categoryService._getEffectiveProductPrice(b, "max") -
+          categoryService._getEffectiveProductPrice(a, "max")
+        );
+
+      default:
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+    }
+  });
+};
 export const categoryService = {
   async getAllWithChildren(parentId: number | null = null): Promise<any[]> {
     const categories = await prisma.category.findMany({
@@ -233,9 +267,6 @@ export const categoryService = {
     if (hasVariantFilter) {
       where.variants = { some: variantWhere };
     }
-    console.log("🧠 hasDiscount:", hasDiscount, "inStock:", inStock);
-    console.log("🧠 variantWhere:", JSON.stringify(variantWhere, null, 2));
-    console.log("FINAL PRODUCT QUERY WHERE:", JSON.stringify(where, null, 2));
     const products = await prisma.product.findMany({
       where,
       include: {
@@ -248,32 +279,9 @@ export const categoryService = {
     /* ========================
    ✅ SORT
   ======================== */
-    let sorted = [...products];
-
-    switch (filters.sort) {
-      case "cheapest":
-        sorted.sort(
-          (a, b) =>
-            this._getEffectiveProductPrice(a, "min") -
-            this._getEffectiveProductPrice(b, "min")
-        );
-        break;
-
-      case "expensive":
-        sorted.sort(
-          (a, b) =>
-            this._getEffectiveProductPrice(b, "max") -
-            this._getEffectiveProductPrice(a, "max")
-        );
-        break;
-
-      default:
-        sorted.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-    }
-
+    const sort = normalizeSort(filters.sort);
+    const sorted = sortProducts(products, sort);
+    // ✅ 1. همیشه اول کالاهای موجود
     const total = sorted.length;
     const { skip, take } = getPagination(page, limit);
 
