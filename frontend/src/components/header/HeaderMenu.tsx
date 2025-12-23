@@ -1,17 +1,17 @@
 "use client";
+
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { categoryApi, Category } from "@/lib/api/category";
+import { categoryApi } from "@/lib/api/category";
 import { useState } from "react";
 import Link from "next/link";
 import MegaMenu from "./MegaMenu";
 import { useCategoryStore } from "@/lib/stores/categoryStore";
-import { useAuthStore } from "@/lib/stores/authStore";
 
 export default function HeaderMenu() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const { setSelectedCategory } = useCategoryStore();
-  const { role } = useAuthStore();
+
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["header-categories"],
     queryFn: categoryApi.getAllWithChildren,
@@ -43,6 +43,7 @@ export default function HeaderMenu() {
     >
       {categories.map((cat) => {
         const isActive = activeId === cat.id;
+
         return (
           <div
             key={cat.id}
@@ -51,14 +52,10 @@ export default function HeaderMenu() {
             onMouseLeave={() => setActiveId(null)}
           >
             <Link
-              href={
-                role === "ADMIN"
-                  ? `/manager/categories/${cat.slug}`
-                  : `/categories/${cat.slug}`
-              }
+              href={`/categories/${cat.slug}`}
               onClick={() =>
                 setSelectedCategory({ id: cat.id, name: cat.name })
-              } // ✅ اضافه شد
+              }
               className={`
                 flex items-center justify-center gap-[8px]
                 px-[8px] py-[8px] w-[165px] h-[52px]
@@ -71,6 +68,7 @@ export default function HeaderMenu() {
                   isActive ? "text-[#0077B6]" : "text-[#434343]"
                 }`}
               />
+
               <span
                 className={`font-iranYekan text-[16px] leading-[180%] ${
                   isActive ? "text-[#0077B6]" : "text-[#434343]"
@@ -80,10 +78,11 @@ export default function HeaderMenu() {
               </span>
             </Link>
 
-            {/* Dropdown sub-levels */}
-            {isActive && cat.subCategories && cat.subCategories.length > 0 && (
-              <MegaMenu categories={cat.subCategories} />
-            )}
+            {isActive &&
+              cat.subCategories &&
+              cat.subCategories.length > 0 && (
+                <MegaMenu categories={cat.subCategories} />
+              )}
           </div>
         );
       })}

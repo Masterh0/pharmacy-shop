@@ -6,17 +6,17 @@ import { Eye, EyeSlash } from "iconsax-react";
 import AuthLayout from "../authComponents/AuthLayout";
 import { useMutation } from "@tanstack/react-query";
 import { register, verifyRegisterOtp } from "@/lib/api/auth";
-import { useAuthStore } from "@/lib/stores/authStore";
 import { useRouter } from "next/navigation";
 import BackButton from "../authComponents/BackButton";
 import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
-import { useAuthReady } from "@/lib/hooks/useAuthReady";
-
+import { useQueryClient } from "@tanstack/react-query";
+import { AUTH_KEY } from "@/lib/constants/auth";
+import {toast} from "sonner";
 // ⚡ فرم استایل‌ها دست‌نخورده 👇
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  const qc = useQueryClient();
   // -- وضعیت محلی برای فرم
   const [formData, setFormData] = useState({
     name: "",
@@ -30,7 +30,6 @@ export default function SignupPage() {
   const [step, setStep] = useState<"register" | "otp">("register");
   const [otp, setOtp] = useState("");
   const [userPhone, setUserPhone] = useState("");
-  const setAuth = useAuthStore((s) => s.setAuth);
   const router = useRouter();
 
   // --------------------
@@ -58,19 +57,16 @@ export default function SignupPage() {
   const verifyOtpMutation = useMutation({
     mutationFn: verifyRegisterOtp,
     onSuccess: (res) => {
-      const { accessToken, refreshToken, user } = res;
-      setAuth({
-        accessToken,
-        refreshToken,
-        role: user.role,
-        userId: user.id,
-        phone: user.phone,
-        name: user.name,
-      });
+      // ✅ cache = AuthResponse
+      qc.setQueryData(AUTH_KEY, res);
 
-      // هدایت بر اساس نقش
-      if (user.role === "ADMIN") router.push("/admin/dashboard");
-      else router.push("/");
+      toast.success("ثبت‌نام با موفقیت انجام شد ✅");
+
+      if (res.user.role === "ADMIN") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/");
+      }
     },
     onError: (err: unknown) => {
       if (err && typeof err === "object" && "response" in err) {

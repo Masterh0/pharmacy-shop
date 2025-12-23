@@ -381,4 +381,282 @@ export const categoryService = {
       hasInStock,
     };
   },
+  async getFilteredProductsForAdmin(
+    categorySlug: string,
+    filters: {
+      brand?: number | number[];
+      discount?: any;
+      available?: any;
+      page?: any;
+      limit?: any;
+      minPrice?: number;
+      maxPrice?: number;
+      sort?: string;
+    }
+  ) {
+    /* ========================
+   ✅ NORMALIZE
+  ======================== */
+    const parseBoolean = (v: any): boolean | undefined => {
+      if (Array.isArray(v)) v = v[0];
+
+      if (v === "1" || v === 1 || v === true || v === "true" || v === "on") {
+        return true;
+      }
+
+      if (v === "0" || v === 0 || v === false || v === "false") {
+        return false;
+      }
+
+      return undefined;
+    };
+
+    const brandIds = filters.brand
+      ? Array.isArray(filters.brand)
+        ? filters.brand.map(Number).filter(Boolean)
+        : [Number(filters.brand)]
+      : undefined;
+
+    const hasDiscount = parseBoolean(filters.discount);
+    const inStock = parseBoolean(filters.available);
+
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 12;
+
+    const minPrice =
+      filters.minPrice !== undefined && !isNaN(Number(filters.minPrice))
+        ? Number(filters.minPrice)
+        : undefined;
+
+    const maxPrice =
+      filters.maxPrice !== undefined && !isNaN(Number(filters.maxPrice))
+        ? Number(filters.maxPrice)
+        : undefined;
+
+    /* ======================== */
+
+    const category = await prisma.category.findUnique({
+      where: { slug: categorySlug },
+      select: { id: true, name: true },
+    });
+
+    if (!category) throw new Error("Category not found");
+
+    const categoryIds = await this.getAllSubCategoryIds(category.id);
+
+    /* ========================
+   ✅ PRODUCT WHERE (ADMIN)
+  ======================== */
+    const where: Prisma.ProductWhereInput = {
+      categoryId: { in: categoryIds },
+      // ✅ isBlock عمداً حذف شده
+    };
+
+    if (brandIds?.length) {
+      where.brandId = { in: brandIds };
+    }
+
+    /* ========================
+   ✅ VARIANT WHERE — FINAL
+  ======================== */
+    const variantWhere: Prisma.ProductVariantWhereInput = {};
+
+    const hasVariantFilter =
+      inStock ||
+      hasDiscount ||
+      minPrice !== undefined ||
+      maxPrice !== undefined;
+
+    if (inStock) {
+      variantWhere.stock = { gt: 0 };
+    }
+
+    if (hasDiscount) {
+      variantWhere.discountPrice = { gt: 0 };
+    }
+
+    const hasMin = typeof minPrice === "number";
+    const hasMax = typeof maxPrice === "number";
+
+    if (hasMin || hasMax) {
+      variantWhere.OR = [
+        {
+          discountPrice: {
+            gt: 0,
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+        {
+          discountPrice: { equals: 0 },
+          price: {
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+      ];
+    }
+
+    if (hasVariantFilter) {
+      where.variants = { some: variantWhere };
+    }
+
+    /* ========================
+   ✅ FETCH
+  ======================== */
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        brand: true,
+        category: true,
+        variants: true,
+      },
+    });
+
+    /* ========================
+   ✅ SORT
+  ======================== */
+    const sort = normalizeSort(filters.sort);
+    const sorted = sortProducts(products, sort);
+
+    const total = sorted.length;
+    const { skip, take } = getPagination(page, limit);
+
+    return {
+      category,
+      products: sorted.slice(skip, skip + take),
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  },
+  async getFilteredBlockedProductsForAdmin(filters: {
+    brand?: number | number[];
+    discount?: any;
+    available?: any;
+    page?: any;
+    limit?: any;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+  }) {
+    /* ========================
+     ✅ NORMALIZE
+  ======================== */
+    const parseBoolean = (v: any): boolean | undefined => {
+      if (Array.isArray(v)) v = v[0];
+
+      if (v === "1" || v === 1 || v === true || v === "true" || v === "on") {
+        return true;
+      }
+
+      if (v === "0" || v === 0 || v === false || v === "false") {
+        return false;
+      }
+
+      return undefined;
+    };
+
+    const brandIds = filters.brand
+      ? Array.isArray(filters.brand)
+        ? filters.brand.map(Number).filter(Boolean)
+        : [Number(filters.brand)]
+      : undefined;
+
+    const hasDiscount = parseBoolean(filters.discount);
+    const inStock = parseBoolean(filters.available);
+
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 12;
+
+    const minPrice =
+      filters.minPrice !== undefined && !isNaN(Number(filters.minPrice))
+        ? Number(filters.minPrice)
+        : undefined;
+
+    const maxPrice =
+      filters.maxPrice !== undefined && !isNaN(Number(filters.maxPrice))
+        ? Number(filters.maxPrice)
+        : undefined;
+
+    /* ========================
+     ✅ PRODUCT WHERE (ADMIN / BLOCKED)
+  ======================== */
+    const where: Prisma.ProductWhereInput = {
+      isBlock: true, // ✅ فقط بلاک‌شده‌ها
+    };
+
+    if (brandIds?.length) {
+      where.brandId = { in: brandIds };
+    }
+
+    /* ========================
+     ✅ VARIANT WHERE
+  ======================== */
+    const variantWhere: Prisma.ProductVariantWhereInput = {};
+
+    const hasVariantFilter =
+      inStock ||
+      hasDiscount ||
+      minPrice !== undefined ||
+      maxPrice !== undefined;
+
+    if (inStock) {
+      variantWhere.stock = { gt: 0 };
+    }
+
+    if (hasDiscount) {
+      variantWhere.discountPrice = { gt: 0 };
+    }
+
+    const hasMin = typeof minPrice === "number";
+    const hasMax = typeof maxPrice === "number";
+
+    if (hasMin || hasMax) {
+      variantWhere.OR = [
+        {
+          discountPrice: {
+            gt: 0,
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+        {
+          discountPrice: { equals: 0 },
+          price: {
+            ...(hasMin && { gte: minPrice }),
+            ...(hasMax && { lte: maxPrice }),
+          },
+        },
+      ];
+    }
+
+    if (hasVariantFilter) {
+      where.variants = { some: variantWhere };
+    }
+
+    /* ========================
+     ✅ FETCH
+  ======================== */
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        brand: true,
+        category: true,
+        variants: true,
+      },
+    });
+
+    /* ========================
+     ✅ SORT
+  ======================== */
+    const sort = normalizeSort(filters.sort);
+    const sorted = sortProducts(products, sort);
+
+    const total = sorted.length;
+    const { skip, take } = getPagination(page, limit);
+
+    return {
+      products: sorted.slice(skip, skip + take),
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  },
 };

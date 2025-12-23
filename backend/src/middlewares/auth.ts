@@ -26,7 +26,7 @@ export const verifyAccessToken = (
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.cookies?.accessToken; // 👈 تغییر اصلی، خواندن از کوکی
+  const token = req.cookies?.accessToken;
 
   if (!token) {
     return res.status(401).json({ error: "No access token provided" });
@@ -38,15 +38,18 @@ export const verifyAccessToken = (
       process.env.ACCESS_TOKEN_SECRET!
     ) as JwtPayload;
 
-    req.user = { id: decoded.id, role: decoded.role };
+    // ✅ فقط همین
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+    };
+
     next();
   } catch (error) {
     if (error instanceof TokenExpiredError) {
-      // ⏰ از این متن بک‌اند یا فرانت برای Logout استفاده می‌کند
       return res.status(401).json({ error: "jwt expired" });
     }
 
-    console.error("🚨 Access Token verification failed:", error);
     return res.status(401).json({ error: "Invalid or expired access token" });
   }
 };
@@ -78,7 +81,9 @@ export const verifyRefreshToken = async (
       if (tokenRecord) {
         await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
       }
-      return res.status(401).json({ error: "Invalid or expired refresh token" });
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired refresh token" });
     }
 
     if (!tokenRecord.user) {
@@ -89,7 +94,6 @@ export const verifyRefreshToken = async (
     req.user = { id: tokenRecord.user.id, role: tokenRecord.user.role };
     next();
   } catch (error) {
-    console.error("🚨 Refresh token verification failed:", error);
     return res.status(401).json({ error: "Invalid or expired refresh token" });
   }
 };

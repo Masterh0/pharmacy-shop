@@ -1,45 +1,76 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth";
-import { useAuthStore } from "@/lib/stores/authStore";
+import { useMutation, useQueryClient } from "@tanstack/react-query"; // ✅ اضافه شد
+import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth"; // ⚠️ مطمئن شوید این توابع در auth.ts اکسپورت شده‌اند
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import AuthLayout from "../../authComponents/AuthLayout";
 import BackButton from "@/app/authComponents/BackButton";
 import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
+import { AUTH_KEY } from "@/lib/constants/auth";
+// ✅ تعریف AUTH_KEY برای Invalidate کردن کش
+
+// ---------------------------
+// ✅ تعریف تایپ‌های پاسخ API
+// ---------------------------
+type SendOtpResponse = {
+  expiresAt?: string;
+  remainingMs?: number;
+};
+
+type VerifyOtpResponse = {
+  user: {
+    id: number;
+    role: "ADMIN" | "CUSTOMER" | "STAFF"; // یا همان UserRole شما
+    phone: string;
+    name: string;
+  };
+};
+
+// ---------------------------
+// ✅ تعریف تایپ خطای API (برای تمیزکاری)
+// ---------------------------
+type ApiError = AxiosError<{
+  error?: string;
+  message?: string;
+  remainingMs?: number;
+  expiresAt?: string;
+}>;
 
 export default function LoginOtpPage() {
+  // --------------------
+  // ✅ Hooks (همه در بالا و مرتب)
+  // --------------------
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countdown, setCountdown] = useState(0);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  // REMOVE: const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const qc = useQueryClient(); // ✅ اضافه شد
   const router = useRouter();
-  useAuthRedirect(); // ضد Flicker و کنترل مسیرها
+  const status = useAuthRedirect(); // ✅ استفاده از خروجی هوک برای گارد
 
   /* 🟦 Mutation ارسال OTP */
-  const sendOtp = useMutation({
-    mutationFn: (data: { phone: string }) => sendLoginOtp(data),
+  const sendOtp = useMutation<SendOtpResponse, ApiError, { phone: string }>({
+    mutationFn: sendLoginOtp,
     onSuccess: (data) => {
       setStep("otp");
       if (data.expiresAt) {
         const remain = new Date(data.expiresAt).getTime() - Date.now();
         setCountdown(Math.floor(remain / 1000));
-        setExpiresAt(data.expiresAt);
+        // REMOVE: setExpiresAt(data.expiresAt); // ✅ حذف شد
       }
       toast.success("کد ارسال شد ✅");
     },
-    onError: (err: AxiosError<any>) => {
+    onError: (err) => {
       const msg = err.response?.data?.error || err.response?.data?.message;
       if (err.response?.status === 429 && msg?.includes("کد فعال ارسال شده")) {
         const { expiresAt, remainingMs } = err.response?.data || {};
         setStep("otp");
         setCountdown(Math.floor((remainingMs || 0) / 1000));
-        setExpiresAt(expiresAt || null);
+        // REMOVE: setExpiresAt(expiresAt || null); // ✅ حذف شد
         toast.info(msg);
       } else {
         toast.error(msg || "خطایی رخ داد.");
@@ -48,20 +79,20 @@ export default function LoginOtpPage() {
   });
 
   /* 🟦 Mutation تأیید OTP */
-  const verifyOtp = useMutation({
-    mutationFn: (data: { phone: string; code: string }) => verifyLoginOtp(data),
+  const verifyOtp = useMutation<
+    VerifyOtpResponse,
+    ApiError,
+    { phone: string; code: string }
+  >({
+    mutationFn: verifyLoginOtp,
     onSuccess: (data) => {
-      // ✅ بک‌اند کوکی ست می‌کند، پس فقط کاربر را ذخیره می‌کنیم
-      setAuth({
-        role: data.user.role,
-        userId: data.user.id,
-        phone: data.user.phone,
-        name: data.user.name,
-      });
+      // ✅ معماری جدید: وضعیت کاربر را از سرور واکشی کنید
+      qc.setQueryData(AUTH_KEY, data.user);
+      console.log("✅ AUTH CACHE:", qc.getQueryData(AUTH_KEY));
       toast.success("ورود موفقیت‌آمیز ✅");
       router.push(data.user.role === "ADMIN" ? "/admin/dashboard" : "/");
     },
-    onError: (err: AxiosError<{ error?: string; message?: string }>) => {
+    onError: (err) => {
       toast.error(
         err.response?.data?.error ||
           err.response?.data?.message ||
@@ -73,7 +104,10 @@ export default function LoginOtpPage() {
   /* 🕒 شمارش معکوس */
   useEffect(() => {
     if (!countdown) return;
-    const timer = setInterval(() => setCountdown((t) => (t > 0 ? t - 1 : 0)), 1000);
+    const timer = setInterval(
+      () => setCountdown((t) => (t > 0 ? t - 1 : 0)),
+      1000
+    );
     return () => clearInterval(timer);
   }, [countdown]);
 
@@ -95,6 +129,21 @@ export default function LoginOtpPage() {
     setCode("");
     setCountdown(0);
   };
+
+  // --------------------
+  // ✅ Guards (بعد از Hooks)
+  // --------------------
+  if (status === "checking") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <p className="animate-pulse text-[#00B4D8]">
+          در حال بررسی وضعیت ورود...
+        </p>
+      </div>
+    );
+  }
+
+  if (status === "redirecting") return null;
 
   return (
     <AuthLayout>

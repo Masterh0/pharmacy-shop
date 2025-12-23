@@ -62,6 +62,7 @@ function sendAuthCookies(
   // برای Edge: اضافه کردن header اضافی
   res.setHeader("Access-Control-Allow-Credentials", "true");
 }
+console.log("⛔ refresh token invalid → clearing cookies");
 
 function clearAuthCookies(res: Response) {
   // تنظیمات clearCookie برای سازگاری با تمام مرورگرها
@@ -210,42 +211,60 @@ const login = async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
 
   if (!identifier || !password)
-    return res
-      .status(400)
-      .json({ error: "شماره موبایل/ایمیل و رمز عبور لازم است." });
+    return res.status(400).json({
+      error: "شماره موبایل/ایمیل و رمز عبور لازم است.",
+    });
+
+  // ✅ جلوگیری از پسورد فارسی
+  if (/[\u0600-\u06FF]/.test(password)) {
+    return res.status(400).json({
+      error: "رمز عبور باید با حروف انگلیسی وارد شود",
+    });
+  }
 
   try {
     const normalizedIdentifier = normalizePhone(identifier);
+
     const user = await prisma.user.findFirst({
       where: {
         OR: [{ email: identifier }, { phone: normalizedIdentifier }],
       },
     });
 
-    if (!user) return res.status(401).json({ error: "ورود نامعتبر." });
+    if (!user)
+      return res.status(400).json({
+        error: "شماره موبایل یا رمز عبور نادرست است",
+      });
+
     if (!user.isVerified)
-      return res.status(401).json({ error: "شماره موبایل تأیید نشده." });
+      return res.status(401).json({
+        error: "شماره موبایل تأیید نشده.",
+      });
+
     if (!user.hasPassword)
-      return res.status(400).json({ error: "این حساب رمز عبور ندارد." });
+      return res.status(400).json({
+        error: "این حساب رمز عبور ندارد.",
+      });
 
     const isValid = await bcrypt.compare(password, user.password!);
-    if (!isValid) return res.status(401).json({ error: "ورود نامعتبر." });
+    if (!isValid)
+      return res.status(400).json({
+        error: "شماره موبایل یا رمز عبور نادرست است",
+      });
 
     // ✅ Merge Guest Cart
     const sessionId = req.cookies.sessionId;
-
-    if (typeof sessionId === "string" && sessionId.trim() !== "") {
+    if (typeof sessionId === "string" && sessionId.trim()) {
       try {
         await cartService.mergeGuestCartToUserCart(sessionId, user.id);
-      } catch (mergeError) {
-        console.error("Cart merge error (non-blocking):", mergeError);
-        // Continue with login even if merge fails
+      } catch (err) {
+        console.warn("Cart merge failed (non-blocking)", err);
       }
 
       res.clearCookie("sessionId", {
         httpOnly: false,
         secure: false,
-        sameSite: "lax" as const,
+        sameSite: "lax",
         path: "/",
         domain: undefined,
       });
@@ -257,10 +276,12 @@ const login = async (req: Request, res: Response) => {
     );
     sendAuthCookies(res, accessToken, refreshToken);
 
-    res.json({ user });
+    return res.status(200).json({ user });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ error: "خطای داخلی سرور." });
+    return res.status(500).json({
+      error: "خطای داخلی سرور.",
+    });
   }
 };
 
@@ -415,20 +436,28 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
 
 /* ------------------ REFRESH TOKEN ------------------ */
 const refresh = async (req: Request, res: Response) => {
-  try {
-    const clientRefreshToken =
-      req.cookies.refreshToken || req.body.refreshToken;
+  console.log("🔄 /refresh called");
+  console.log("🍪 cookies:", req.cookies);
 
-    if (!clientRefreshToken)
-      return res.status(400).json({ error: "رفرش‌توکن یافت نشد." });
+  try {
+    // ✅ فقط از cookie بخون
+    const clientRefreshToken = req.cookies?.refreshToken;
+
+    if (!clientRefreshToken) {
+      console.log("⛔ no refreshToken cookie found");
+      clearAuthCookies(res);
+      return res.status(401).json({ error: "رفرش‌توکن یافت نشد." });
+    }
 
     const tokenRecord = await prisma.refreshToken.findUnique({
       where: { token: clientRefreshToken },
     });
 
     if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
-      if (tokenRecord)
+      console.log("⛔ refresh token invalid or expired");
+      if (tokenRecord) {
         await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+      }
       clearAuthCookies(res);
       return res.status(401).json({ error: "رفرش‌توکن نامعتبر." });
     }
@@ -438,12 +467,15 @@ const refresh = async (req: Request, res: Response) => {
     });
 
     if (!user) {
+      console.log("⛔ user not found for refresh token");
       await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
       clearAuthCookies(res);
       return res.status(401).json({ error: "کاربر یافت نشد." });
     }
 
+    // rotate refresh token
     await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
+
     const { accessToken, refreshToken } = await generateTokens(
       user.id,
       user.role
@@ -451,11 +483,13 @@ const refresh = async (req: Request, res: Response) => {
 
     sendAuthCookies(res, accessToken, refreshToken);
 
-    res.status(200).json({ user });
+    console.log("✅ refresh success for user:", user.id);
+
+    return res.status(200).json({ user });
   } catch (error) {
-    console.error("Refresh token error:", error);
+    console.error("🔥 Refresh token HARD error:", error);
     clearAuthCookies(res);
-    res.status(500).json({ error: "خطای داخلی سرور." });
+    return res.status(500).json({ error: "خطای داخلی سرور." });
   }
 };
 
@@ -487,27 +521,31 @@ const logout = async (req: Request, res: Response) => {
 
 /* ------------------ ME ------------------ */
 const me = async (req: Request, res: Response) => {
-  try {
-    const accessToken = req.cookies.accessToken;
-    if (!accessToken) return res.status(401).json({ error: "توکن یافت نشد." });
+  console.log("🧠 /me called");
+  console.log("👤 req.user:", req.user);
 
-    const decoded = jwt.verify(
-      accessToken,
-      process.env.ACCESS_TOKEN_SECRET as jwt.Secret
-    ) as { id: number; role: string };
+  const userPayload = req.user as { id: number; role: string };
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { id: true, name: true, phone: true, email: true, role: true },
-    });
-
-    if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
-
-    return res.status(200).json({ user });
-  } catch (error) {
-    console.error("Me endpoint error:", error);
-    return res.status(401).json({ error: "توکن نامعتبر." });
+  if (!userPayload?.id) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userPayload.id },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      role: true,
+    },
+  });
+
+  if (!user) {
+    return res.status(404).json({ error: "کاربر یافت نشد." });
+  }
+
+  return res.status(200).json({ user });
 };
 
 export {

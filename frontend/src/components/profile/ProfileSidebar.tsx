@@ -1,8 +1,6 @@
 "use client";
 
-import { useAuthStore } from "@/lib/stores/authStore";
-import { me, AuthResponse } from "@/lib/api/auth";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/hooks/useAuth";
 import {
   Home2,
   Bag2,
@@ -18,7 +16,7 @@ import {
   ShoppingCart,
 } from "iconsax-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type IconType = typeof Home2;
 
@@ -48,37 +46,23 @@ export default function ProfileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // ❗ اصلاح این خط
-  const { name, role, userId, hydrated, setAuth, logout } = useAuthStore();
+  // ✅ تنها منبع auth
+  const { user, isLoading, logout } = useAuth({ enabled: true });
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const toggleExpand = (key: string) =>
     setExpanded((p) => (p === key ? null : key));
 
-  useQuery<AuthResponse>({
-    queryKey: ["me"],
-    queryFn: me,
-    enabled: hydrated && (!userId || !role),
-    retry: false,
-    onSuccess: (data) => {
-      if (data?.user) {
-        setAuth({
-          role: data.user.role,
-          userId: data.user.id,
-          name: data.user.name,
-          phone: data.user.phone,
-        });
-      }
-    },
-    onError: () => {
-      logout();
+  // ✅ گارد امنیتی
+  useEffect(() => {
+    if (!isLoading && !user) {
       router.replace("/login");
-    },
-  });
+    }
+  }, [isLoading, user, router]);
 
-  if (!hydrated) return null;
-  if (!userId || !role) return null;
+  if (isLoading || !user) return null;
 
+  const { role, name } = user;
   const displayName = name?.trim() ? name : "کاربر محترم";
 
   const adminMenu: MenuItem[] = [
@@ -110,6 +94,7 @@ export default function ProfileSidebar() {
         },
       ],
     },
+
     {
       label: "محصولات",
       icon: Box,
@@ -126,6 +111,11 @@ export default function ProfileSidebar() {
           href: "/manager/profile/edit-product",
         },
       ],
+    },
+    {
+      label: "محصولات بلاک‌شده",
+      icon: Box,
+      href: "/manager/products/blocked",
     },
     {
       label: "اطلاعات حساب کاربری",
@@ -145,7 +135,7 @@ export default function ProfileSidebar() {
       icon: TruckFast,
       href: "/customer/shipments",
     },
-    { label: "خروج", icon: LogoutCurve, action: "logout" },
+    { label: "خروج", icon: LogoutCurve, href: "/logout" },
   ];
 
   const menuItems = role === "ADMIN" ? adminMenu : customerMenu;
@@ -174,11 +164,12 @@ export default function ProfileSidebar() {
             "href" in item &&
             (pathname === item.href || pathname.startsWith(item.href + "/"));
 
-          const handleClick = () => {
+          const handleClick = async () => {
             if (item.action === "logout") {
-              router.push("/logout");
+              await logout();
               return;
             }
+
             if ("children" in item && item.children) {
               toggleExpand(item.label);
             } else if ("href" in item) {

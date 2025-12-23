@@ -134,3 +134,69 @@ export const getCategoryFilters = async (req: Request, res: Response) => {
     });
   }
 };
+export const getAdminCategoryProductsBySlug = async (
+  req: Request,
+  res: Response
+) => {
+  console.log("✅ ADMIN SLUG ROUTE QUERY:", req.query);
+
+  try {
+    const { slug } = req.params;
+
+    if (!slug || typeof slug !== "string") {
+      return res.status(400).json({ message: "اسلاگ معتبر نیست" });
+    }
+
+    // ✅ کل query به عنوان filters
+    const filters = req.query;
+
+    const result = await categoryService.getFilteredProductsForAdmin(
+      slug,
+      filters
+    );
+
+    res.json({
+      success: true,
+      category: result.category,
+      data: result.products,
+      pagination: result.pagination,
+    });
+  } catch (error: any) {
+    console.error("Admin category products by slug error:", error);
+
+    if (error.message === "Category not found") {
+      return res.status(404).json({ message: "دسته‌بندی یافت نشد" });
+    }
+
+    res.status(500).json({
+      message: "خطا در دریافت محصولات دسته‌بندی (ادمین)",
+    });
+  }
+};
+export const getBlockedProductsForAdmin = async (
+  req: Request,
+  res: Response
+) => {
+  console.log("✅ ADMIN BLOCKED PRODUCTS QUERY:", req.query);
+
+  try {
+    // ✅ کل query به عنوان filters
+    const filters = req.query;
+
+    const result = await categoryService.getFilteredBlockedProductsForAdmin(
+      filters
+    );
+
+    res.json({
+      success: true,
+      data: result.products,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Admin blocked products error:", error);
+
+    res.status(500).json({
+      message: "خطا در دریافت محصولات بلاک‌شده",
+    });
+  }
+};

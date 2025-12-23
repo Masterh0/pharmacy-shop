@@ -122,3 +122,50 @@ export const increaseViewCount = async (
     next(error);
   }
 };
+export const blockProduct = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = Number(req.params.id);
+    const { isBlock } = req.body;
+
+    if (typeof isBlock !== "boolean") {
+      return res.status(400).json({ message: "isBlock must be boolean" });
+    }
+
+    const result = await productService.block(id, isBlock);
+
+    res.status(200).json({
+      status: "success",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getAllForAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        variants: {
+          orderBy: { id: "asc" },
+          take: 1,
+        },
+      },
+      orderBy: [
+        { isBlock: "asc" }, // ✅ فعال‌ها بالا، بلاک‌ها پایین
+        { id: "desc" },
+      ],
+    });
+
+    res.status(200).json({ data: products });
+  } catch (err) {
+    next(err);
+  }
+};

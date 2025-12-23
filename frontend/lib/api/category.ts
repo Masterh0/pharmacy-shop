@@ -13,6 +13,10 @@ export interface CategoryFilters {
   hasDiscount: boolean;
   hasInStock: boolean;
 }
+export interface AdminBlockedProductsResponse {
+  products: Product[];
+  pagination: PaginationMeta;
+}
 export interface Category {
   id: number;
   name: string;
@@ -167,5 +171,37 @@ export const categoryApi = {
 
     const res = await api.get(`${API_URL}/${categoryId}/filters`);
     return res.data.data as CategoryFilters; // فرض بر این است که بک‌اند در یک فیلد 'data' پاسخ می‌دهد
+  },
+  getAdminProductsByCategoryBySlug: async (
+    slug: string,
+    search = ""
+  ): Promise<ProductsByCategoryBySlugResponse> => {
+    if (!slug) {
+      throw new Error("Category slug is required");
+    }
+
+    const res = await api.get(
+      `/categories/admin/slug/${slug}/products${search}`
+    );
+
+    const data = res.data;
+
+    return {
+      category: data.category,
+      products: data.products ?? data.data,
+      pagination: data.pagination,
+    };
+  },
+  getAdminBlockedProducts: async (
+    search = ""
+  ): Promise<AdminBlockedProductsResponse> => {
+    const res = await api.get(`/categories/admin/blocked${search}`);
+
+    const data = res.data;
+
+    return {
+      products: data.products ?? data.data,
+      pagination: data.pagination,
+    };
   },
 };

@@ -1,60 +1,79 @@
-import { useAuthStore } from "@/lib/stores/authStore";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuthReady } from "@/lib/hooks/useAuthReady";
-import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type Status = "checking" | "redirecting" | "render";
 
-/**
- * ✅ نسخه هماهنگ با معماری جدید (کوکی HttpOnly)
- */
+const AUTH_ROUTES = ["/login", "/signup", "/login/otp"];
+
 export function useAuthRedirect(): Status {
   const router = useRouter();
   const pathname = usePathname();
-  const { role, userId } = useAuthStore(); // حالا به جای accessToken، userId و role رو داریم
-  const ready = useAuthReady();
+
+  const isAuthRoute = AUTH_ROUTES.includes(pathname);
+  const isProtectedRoute =
+    pathname.startsWith("/account") || pathname.startsWith("/admin");
+
+  /**
+   * 🔑 فقط protected route auth check می‌خواد
+   */
+  const shouldCheckAuth = isProtectedRoute;
+
+  const { user, isLoading } = useAuth({
+    enabled: shouldCheckAuth,
+  });
+
   const [status, setStatus] = useState<Status>("checking");
-  const [firstLogin, setFirstLogin] = useState(false);
+  const redirected = useRef(false);
 
   useEffect(() => {
-    if (!ready) return;
-
-    // 🟢 تشخیص لاگین اولیه: تغییر از عدم وجود userId به وجودش
-    if (userId && status === "checking") {
-      setFirstLogin(true);
-      setTimeout(() => setFirstLogin(false), 1500);
+    // ✅ صفحات public + auth بدون هیچ auth check
+    if (!isProtectedRoute && !isAuthRoute) {
+      setStatus("render");
+      return;
     }
 
-    const isLoggedIn = Boolean(userId);
-
-    // 🔐 اگر لاگین کرده ولی تو صفحات auth هست
-    if (isLoggedIn && ["/login", "/signup", "/login/otp"].includes(pathname)) {
-      setStatus("redirecting");
-      if (!firstLogin) {
-        toast.warning(
-          "شما وارد حساب کاربری خود شده‌اید و به این صفحه دسترسی ندارید."
-        );
+    // ✅ auth route (login/signup) → فقط redirect اگه user داریم
+    if (isAuthRoute && !isProtectedRoute) {
+      if (user) {
+        redirected.current = true;
+        setStatus("redirecting");
+        toast.info("قبلاً وارد شده‌اید");
+        router.replace("/");
       } else {
-        toast.info("در حال ورود برای اولین بار...");
+        setStatus("render");
       }
-      setTimeout(() => router.replace("/"), 300);
       return;
     }
 
-    // 🚫 اگر لاگین نکرده ولی رفته صفحات محافظت‌شده
-    if (
-      !isLoggedIn &&
-      (pathname.startsWith("/account") || pathname.startsWith("/admin"))
-    ) {
-      setStatus("redirecting");
-      toast.warning("برای دسترسی به این صفحه ابتدا وارد حساب خود شوید.");
-      router.replace("/login");
-      return;
-    }
+    // ✅ protected route
+    if (isProtectedRoute) {
+      if (isLoading || redirected.current) return;
 
-    setStatus("render");
-  }, [ready, userId, pathname, router]);
+      if (!user) {
+        redirected.current = true;
+        setStatus("redirecting");
+        toast.warning("برای دسترسی وارد حساب شوید");
+        router.replace("/login");
+        return;
+      }
+
+      // admin guard
+      if (
+        pathname.startsWith("/admin") &&
+        user.role !== "ADMIN"
+      ) {
+        redirected.current = true;
+        setStatus("redirecting");
+        toast.error("دسترسی ادمین ندارید");
+        router.replace("/");
+        return;
+      }
+
+      setStatus("render");
+    }
+  }, [pathname, user, isLoading, router, isAuthRoute, isProtectedRoute]);
 
   return status;
 }

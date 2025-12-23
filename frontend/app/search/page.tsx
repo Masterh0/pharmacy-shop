@@ -202,6 +202,7 @@ export default function SearchPage() {
             currentPage: page,
           }}
           setPage={handleSetPage}
+          brands={brands}
         />
       ) : (
         <div className="text-center py-10 text-gray-600">

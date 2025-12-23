@@ -32,5 +32,9 @@ router.put("/:id", categoryController.update);
 
 // ❌ حذف دسته
 router.delete("/:id", categoryController.remove);
-
+router.get(
+  "/admin/slug/:slug/products",
+  categoryController.getAdminCategoryProductsBySlug
+);
+router.get("/admin/blocked", categoryController.getBlockedProductsForAdmin);
 export default router;

@@ -1,4 +1,4 @@
-import api from "@/lib/axios"; 
+import api from "@/lib/axios";
 
 // نقش‌ها
 export type Role = "ADMIN" | "STAFF" | "CUSTOMER";
@@ -83,7 +83,9 @@ export const login = async (data: LoginInput) => {
 // ورود با OTP
 // ----------------------
 export const requestLoginOtp = async (phone: string) => {
-  const res = await api.post<{ message: string }>("/auth/login/request-otp", { phone });
+  const res = await api.post<{ message: string }>("/auth/login/request-otp", {
+    phone,
+  });
   return res.data;
 };
 
@@ -128,7 +130,6 @@ export const logout = async () => {
   return res.data;
 };
 export const me = async () => {
-  const res = await api.get<AuthResponse>("/auth/me", {
-  });
+  const res = await api.get<AuthResponse>("/auth/me", {});
   return res.data;
 };

@@ -1,28 +1,11 @@
-import { useState, useEffect } from "react";
-import { useAuthStore } from "@/lib/stores/authStore";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 /**
- * هوک بررسی آماده بودن Zustand Persist برای احراز هویت
- *
- * - `ready` وقتی true میشه که hydration از localStorage کامل انجام شده باشه.
- * - میشه ازش برای کنترل UI در حالت لود اولیه استفاده کرد تا از پرش جلوگیری بشه.
+ * ✅ Auth readiness بر اساس React Query
+ * - true یعنی auth check تمام شده
  */
 export function useAuthReady() {
-  const [ready, setReady] = useState(false);
+  const { isLoading } = useAuth();
 
-  useEffect(() => {
-    // تابعی که بعد از اتمام hydration صدا زده میشه
-    const unsubscribe = useAuthStore.persist.onFinishHydration(() => {
-      setReady(true);
-    });
-
-    // اگر hydration قبلاً تموم شده بود (مثلاً در مرورگر بعدی)
-    if (useAuthStore.persist.hasHydrated()) {
-      setReady(true);
-    }
-
-    return () => unsubscribe?.();
-  }, []);
-
-  return ready;
+  return !isLoading;
 }

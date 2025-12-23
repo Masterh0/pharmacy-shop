@@ -48,4 +48,14 @@ export const productApi = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/products/${id}`);
   },
+  block: async (id: number, isBlock: boolean): Promise<Product> => {
+    const { data } = await api.patch(`/products/${id}/block`, {
+      isBlock,
+    });
+    return data.data;
+  },
+  getAdminByCategorySlug: async (slug: string): Promise<Product[]> => {
+    const { data } = await api.get(`/products/admin/all?categorySlug=${slug}`);
+    return data.data;
+  },
 };

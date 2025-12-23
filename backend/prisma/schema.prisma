@@ -333,6 +333,7 @@ model Otp {
   used       Boolean  @default(false)
   createdAt  DateTime @default(now())
   isVerified Boolean  @default(false)
+  attempts   Int      @default(0)
 }
 
 enum Role {

@@ -19,7 +19,6 @@ export const errorMiddleware = (err: any, req: Request, res: Response, next: Nex
         : 'Internal Server Error';
 
     // ۳. لاگ‌گیری خطا (مهم برای دیباگ)
-    console.error('SERVER ERROR:', err);
 
     // ۴. ارسال پاسخ استاندارد JSON به کلاینت
     res.status(statusCode).json({

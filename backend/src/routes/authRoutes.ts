@@ -36,7 +36,7 @@ router.post("/login/verify-otp", verifyLoginOtp);
 // رفرش توکن
 // -----------------------------
 router.post("/refresh", refresh);
-router.post("/logout", logout);
+router.post("/logout", verifyAccessToken, logout);
 router.get("/me", verifyAccessToken, me);
 // -----------------------------
 // مسیر تست فقط برای ADMINS

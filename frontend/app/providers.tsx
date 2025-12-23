@@ -2,20 +2,22 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import "@/styles/globals.css";
-const queryClient = new QueryClient();
 
 export default function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => {
+    console.log("🧠 CREATE QueryClient");
+    return new QueryClient();
+  });
   return (
     <QueryClientProvider client={queryClient}>
       {children}
       <Toaster
         richColors
-        position="top-center" // یا top-left برای RTL
+        position="top-center"
         reverseOrder={false}
         toastOptions={{
-          // اگر می‌خواهید پیام‌های خطای فارسی واضح‌تر باشند
           error: {
             style: {
               textAlign: "right",

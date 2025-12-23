@@ -21,5 +21,6 @@ router.put("/:id", upload.single("imageUrl"), productController.update);
 // حذف محصول
 router.delete("/:id", productController.remove);
 router.post("/:id/view", productController.increaseViewCount);
-
+router.patch("/:id/block", productController.blockProduct);
+router.get("/admin/all", productController.getAllForAdmin);
 export default router;

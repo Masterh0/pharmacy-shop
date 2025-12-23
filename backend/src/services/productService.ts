@@ -270,4 +270,32 @@ export const productService = {
       throw error;
     }
   },
+  block: async (id: number, isBlock: boolean) => {
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, isBlock: true },
+  });
+
+  if (!product) {
+    throw new NotFoundError(`Product with ID ${id} not found.`);
+  }
+
+  if (product.isBlock === isBlock) {
+    throw new BadRequestError(
+      isBlock ? "محصول از قبل بلاک است." : "محصول از قبل فعال است."
+    );
+  }
+
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { isBlock },
+    select: {
+      id: true,
+      name: true,
+      isBlock: true,
+    },
+  });
+
+  return updated;
+},
 };
