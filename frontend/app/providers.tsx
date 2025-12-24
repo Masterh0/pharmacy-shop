@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { ReactNode, useState } from "react";
 import "@/styles/globals.css";
-
+import { AuthProvider } from "@/lib/context/AuthContext";
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => {
     console.log("🧠 CREATE QueryClient");
@@ -12,7 +12,7 @@ export default function Providers({ children }: { children: ReactNode }) {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthProvider>{children}</AuthProvider>
       <Toaster
         richColors
         position="top-center"

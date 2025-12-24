@@ -14,6 +14,7 @@ import type { Product } from "@/lib/types/product";
 import type { CartItem } from "@/lib/types/cart";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBlockProduct } from "@/lib/hooks/useBlockProduct";
+console.log(useBlockProduct);
 export default function ProductsGrid({ products }: { products: Product[] }) {
   const router = useRouter();
   const qc = useQueryClient();

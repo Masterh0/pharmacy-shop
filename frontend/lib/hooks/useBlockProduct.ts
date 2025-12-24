@@ -21,26 +21,21 @@ export const useBlockProduct = () => {
     mutationFn: ({ id, isBlock }: BlockPayload) =>
       productApi.block(id, isBlock),
 
-    // ✅ 1️⃣ Optimistic update (لحظه‌ای)
+    // ✅ 1️⃣ Optimistic update
     onMutate: async ({ id, isBlock }) => {
-      // جلوی refetch همزمان رو بگیر
       await queryClient.cancelQueries({
         queryKey: PRODUCT_KEYS.all,
       });
 
-      const previousProducts =
-        queryClient.getQueryData<Product[]>(PRODUCT_KEYS.all);
+      const previousProducts = queryClient.getQueryData<Product[]>(PRODUCT_KEYS.all);
 
-      // ✅ Update لحظه‌ای لیست
+      // Update لیست محصولات
       queryClient.setQueryData<Product[] | undefined>(
         PRODUCT_KEYS.all,
-        (old) =>
-          old?.map((p) =>
-            p.id === id ? { ...p, isBlock } : p
-          )
+        (old) => old?.map((p) => (p.id === id ? { ...p, isBlock } : p))
       );
 
-      // ✅ Update لحظه‌ای دیتیل (اگه باز باشه)
+      // Update دیتیل محصول
       queryClient.setQueryData<Product | undefined>(
         PRODUCT_KEYS.detail(id),
         (old) => (old ? { ...old, isBlock } : old)
@@ -49,27 +44,24 @@ export const useBlockProduct = () => {
       return { previousProducts };
     },
 
-    // ✅ 2️⃣ Rollback اگه خطا خورد
+    // ✅ 2️⃣ Rollback در صورت خطا
     onError: (error, _vars, context) => {
       if (context?.previousProducts) {
-        queryClient.setQueryData(
-          PRODUCT_KEYS.all,
-          context.previousProducts
-        );
+        queryClient.setQueryData(PRODUCT_KEYS.all, context.previousProducts);
       }
 
       const err = error as AxiosError<ErrorResponse>;
       toast.error(err.response?.data?.message ?? "خطا در تغییر وضعیت محصول");
     },
 
-    // ✅ 3️⃣ Sync نهایی با سرور (سریع)
+    // ✅ 3️⃣ Sync نهایی
     onSettled: async () => {
       await queryClient.invalidateQueries({
         queryKey: PRODUCT_KEYS.all,
       });
     },
 
-    // ✅ 4️⃣ Toast بعد از موفقیت واقعی
+    // ✅ 4️⃣ Toast موفقیت
     onSuccess: (updatedProduct) => {
       toast.success(
         updatedProduct.isBlock ? "محصول غیرفعال شد" : "محصول فعال شد"

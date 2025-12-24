@@ -1,15 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query"; // ✅ اضافه شد
-import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth"; // ⚠️ مطمئن شوید این توابع در auth.ts اکسپورت شده‌اند
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth";
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import AuthLayout from "../../authComponents/AuthLayout";
 import BackButton from "@/app/authComponents/BackButton";
-import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { AUTH_KEY } from "@/lib/constants/auth";
-// ✅ تعریف AUTH_KEY برای Invalidate کردن کش
 
 // ---------------------------
 // ✅ تعریف تایپ‌های پاسخ API
@@ -22,14 +21,14 @@ type SendOtpResponse = {
 type VerifyOtpResponse = {
   user: {
     id: number;
-    role: "ADMIN" | "CUSTOMER" | "STAFF"; // یا همان UserRole شما
+    role: "ADMIN" | "CUSTOMER" | "STAFF";
     phone: string;
     name: string;
   };
 };
 
 // ---------------------------
-// ✅ تعریف تایپ خطای API (برای تمیزکاری)
+// ✅ تعریف تایپ خطای API
 // ---------------------------
 type ApiError = AxiosError<{
   error?: string;
@@ -39,18 +38,16 @@ type ApiError = AxiosError<{
 }>;
 
 export default function LoginOtpPage() {
-  // --------------------
-  // ✅ Hooks (همه در بالا و مرتب)
-  // --------------------
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countdown, setCountdown] = useState(0);
-  // REMOVE: const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
-  const qc = useQueryClient(); // ✅ اضافه شد
+  const qc = useQueryClient();
   const router = useRouter();
-  const status = useAuthRedirect(); // ✅ استفاده از خروجی هوک برای گارد
+
+  // ✅ استفاده از useAuth به‌جای useAuthRedirect
+  const { isChecking, isAuthenticated } = useAuth({ enabled: true });
 
   /* 🟦 Mutation ارسال OTP */
   const sendOtp = useMutation<SendOtpResponse, ApiError, { phone: string }>({
@@ -60,7 +57,6 @@ export default function LoginOtpPage() {
       if (data.expiresAt) {
         const remain = new Date(data.expiresAt).getTime() - Date.now();
         setCountdown(Math.floor(remain / 1000));
-        // REMOVE: setExpiresAt(data.expiresAt); // ✅ حذف شد
       }
       toast.success("کد ارسال شد ✅");
     },
@@ -70,7 +66,6 @@ export default function LoginOtpPage() {
         const { expiresAt, remainingMs } = err.response?.data || {};
         setStep("otp");
         setCountdown(Math.floor((remainingMs || 0) / 1000));
-        // REMOVE: setExpiresAt(expiresAt || null); // ✅ حذف شد
         toast.info(msg);
       } else {
         toast.error(msg || "خطایی رخ داد.");
@@ -86,9 +81,7 @@ export default function LoginOtpPage() {
   >({
     mutationFn: verifyLoginOtp,
     onSuccess: (data) => {
-      // ✅ معماری جدید: وضعیت کاربر را از سرور واکشی کنید
       qc.setQueryData(AUTH_KEY, data.user);
-      console.log("✅ AUTH CACHE:", qc.getQueryData(AUTH_KEY));
       toast.success("ورود موفقیت‌آمیز ✅");
       router.push(data.user.role === "ADMIN" ? "/admin/dashboard" : "/");
     },
@@ -100,7 +93,11 @@ export default function LoginOtpPage() {
       );
     },
   });
-
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
   /* 🕒 شمارش معکوس */
   useEffect(() => {
     if (!countdown) return;
@@ -131,9 +128,9 @@ export default function LoginOtpPage() {
   };
 
   // --------------------
-  // ✅ Guards (بعد از Hooks)
+  // ✅ کنترل وضعیت Auth
   // --------------------
-  if (status === "checking") {
+  if (isChecking) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <p className="animate-pulse text-[#00B4D8]">
@@ -143,7 +140,10 @@ export default function LoginOtpPage() {
     );
   }
 
-  if (status === "redirecting") return null;
+  if (isAuthenticated) {
+    // فقط نمایش خالی تا navigate انجام شود
+    return null;
+  }
 
   return (
     <AuthLayout>

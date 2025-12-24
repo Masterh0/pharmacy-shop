@@ -5,26 +5,17 @@ import Link from "next/link";
 import { useCart } from "@/lib/hooks/useAddToCart";
 import { useEffect, useState, useRef } from "react";
 import CartPreview from "./CartPreview";
-import { useQuery } from "@tanstack/react-query";
-import { AUTH_KEY } from "@/lib/constants/auth";
-import type { User } from "@/lib/types/user";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/context/AuthContext"; // ✅ هوک جدید ما
 
 export default function HeaderActions() {
-  const qc = useQueryClient();
-  console.log(
-    "🧭 HEADER CACHE",
-    qc.getQueryCache().find({ queryKey: AUTH_KEY })?.state.data
-  );
-  const { data: user } = useQuery<User | null>({
-    queryKey: AUTH_KEY,
-  });
-
-  const isLoggedIn = Boolean(user);
-  console.log("🧭 HEADER render user:", user);
+  // ✅ استفاده ساده و استاندارد. دیگه enabled: false نداریم
+  const { user, isLoading } = useAuth();
+  
+  // تا زمانی که داریم چک می‌کنیم کاربر لاگین هست یا نه، چیزی نشان نده (جلوگیری از پرش)
+  // یا می‌توانی یک اسپینر کوچک بگذاری
+  const isAuthReady = !isLoading; 
 
   const { cart } = useCart();
-
   const itemCount =
     cart?.items?.reduce(
       (sum: number, item: { quantity: number }) => sum + item.quantity,
@@ -44,9 +35,8 @@ export default function HeaderActions() {
     };
   }, []);
 
-  if (!mounted) {
-    return <div style={{ width: 288, height: 40 }} />;
-  }
+  // اگر هنوز در سمت سرور هستیم یا هنوز وضعیت لاگین چک نشده، جای خالی نشان بده
+  if (!mounted) return <div style={{ width: 288, height: 40 }} />;
 
   const profileHref =
     user?.role === "ADMIN" ? "/manager/profile" : "/customer/profile";
@@ -78,7 +68,6 @@ export default function HeaderActions() {
               width={24}
               height={24}
             />
-
             {itemCount > 0 && (
               <span
                 className="absolute -top-[5px] -right-[9px] z-50
@@ -94,7 +83,7 @@ export default function HeaderActions() {
           <span>سبد خرید</span>
         </Link>
 
-        {/* Cart preview */}
+        {/* 🔹 پیش‌نمایش سبد خرید */}
         <div
           className={`
             absolute left-[-70px] top-[52px] w-[360px] z-50
@@ -107,34 +96,19 @@ export default function HeaderActions() {
                 : "opacity-0 invisible -translate-y-2"
             }
           `}
-          onMouseEnter={() => {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            setIsHovered(true);
-          }}
-          onMouseLeave={() => {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = setTimeout(
-              () => setIsHovered(false),
-              250
-            );
-          }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
           <CartPreview />
         </div>
       </div>
 
-      {/* 👤 ورود یا پروفایل */}
-      {!isLoggedIn ? (
-        <div className="flex flex-row-reverse items-center gap-[6px] text-[#434343] text-[14px] font-IRANYekanX font-medium">
-          <Link href="/login" className="hover:text-[#00B4D8]">
-            ورود
-          </Link>
-          <span className="text-[#BFBFBF]">|</span>
-          <Link href="/signup" className="hover:text-[#00B4D8]">
-            ثبت‌نام
-          </Link>
-        </div>
-      ) : (
+      {/* 👤 بخش لاگین / پروفایل */}
+      {/* اینجا چک می‌کنیم اگر هنوز لودینگ است، چیزی نشان نده یا اسکلتون نشان بده */}
+      {isLoading ? (
+        <div className="w-[100px] h-[20px] bg-gray-200 animate-pulse rounded"></div>
+      ) : user ? (
+        // ✅ حالت لاگین شده
         <Link
           href={profileHref}
           className="flex flex-row-reverse items-center gap-[8px]
@@ -147,8 +121,19 @@ export default function HeaderActions() {
             width={28}
             height={28}
           />
-          <span>{user?.name ?? "کاربر من"}</span>
+          <span>{user.name || "کاربر عزیز"}</span>
         </Link>
+      ) : (
+        // ❌ حالت لاگین نشده
+        <div className="flex flex-row-reverse items-center gap-[6px] text-[#434343] text-[14px] font-IRANYekanX font-medium">
+          <Link href="/login" className="hover:text-[#00B4D8]">
+            ورود
+          </Link>
+          <span className="text-[#BFBFBF]">|</span>
+          <Link href="/signup" className="hover:text-[#00B4D8]">
+            ثبت‌نام
+          </Link>
+        </div>
       )}
     </div>
   );

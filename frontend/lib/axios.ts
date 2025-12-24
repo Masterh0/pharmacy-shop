@@ -31,17 +31,17 @@ api.interceptors.response.use(
     const url = originalReq?.url ?? "";
 
     /* ---------------------------
-     * ✅ 1️⃣ 400 / 422 = بیزینسی → سایلنت
+     * ✅ 1️⃣ 400 / 422 = ارورهای فرم و بیزینس
      * --------------------------- */
     if (status === 400 || status === 422) {
-      // ❌ لاگ نشه
-      // ✅ فقط reject بشه تا React Query هندل کنه
+      // این‌ها را لاگ نمی‌کنیم چون در UI هندل می‌شوند
       return Promise.reject(err);
     }
 
     /* ---------------------------
-     * ✅ 2️⃣ 401 → Refresh Logic
+     * ✅ 2️⃣ 401 → تلاش برای رفرش توکن
      * --------------------------- */
+    // فقط اگر درخواست اصلی خودش لاگین یا رفرش نبوده وارد پروسه رفرش شو
     if (
       status === 401 &&
       !originalReq._retry &&
@@ -69,7 +69,11 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(e);
 
-        if (typeof window !== "undefined") {
+        // ✅ جلوگیری از لوپ: فقط اگر در صفحه لاگین نیستیم ریدایرکت کن
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.includes("/login")
+        ) {
           window.location.replace("/login");
         }
 
@@ -78,8 +82,21 @@ api.interceptors.response.use(
     }
 
     /* ---------------------------
-     * ✅ 3️⃣ فقط خطای واقعی لاگ بشه
+     * ✅ 3️⃣ مدیریت لاگ‌ها (جلوگیری از اسپم کنسول)
      * --------------------------- */
+    
+    // ارورهای ۴۰۱ روی این روت‌ها طبیعی هستند و نباید کنسول را قرمز کنند:
+    // 1. refresh: سشن کاربر تمام شده.
+    // 2. me: کاربر کلا لاگین نیست (مهمان).
+    // 3. login: رمز عبور اشتباه است.
+    if (
+        status === 401 && 
+        (url.includes("/auth/refresh") || url.includes("/auth/me") || url.includes("/auth/login"))
+    ) {
+       return Promise.reject(err);
+    }
+
+    // فقط خطاهای واقعی و غیرمنتظره (مثل ۵۰۰ یا قطعی نت) لاگ شوند
     console.error("[API ERROR]", {
       url,
       status,

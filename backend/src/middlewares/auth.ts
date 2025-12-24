@@ -26,19 +26,22 @@ export const verifyAccessToken = (
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.cookies?.accessToken;
+  // ✅ اولویت اول: هدر Authorization (برای موبایل و تست)
+  let token = req.headers.authorization?.split(" ")[1];
+
+  // ✅ اولویت دوم: کوکی (برای وب)
+  if (!token) {
+    token = req.cookies?.accessToken;
+  }
 
   if (!token) {
+    // 401 استاندارد بدون پیام جیسون هم گاهی کافیست، اما جیسون بهتر است
     return res.status(401).json({ error: "No access token provided" });
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_SECRET!
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!) as any; // یا تایپ JwtPayload خودتان
 
-    // ✅ فقط همین
     req.user = {
       id: decoded.id,
       role: decoded.role,
@@ -47,10 +50,11 @@ export const verifyAccessToken = (
     next();
   } catch (error) {
     if (error instanceof TokenExpiredError) {
-      return res.status(401).json({ error: "jwt expired" });
+      return res
+        .status(401)
+        .json({ error: "jwt expired", code: "TOKEN_EXPIRED" }); // کد برای فرانت‌اند مفید است
     }
-
-    return res.status(401).json({ error: "Invalid or expired access token" });
+    return res.status(403).json({ error: "Invalid access token" });
   }
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Eye, EyeSlash } from "iconsax-react";
 import AuthLayout from "../authComponents/AuthLayout";
@@ -8,16 +8,16 @@ import { useMutation } from "@tanstack/react-query";
 import { register, verifyRegisterOtp } from "@/lib/api/auth";
 import { useRouter } from "next/navigation";
 import BackButton from "../authComponents/BackButton";
-import { useAuthRedirect } from "@/lib/hooks/useAuthRedirect";
+import { useAuth } from "@/lib/hooks/useAuth"; // تغییر: استفاده از useAuth جدید
 import { useQueryClient } from "@tanstack/react-query";
 import { AUTH_KEY } from "@/lib/constants/auth";
-import {toast} from "sonner";
-// ⚡ فرم استایل‌ها دست‌نخورده 👇
+import { toast } from "sonner";
+
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const qc = useQueryClient();
-  // -- وضعیت محلی برای فرم
+
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -26,15 +26,13 @@ export default function SignupPage() {
     confirmPassword: "",
   });
 
-  // وضعیت OTP مرحله دوم
   const [step, setStep] = useState<"register" | "otp">("register");
   const [otp, setOtp] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const router = useRouter();
 
-  // --------------------
-  // ✅ Mutation: Signup
-  // --------------------
+  // استفاده از useAuth جدید (بدون useAuthRedirect)
+  const { status, user } = useAuth({ enabled: true });
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: (res) => {
@@ -57,9 +55,7 @@ export default function SignupPage() {
   const verifyOtpMutation = useMutation({
     mutationFn: verifyRegisterOtp,
     onSuccess: (res) => {
-      // ✅ cache = AuthResponse
       qc.setQueryData(AUTH_KEY, res);
-
       toast.success("ثبت‌نام با موفقیت انجام شد ✅");
 
       if (res.user.role === "ADMIN") {
@@ -77,7 +73,19 @@ export default function SignupPage() {
       }
     },
   });
-  const status = useAuthRedirect();
+  // ریدایرکت در useEffect
+  useEffect(() => {
+    if (status === "authenticated") {
+      // اگر کاربر قبلاً وارد شده، به صفحه مناسب هدایت شود
+      if (user?.role === "ADMIN") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/");
+      }
+    }
+  }, [status, user, router]);
+
+  // نمایش loading در حین بررسی وضعیت
   if (status === "checking") {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
@@ -88,8 +96,15 @@ export default function SignupPage() {
     );
   }
 
-  // 🔁 تو مرحله redirect هستیم → نشون نده
-  if (status === "redirecting") return null;
+  // اگر کاربر قبلاً وارد شده، در حین ریدایرکت چیزی نشان نده
+  if (status === "authenticated") {
+    return null;
+  }
+
+  // --------------------
+  // ✅ Mutation: Signup
+  // --------------------
+
   // --------------------
   // ⚙️ رویداد ارسال فرم ثبت‌نام
   // --------------------

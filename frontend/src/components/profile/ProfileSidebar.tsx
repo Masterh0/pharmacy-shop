@@ -1,6 +1,7 @@
 "use client";
 
-import { useAuth } from "@/lib/hooks/useAuth";
+// ✅ 1. ایمپورت صحیح از کانتکست
+import { useAuth } from "@/lib/context/AuthContext";
 import {
   Home2,
   Bag2,
@@ -46,20 +47,21 @@ export default function ProfileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // ✅ تنها منبع auth
-  const { user, isLoading, logout } = useAuth({ enabled: true });
+  // ✅ 2. استفاده صحیح از کانتکست (بدون آرگومان اضافی)
+  const { user, isLoading, logout } = useAuth();
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const toggleExpand = (key: string) =>
     setExpanded((p) => (p === key ? null : key));
 
-  // ✅ گارد امنیتی
+  // ✅ 3. گارد امنیتی: اگر اطلاعات لود شد و کاربری نبود، برو بیرون
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace("/login");
     }
   }, [isLoading, user, router]);
 
+  // تا وقتی وضعیت معلوم نیست، چیزی نشان نده
   if (isLoading || !user) return null;
 
   const { role, name } = user;
@@ -135,7 +137,8 @@ export default function ProfileSidebar() {
       icon: TruckFast,
       href: "/customer/shipments",
     },
-    { label: "خروج", icon: LogoutCurve, href: "/logout" },
+    // ✅ 4. اصلاح دکمه خروج مشتری (قبلاً href اشتباه داشت)
+    { label: "خروج", icon: LogoutCurve, action: "logout" },
   ];
 
   const menuItems = role === "ADMIN" ? adminMenu : customerMenu;
@@ -160,19 +163,24 @@ export default function ProfileSidebar() {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isExpanded = expanded === item.label;
+          
+          // برای آیتم‌هایی که اکشن دارند (مثل خروج)، اکتیو بودن معنی ندارد
           const isActive =
-            "href" in item &&
-            (pathname === item.href || pathname.startsWith(item.href + "/"));
+            "href" in item && item.href 
+              ? (pathname === item.href || pathname.startsWith(item.href + "/"))
+              : false;
 
           const handleClick = async () => {
+            // ✅ هندل کردن خروج برای همه
             if (item.action === "logout") {
               await logout();
+              // ریدایرکت خودکار توسط logout یا AuthContext انجام می‌شود
               return;
             }
 
             if ("children" in item && item.children) {
               toggleExpand(item.label);
-            } else if ("href" in item) {
+            } else if ("href" in item && item.href) {
               router.push(item.href);
             }
           };

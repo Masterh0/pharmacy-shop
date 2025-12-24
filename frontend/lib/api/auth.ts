@@ -2,16 +2,16 @@ import api from "@/lib/axios";
 
 // نقش‌ها
 export type Role = "ADMIN" | "STAFF" | "CUSTOMER";
-
+export interface User {
+  id: number;
+  phone: string;
+  email?: string;
+  role: Role;
+  name: string;
+}
 // پاسخ لاگین/ثبت‌نام
 export interface AuthResponse {
-  user: {
-    id: number;
-    phone: string;
-    email?: string;
-    role: Role;
-    name: string;
-  };
+  user: User; // ✅ استفاده از تایپ بالا
 }
 
 // ورودی‌ها
@@ -74,8 +74,9 @@ export const verifyRegisterOtp = async (data: VerifyOtpInput) => {
 // ----------------------
 // ورود با پسورد
 // ----------------------
-export const login = async (data: LoginInput) => {
-  const res = await api.post<AuthResponse>("/auth/login", data);
+export const loginWithPassword = async (identifier: string, password: string) => {
+  // اینجا دستی آبجکت رو میسازیم تا توی LoginPage راحت باشیم
+  const res = await api.post<AuthResponse>("/auth/login", { identifier, password });
   return res.data;
 };
 

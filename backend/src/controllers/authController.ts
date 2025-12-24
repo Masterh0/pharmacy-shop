@@ -37,11 +37,13 @@ function sendAuthCookies(
   accessToken: string,
   refreshToken: string
 ) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   // تنظیمات کوکی برای سازگاری با Edge و تمام مرورگرها
   // این تنظیمات برای سخت‌گیرترین مرورگر (Edge) بهینه شده است
   const cookieOptions = {
     httpOnly: true,
-    secure: false, // در production باید true باشد
+    secure: isProduction, // در production باید true باشد
     sameSite: "lax" as const, // بهترین تعادل - برای Edge ضروری است
     path: "/",
     domain: undefined, // برای localhost - Edge به این نیاز دارد
@@ -62,7 +64,6 @@ function sendAuthCookies(
   // برای Edge: اضافه کردن header اضافی
   res.setHeader("Access-Control-Allow-Credentials", "true");
 }
-console.log("⛔ refresh token invalid → clearing cookies");
 
 function clearAuthCookies(res: Response) {
   // تنظیمات clearCookie برای سازگاری با تمام مرورگرها
@@ -435,57 +436,72 @@ const verifyLoginOtp = async (req: Request, res: Response) => {
 };
 
 /* ------------------ REFRESH TOKEN ------------------ */
+/* ------------------ REFRESH TOKEN ------------------ */
 const refresh = async (req: Request, res: Response) => {
   console.log("🔄 /refresh called");
-  console.log("🍪 cookies:", req.cookies);
+  // console.log("🍪 cookies:", req.cookies); // برای امنیت در پروداکشن کامنت شود بهتر است
 
   try {
-    // ✅ فقط از cookie بخون
     const clientRefreshToken = req.cookies?.refreshToken;
 
     if (!clientRefreshToken) {
-      console.log("⛔ no refreshToken cookie found");
-      clearAuthCookies(res);
       return res.status(401).json({ error: "رفرش‌توکن یافت نشد." });
     }
 
+    // 1. دریافت توکن به همراه اطلاعات کاربر
     const tokenRecord = await prisma.refreshToken.findUnique({
       where: { token: clientRefreshToken },
+      include: { user: true }, // ✅ اطلاعات کاربر اینجا گرفته می‌شود
     });
 
+    // 2. اعتبارسنجی توکن
     if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
-      console.log("⛔ refresh token invalid or expired");
       if (tokenRecord) {
         await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
       }
-      clearAuthCookies(res);
-      return res.status(401).json({ error: "رفرش‌توکن نامعتبر." });
+      clearAuthCookies(res); // فرض بر این است که این تابع را دارید
+      return res.status(401).json({ error: "نشست کاربری نامعتبر است." });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: tokenRecord.userId },
-    });
+    // 3. استخراج کاربر از نتیجه قبلی (بدون کوئری اضافه)
+    const user = tokenRecord.user;
 
+    // چک کردن اینکه کاربر وجود داشته باشد (برای اطمینان از تایپ اسکریپت و دیتابیس)
     if (!user) {
-      console.log("⛔ user not found for refresh token");
       await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
       clearAuthCookies(res);
       return res.status(401).json({ error: "کاربر یافت نشد." });
     }
 
-    // rotate refresh token
-    await prisma.refreshToken.delete({ where: { id: tokenRecord.id } });
-
-    const { accessToken, refreshToken } = await generateTokens(
-      user.id,
-      user.role
+    // 4. تولید توکن‌های جدید (الان متغیر user تعریف شده و در دسترس است)
+    const newAccessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.ACCESS_TOKEN_SECRET as jwt.Secret,
+      { expiresIn: "15m" }
     );
 
-    sendAuthCookies(res, accessToken, refreshToken);
+    const newRefreshToken = uuid();
+    const newRefreshExpiry = new Date(Date.now() + 7 * 86400000);
 
-    console.log("✅ refresh success for user:", user.id);
+    // 5. آپدیت توکن در دیتابیس
+    await prisma.refreshToken.update({
+      where: { id: tokenRecord.id },
+      data: {
+        token: newRefreshToken,
+        expiresAt: newRefreshExpiry,
+      },
+    });
 
-    return res.status(200).json({ user });
+    sendAuthCookies(res, newAccessToken, newRefreshToken);
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        role: user.role,
+        name: user.name,
+        // سایر فیلدهای امن که می‌خواهید برگردانید
+      },
+    });
   } catch (error) {
     console.error("🔥 Refresh token HARD error:", error);
     clearAuthCookies(res);
