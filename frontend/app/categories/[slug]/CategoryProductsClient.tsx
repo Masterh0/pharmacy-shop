@@ -1,7 +1,6 @@
 "use client";
-export const dynamic = "force-dynamic";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -31,15 +30,28 @@ const safeNumber = (v: string | null): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-export default function AdminBlockedProductsPage() {
-  const searchParams = new URLSearchParams();
+export default function CategoryProductsClient() {
+  const { slug } = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
 
   /* =============================
-   ✅ URL = SOT
+   ✅ URL = SOT (read only)
   ============================= */
   const sort = (searchParams.get("sort") as SortType) ?? DEFAULT_SORT;
+
   const page = safeNumber(searchParams.get("page")) ?? DEFAULT_PAGE;
+
+  // فقط برای UI استفاده می‌شن (نه API)
+  const minPrice = safeNumber(searchParams.get("minPrice"));
+  const maxPrice = safeNumber(searchParams.get("maxPrice"));
+  const discount = searchParams.get("discount") === "1";
+  const available = searchParams.get("available") === "1";
+
+  const selectedBrandIds = useMemo(() => {
+    const ids = searchParams.getAll("brand").map(Number).filter(Boolean);
+    return ids.length ? ids : undefined;
+  }, [searchParams]);
 
   /* =============================
    ✅ URL writers
@@ -58,7 +70,7 @@ export default function AdminBlockedProductsPage() {
   };
 
   /* =============================
-   🔥 API (ONLY BLOCKED ✅)
+   🔥 products (FINAL ✅)
   ============================= */
   const search = useMemo(
     () => (searchParams.size ? `?${searchParams.toString()}` : ""),
@@ -66,26 +78,52 @@ export default function AdminBlockedProductsPage() {
   );
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["admin-blocked-products", search],
-    queryFn: () => categoryApi.getAdminBlockedProducts(search),
+    enabled: !!slug,
+    queryKey: ["category-products", slug, search], // ✅ SAME SOURCE
+    queryFn: () => {
+      console.log("🚀 FETCHING WITH:", search);
+      return categoryApi.getProductsByCategoryBySlug(slug!, search);
+    },
   });
 
   const products: Product[] = data?.products ?? [];
+  const category = data?.category;
   const pagination = data?.pagination;
+
+  const activeProducts = useMemo(
+    () => products.filter((p) => !p.isBlock),
+    [products]
+  );
+
+  /* =============================
+   🔥 filters (brands list)
+  ============================= */
+  const { data: filtersData } = useQuery({
+    enabled: !!category?.id,
+    queryKey: ["category-filters", category?.id],
+    queryFn: () => categoryApi.getCategoryFilters(category!.id),
+  });
+
+  const brands = filtersData?.brands ?? [];
 
   /* =============================
    ✅ states
   ============================= */
   if (isLoading) {
     return (
-      <div className="text-center py-20 text-gray-600">در حال بارگذاری...</div>
+      <div className="text-center py-20 text-gray-600">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00B4D8]" />
+          <p>در حال بارگذاری محصولات...</p>
+        </div>
+      </div>
     );
   }
 
   if (isError) {
     return (
       <div className="text-center py-20 text-red-500">
-        خطا در دریافت محصولات بلاک‌شده
+        خطا در دریافت محصولات
         <pre className="text-xs mt-2">{JSON.stringify(error, null, 2)}</pre>
       </div>
     );
@@ -96,8 +134,8 @@ export default function AdminBlockedProductsPage() {
   ============================= */
   return (
     <ProductsListingLayout
-      title="محصولات بلاک‌شده"
-      products={products}
+      title={`محصولات ${category?.name ?? ""}`}
+      products={activeProducts}
       sort={sort}
       setSort={setSort}
       pagination={{
@@ -105,7 +143,7 @@ export default function AdminBlockedProductsPage() {
         currentPage: page,
       }}
       setPage={setPage}
-      brands={[]} // ✅ بلاک‌شده‌ها category ندارن → خالی
+      brands={brands}
     />
   );
 }

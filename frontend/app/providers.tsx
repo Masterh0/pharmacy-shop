@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { ReactNode, useState } from "react";
 import "@/styles/globals.css";
 import { AuthProvider } from "@/lib/context/AuthContext";
+import { LoadingProvider } from "@/src/components/LoadingProvider";
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => {
     console.log("🧠 CREATE QueryClient");
@@ -12,7 +13,9 @@ export default function Providers({ children }: { children: ReactNode }) {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <LoadingProvider>
+        <AuthProvider>{children}</AuthProvider>
+      </LoadingProvider>
       <Toaster
         richColors
         position="top-center"

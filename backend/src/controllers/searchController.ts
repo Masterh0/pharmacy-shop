@@ -70,9 +70,12 @@ export const search = async (req: Request, res: Response) => {
 
           (
             SELECT json_build_object(
+              'id', v2.id,
               'price', v2.price,
               'discountPrice', v2."discountPrice",
-              'stock', v2.stock
+              'stock', v2.stock,
+              'flavor', v2.flavor,
+              'packageQuantity', v2."packageQuantity"
             )::text
             FROM "ProductVariant" v2
             WHERE v2."productId" = p.id
@@ -99,9 +102,12 @@ export const search = async (req: Request, res: Response) => {
 
           (
             SELECT json_build_object(
+              'id', v2.id,
               'price', v2.price,
               'discountPrice', v2."discountPrice",
-              'stock', v2.stock
+              'stock', v2.stock,
+              'flavor', v2.flavor,
+              'packageQuantity', v2."packageQuantity"
             )::text
             FROM "ProductVariant" v2
             WHERE v2."productId" = p.id

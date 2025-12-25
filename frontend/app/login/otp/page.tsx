@@ -1,17 +1,17 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { sendLoginOtp, verifyLoginOtp } from "@/lib/api/auth";
 import { useRouter } from "next/navigation";
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
 import AuthLayout from "../../authComponents/AuthLayout";
 import BackButton from "@/app/authComponents/BackButton";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { AUTH_KEY } from "@/lib/constants/auth";
+// فرض بر این است که useAuth از فایل کانتکست که در بالا ساختیم ایمپورت می‌شود
+import { useAuth } from "@/lib/context/AuthContext"; 
 
 // ---------------------------
-// ✅ تعریف تایپ‌های پاسخ API
+// تایپ‌ها
 // ---------------------------
 type SendOtpResponse = {
   expiresAt?: string;
@@ -27,9 +27,6 @@ type VerifyOtpResponse = {
   };
 };
 
-// ---------------------------
-// ✅ تعریف تایپ خطای API
-// ---------------------------
 type ApiError = AxiosError<{
   error?: string;
   message?: string;
@@ -43,11 +40,11 @@ export default function LoginOtpPage() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countdown, setCountdown] = useState(0);
 
-  const qc = useQueryClient();
   const router = useRouter();
 
-  // ✅ استفاده از useAuth به‌جای useAuthRedirect
-  const { isChecking, isAuthenticated } = useAuth({ enabled: true });
+  // ✅ اصلاح ۱: استفاده صحیح از مقادیر Context
+  const { user, isLoading, refreshUser } = useAuth();
+  const isAuthenticated = !!user;
 
   /* 🟦 Mutation ارسال OTP */
   const sendOtp = useMutation<SendOtpResponse, ApiError, { phone: string }>({
@@ -80,8 +77,10 @@ export default function LoginOtpPage() {
     { phone: string; code: string }
   >({
     mutationFn: verifyLoginOtp,
-    onSuccess: (data) => {
-      qc.setQueryData(AUTH_KEY, data.user);
+    onSuccess: async (data) => {
+      // ✅ اصلاح ۲: آپدیت کردن Context برای اینکه کل برنامه بفهمد کاربر لاگین شده
+      await refreshUser(); 
+      
       toast.success("ورود موفقیت‌آمیز ✅");
       router.push(data.user.role === "ADMIN" ? "/admin/dashboard" : "/");
     },
@@ -93,11 +92,14 @@ export default function LoginOtpPage() {
       );
     },
   });
+
+  // ✅ اصلاح ۳: ریدایرکت اگر کاربر از قبل لاگین است
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isLoading && isAuthenticated) {
       router.replace("/");
     }
-  }, [isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, router]);
+
   /* 🕒 شمارش معکوس */
   useEffect(() => {
     if (!countdown) return;
@@ -128,22 +130,20 @@ export default function LoginOtpPage() {
   };
 
   // --------------------
-  // ✅ کنترل وضعیت Auth
+  // ✅ کنترل وضعیت لودینگ اولیه
   // --------------------
-  if (isChecking) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <p className="animate-pulse text-[#00B4D8]">
-          در حال بررسی وضعیت ورود...
+          در حال بررسی...
         </p>
       </div>
     );
   }
 
-  if (isAuthenticated) {
-    // فقط نمایش خالی تا navigate انجام شود
-    return null;
-  }
+  // اگر لاگین است، چیزی نشان نده تا ریدایرکت انجام شود
+  if (isAuthenticated) return null;
 
   return (
     <AuthLayout>
@@ -178,15 +178,15 @@ export default function LoginOtpPage() {
         {step === "otp" && (
           <div className="flex flex-col gap-4 items-center w-[288px] relative">
             {verifyOtp.isPending && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm rounded-lg">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm rounded-lg z-10">
                 <div className="animate-spin w-8 h-8 border-4 border-[#00B4D8] border-t-transparent rounded-full" />
                 <p className="mt-4 text-[#171717] text-[16px] font-medium">
-                  در حال بررسی کد و ورود...
+                  در حال ورود...
                 </p>
               </div>
             )}
 
-            {!verifyOtp.isPending && (
+            
               <>
                 <p className="text-[#171717] text-[16px] mb-1">
                   کد به شماره زیر ارسال شد:
@@ -233,7 +233,7 @@ export default function LoginOtpPage() {
                   تغییر شماره تماس
                 </p>
               </>
-            )}
+            
           </div>
         )}
       </div>

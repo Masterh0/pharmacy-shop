@@ -11,7 +11,13 @@ export default function ProductsPagination({
   currentPage,
   onPageChange,
 }: ProductsPaginationProps) {
-  if (totalPages <= 1) return null; // نمایش فقط در صورت وجود بیش از یک صفحه
+  if (totalPages <= 1) return null;
+
+  // ✅ تابع کمکی برای تغییر صفحه + اسکرول
+  const handlePageChange = (page: number) => {
+    onPageChange(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div
@@ -20,7 +26,7 @@ export default function ProductsPagination({
     >
       {/* دکمه قبلی */}
       <button
-        onClick={() => onPageChange(currentPage - 1)}
+        onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage <= 1}
         className={`w-8 h-8 rounded-full border flex items-center justify-center
           font-[IRANYekanX] text-[16px] leading-[180%]
@@ -40,7 +46,7 @@ export default function ProductsPagination({
         return (
           <button
             key={i}
-            onClick={() => onPageChange(pageNumber)}
+            onClick={() => handlePageChange(pageNumber)}
             className={`w-8 h-8 rounded-full border flex items-center justify-center
               font-[IRANYekanX] text-[16px] leading-[180%] transition-all duration-200
               ${
@@ -56,7 +62,7 @@ export default function ProductsPagination({
 
       {/* دکمه بعدی */}
       <button
-        onClick={() => onPageChange(currentPage + 1)}
+        onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
         className={`w-8 h-8 rounded-full border flex items-center justify-center
           font-[IRANYekanX] text-[16px] leading-[180%]

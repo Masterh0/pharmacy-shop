@@ -28,7 +28,10 @@ export function useCart() {
       productId: number;
       variantId: number;
       quantity: number;
-    }) => cartApi.add(payload),
+    }) => {
+    console.log("🚀 Sending to API:", payload); // ✅ چک کنید
+    return cartApi.add(payload);
+  },
 
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: ["cart"] });

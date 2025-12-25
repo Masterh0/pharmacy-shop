@@ -3,34 +3,86 @@ import { CreateCategoryDTO, UpdateCategoryDTO } from "../../dto/categoryDto";
 import { makeSlug } from "../utils/slugify";
 import { getPagination, buildPaginationMeta } from "../utils/pagination";
 import { Prisma } from "@prisma/client";
-type ProductSort = "cheapest" | "expensive" | "default";
+type ProductSort =
+  | "latest"
+  | "bestseller"
+  | "cheapest"
+  | "expensive"
+  | "most_viewed"
+  | "default";
 
-const normalizeSort = (sort?: string): ProductSort => {
-  if (sort === "cheapest" || sort === "expensive") return sort;
-  return "default";
+// تبدیل ورودی‌های مختلف (string, number, boolean) به boolean
+const parseBoolean = (v: any): boolean | undefined => {
+  if (Array.isArray(v)) v = v[0];
+  if (["1", 1, true, "true", "on"].includes(v)) return true;
+  if (["0", 0, false, "false"].includes(v)) return false;
+  return undefined;
 };
+
+// نرمال‌سازی نوع مرتب‌سازی
+const normalizeSort = (sort?: string): ProductSort => {
+  const validSorts: ProductSort[] = [
+    "latest",
+    "bestseller",
+    "cheapest",
+    "expensive",
+    "most_viewed",
+    "default",
+  ];
+  return validSorts.includes(sort as ProductSort)
+    ? (sort as ProductSort)
+    : "default";
+};
+
+// محاسبه قیمت موثر (برای استفاده در مرتب‌سازی)
+const calculateEffectivePrice = (
+  product: any,
+  mode: "min" | "max" = "min"
+): number => {
+  if (!product.variants?.length) return mode === "min" ? Infinity : -Infinity;
+
+  const prices = product.variants.map((v: any) =>
+    v.discountPrice && Number(v.discountPrice) > 0
+      ? Number(v.discountPrice)
+      : Number(v.price) || 0
+  );
+
+  return mode === "min" ? Math.min(...prices) : Math.max(...prices);
+};
+
+// تابع اصلی مرتب‌سازی (جاوااسکریپتی)
 const sortProducts = (products: any[], sort: ProductSort) => {
   return [...products].sort((a, b) => {
+    // 1. اولویت اصلی: موجود بودن کالا
     const aInStock = a.variants?.some((v: any) => v.stock > 0);
     const bInStock = b.variants?.some((v: any) => v.stock > 0);
 
     if (aInStock !== bInStock) {
-      return aInStock ? -1 : 1;
+      return aInStock ? -1 : 1; // موجودها بالاتر
     }
 
+    // 2. اولویت‌های بعدی بر اساس نوع مرتب‌سازی
     switch (sort) {
       case "cheapest":
         return (
-          categoryService._getEffectiveProductPrice(a, "min") -
-          categoryService._getEffectiveProductPrice(b, "min")
+          calculateEffectivePrice(a, "min") - calculateEffectivePrice(b, "min")
         );
 
       case "expensive":
         return (
-          categoryService._getEffectiveProductPrice(b, "max") -
-          categoryService._getEffectiveProductPrice(a, "max")
+          calculateEffectivePrice(b, "max") - calculateEffectivePrice(a, "max")
         );
 
+      case "bestseller":
+        // اگر فیلد soldCount در دیتابیس دارید
+        return (b.soldCount || 0) - (a.soldCount || 0);
+
+      case "most_viewed":
+        // اگر فیلد viewCount در دیتابیس دارید
+        return (b.viewCount || 0) - (a.viewCount || 0);
+
+      case "latest":
+      case "default":
       default:
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

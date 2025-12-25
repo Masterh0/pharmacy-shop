@@ -3,107 +3,161 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { useEffect, useState } from "react"; // useState اضافه شد
+import { toast } from "sonner";
+// Hooks & Stores
 import { useCategoryStore } from "@/lib/stores/categoryStore";
-import { useAuth } from "@/lib/hooks/useAuth"; // ✅ NEW
+import { useAuth } from "@/lib/context/AuthContext";
 import { useDeleteProduct } from "@/lib/hooks/useDeleteProduct";
 import { useCart } from "@/lib/hooks/useAddToCart";
-import { useQuery } from "@tanstack/react-query";
-import { AUTH_KEY } from "@/lib/constants/auth";
+import { useBlockProduct } from "@/lib/hooks/useBlockProduct";
+
+// Types
 import type { Product } from "@/lib/types/product";
 import type { CartItem } from "@/lib/types/cart";
-import { useQueryClient } from "@tanstack/react-query";
-import { useBlockProduct } from "@/lib/hooks/useBlockProduct";
-console.log(useBlockProduct);
-export default function ProductsGrid({ products }: { products: Product[] }) {
-  const router = useRouter();
-  const qc = useQueryClient();
-  console.log("AUTH CACHE:", qc.getQueryData(["auth"]));
-  const { data: user } = useQuery<User | null>({
-    queryKey: AUTH_KEY,
-  });
 
-  const isManager = user?.role === "ADMIN";
-  const { setSelectedCategory } = useCategoryStore();
-  const { mutate: deleteProduct, isPending } = useDeleteProduct();
-
-  const { cart, addItem, removeItem, updateItem, isAdding } = useCart();
-  const cartItems: CartItem[] = cart?.items ?? [];
-
-  const BASE_URL = "http://localhost:5000";
-  const { mutate: blockProduct, isPending: isBlocking } = useBlockProduct();
-  function Toggle({
-    checked,
-    disabled,
-    onChange,
-  }: {
-    checked: boolean;
-    disabled?: boolean;
-    onChange: (next: boolean) => void;
-  }) {
-    return (
-      <button
-        disabled={disabled}
-        onClick={(e) => {
-          e.stopPropagation();
-          onChange(!checked);
-        }}
-        className={`
-        relative w-11 h-6 rounded-full transition-colors
+// --- 1. کامپوننت Toggle (بدون تغییر) ---
+function Toggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!disabled) onChange(!checked);
+      }}
+      className={`
+        relative w-11 h-6 rounded-full transition-colors duration-200 ease-in-out
         ${checked ? "bg-green-500" : "bg-orange-400"}
         disabled:opacity-50 disabled:cursor-not-allowed
       `}
-      >
-        <span
-          className={`
+    >
+      <span
+        className={`
           absolute top-0.5
-          w-5 h-5 bg-white rounded-full transition-transform
+          w-5 h-5 bg-white rounded-full transition-transform duration-200 shadow-sm
           ${checked ? "translate-x-5" : "translate-x-1"}
         `}
-        />
-      </button>
+      />
+    </button>
+  );
+}
+
+// --- 2. کامپوننت جدید: مدیریت وضعیت بلاک (برای حل مشکل تأخیر) ---
+function ProductStatusToggle({ product }: { product: Product }) {
+  const { mutate: blockProduct } = useBlockProduct();
+
+  // نگهداری وضعیت فعلی برای نمایش
+  const [isActive, setIsActive] = useState(!product.isBlock);
+
+  // هماهنگی با دیتابیس (اگر محصول از جای دیگر آپدیت شد)
+  useEffect(() => {
+    setIsActive(!product.isBlock);
+  }, [product.isBlock]);
+
+  const handleToggle = (nextCheckedState: boolean) => {
+    // 1. ذخیره وضعیت قبلی (برای روز مبادا)
+    const previousState = isActive;
+
+    // 2. تغییر فوری ظاهر (Optimistic Update)
+    setIsActive(nextCheckedState);
+
+    // 3. ارسال درخواست به سرور
+    blockProduct(
+      {
+        id: product.id,
+        isBlock: !nextCheckedState, // اگر فعال است، یعنی isBlock باید false شود
+      },
+      {
+        // ✅ اینجا نکته اصلی است: مدیریت خطا
+        onError: (error) => {
+          console.error("خطا در تغییر وضعیت محصول:", error);
+
+          // 4. بازگشت به حالت قبل (Rollback)
+          setIsActive(previousState);
+
+          // 5. اطلاع به کاربر
+          toast.error("خطا در برقراری ارتباط. تغییرات اعمال نشد.");
+        },
+        // (اختیاری) اگر موفق بود می‌توانیم پیام موفقیت ندهیم تا مزاحم کاربر نشویم،
+        // چون تغییر ظاهری قبلاً انجام شده است.
+      }
     );
-  }
+  };
+
   return (
     <div
-      className="
-        grid grid-cols-2 lg:grid-cols-3
-        gap-4 lg:gap-8
-        w-full lg:w-[85%]
-        mx-auto
-        mt-4 lg:mt-8
-        px-3 lg:px-0
-      "
+      className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full border cursor-pointer"
+      onClick={(e) => e.stopPropagation()}
     >
+      <span
+        className={`text-[10px] w-8 text-center transition-colors duration-200 ${
+          isActive
+            ? "text-green-600 font-medium"
+            : "text-orange-500 font-medium"
+        }`}
+      >
+        {isActive ? "فعال" : "مسدود"}
+      </span>
+      <Toggle checked={isActive} onChange={handleToggle} />
+    </div>
+  );
+}
+
+// --- 3. کامپوننت اصلی ---
+export default function ProductsGrid({ products }: { products: Product[] }) {
+  const router = useRouter();
+  const BASE_URL = "http://localhost:5000";
+
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+
+  const { setSelectedCategory } = useCategoryStore();
+  const { mutate: deleteProduct, isPending: isDeleting } = useDeleteProduct();
+  const { cart, addItem, removeItem, updateItem, isAdding } = useCart();
+
+  const cartItems: CartItem[] = cart?.items ?? [];
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 w-full lg:w-[85%] mx-auto mt-4 lg:mt-8 px-3 lg:px-0">
       {products.map((p) => {
+        // --- محاسبات محصول ---
         const variants = p.variants ?? [];
         const availableVariants = variants.filter((v) => v.stock > 0);
         const displayVariant = availableVariants[0] ?? variants[0] ?? null;
-
         const isOutOfStock = availableVariants.length === 0;
-        const category = p.category;
 
+        // آیتم سبد خرید
         const cartItem = displayVariant
           ? cartItems.find((i: CartItem) => i.variantId === displayVariant.id)
           : undefined;
-
         const count = cartItem?.quantity ?? 0;
 
+        // قیمت
         const price = Number(displayVariant?.price ?? 0);
         const discount = Number(displayVariant?.discountPrice ?? 0);
         const hasDiscount = discount > 0 && discount < price;
         const discountPercent = hasDiscount
           ? Math.round(((price - discount) / price) * 100)
           : null;
+
+        // آپشن‌ها
         const flavorCount = new Set(
           variants.map((v) => v.flavor).filter(Boolean)
         ).size;
-
         const packageCount = new Set(
           variants.map((v) => v.packageQuantity).filter(Boolean)
         ).size;
-
         const hasMultipleOptions = flavorCount > 1 || packageCount > 1;
+
+        // تصویر
         const imageSrc = !p.imageUrl
           ? "/no-image.png"
           : p.imageUrl.startsWith("http")
@@ -116,7 +170,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
           <div
             key={p.id}
             onClick={() => {
-              if (!isOutOfStock) {
+              if (!isOutOfStock || isAdmin) {
                 router.push(`/product/${p.slug}?id=${p.id}`);
               }
             }}
@@ -128,180 +182,139 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
               h-auto lg:h-[480px]
               transition
               ${
-                isOutOfStock
-                  ? "opacity-50"
+                isOutOfStock && !isAdmin
+                  ? "opacity-60"
                   : "cursor-pointer lg:hover:shadow-md"
               }
             `}
           >
-            {/* Discount */}
+            {/* تخفیف */}
             {hasDiscount && (
-              <div
-                className="
-                  absolute top-2 right-2
-                  bg-[#E63946] text-white
-                  text-[12px] lg:text-[18px] font-bold
-                  px-2 py-1 lg:w-[50px] lg:h-[50px]
-                  lg:flex lg:items-center lg:justify-center
-                  rounded-full lg:rounded-bl-[80%]
-                  z-10
-                "
-              >
+              <div className="absolute top-2 right-2 bg-[#E63946] text-white text-[12px] lg:text-[18px] font-bold px-2 py-1 lg:w-[50px] lg:h-[50px] lg:flex lg:items-center lg:justify-center rounded-full lg:rounded-bl-[80%] z-10">
                 %{discountPercent}
               </div>
             )}
 
-            {/* Image */}
-            <div
-              className="
-                w-full aspect-square
-                flex items-center justify-center
-                bg-white
-                border-b border-[#E5E5E5]
-                rounded-t-[12px]
-                p-2 lg:p-3
-              "
-            >
+            {/* تصویر */}
+            <div className="w-full aspect-square flex items-center justify-center bg-white border-b border-[#E5E5E5] rounded-t-[12px] p-2 lg:p-3 relative">
               <Image
                 src={imageSrc}
                 alt={p.name}
                 width={200}
                 height={200}
-                className="object-contain"
+                className={`object-contain transition-all duration-300 ${
+                  p.isBlock ? "grayscale opacity-50" : ""
+                }`}
               />
+              {p.isBlock && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <span className="bg-red-600/90 text-white px-3 py-1 rounded text-sm font-bold shadow-lg">
+                    توقف فروش
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Info */}
+            {/* اطلاعات */}
             <div className="flex flex-col justify-between flex-1 w-full mt-3">
               <div dir="ltr" className="flex flex-col items-end gap-1">
-                <h3
-                  className="
-    font-bold
-    text-[14px] lg:text-[16px]
-    whitespace-nowrap
-    overflow-hidden
-    text-ellipsis
-    max-w-full
-    text-right
-  "
-                >
+                <h3 className="font-bold text-[14px] lg:text-[16px] whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-right">
                   {p.name}
                 </h3>
-
-                {category && (
+                {p.category && (
                   <Link
-                    href={`/categories/${category.slug}?id=${category.id}`}
+                    href={`/categories/${p.category.slug}?id=${p.category.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedCategory({
-                        id: category.id,
-                        name: category.name,
+                        id: p.category.id,
+                        name: p.category.name,
                       });
                     }}
-                    className="text-[12px] lg:text-[14px] text-[#6E6E6E]"
+                    className="text-[12px] lg:text-[14px] text-[#6E6E6E] hover:text-[#00B4D8]"
                   >
-                    {category.name}
+                    {p.category.name}
                   </Link>
                 )}
               </div>
 
-              {/* Price */}
+              {/* قیمت و بج‌ها */}
               <div className="flex justify-end items-center gap-2 mt-2">
-                {/* Price */}
-
-                {/* Multiple options badge */}
                 {hasMultipleOptions && (
-                  <div
-                    className="
-        px-2.5 py-1
-        rounded-full
-        border border-[#90E0EF]
-        bg-[#E0F7FA]
-        text-[#0077B6]
-        text-[12px] lg:text-[13px]
-        font-medium
-        whitespace-nowrap
-      "
-                  >
+                  <div className="px-2.5 py-1 rounded-full border border-[#90E0EF] bg-[#E0F7FA] text-[#0077B6] text-[10px] lg:text-[12px] font-medium whitespace-nowrap">
                     {flavorCount > 1 && packageCount > 1
-                      ? `+${flavorCount} طعم / +${packageCount} بسته‌بندی`
+                      ? `+${flavorCount} طعم / +${packageCount} بسته`
                       : flavorCount > 1
-                      ? `+${flavorCount} نوع طعم`
-                      : `+${packageCount} نوع بسته‌بندی`}
+                      ? `+${flavorCount} طعم`
+                      : `+${packageCount} بسته‌بندی`}
                   </div>
                 )}
+
                 <div className="flex flex-col items-end leading-none">
                   {hasDiscount && (
-                    <span className="line-through text-red-500 text-[13px] lg:text-[14px]">
-                      {price.toLocaleString("fa-IR")} تومان
+                    <span className="line-through text-red-500 text-[11px] lg:text-[13px]">
+                      {price.toLocaleString("fa-IR")}
                     </span>
                   )}
-
                   <span className="font-bold text-[16px] lg:text-[20px] whitespace-nowrap">
                     {(hasDiscount ? discount : price).toLocaleString("fa-IR")}{" "}
-                    تومان
+                    <span className="text-[12px] font-normal text-gray-500">
+                      تومان
+                    </span>
                   </span>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="mt-3 flex justify-center">
-                {!isManager ? (
-                  isOutOfStock || !displayVariant ? (
+              {/* دکمه‌های عملیات */}
+              <div className="mt-4 flex justify-center w-full min-h-[44px]">
+                {/* 🔴 اگر ادمین است 🔴 */}
+                {isAdmin ? (
+                  <div className="flex items-center justify-between w-full gap-2 px-1">
+                    {/* ویرایش */}
                     <button
-                      disabled
-                      className="w-full py-2 bg-gray-300 rounded-full text-[14px]"
-                    >
-                      ناموجود
-                    </button>
-                  ) : count === 0 ? (
-                    <button
-                      disabled={isAdding}
                       onClick={(e) => {
                         e.stopPropagation();
-                        addItem({
-                          productId: p.id,
-                          variantId: displayVariant.id,
-                          quantity: 1,
-                        });
+                        router.push(`/manager/profile/edit-product/${p.id}`);
                       }}
-                      className="
-                        bg-[#00B4D8] text-white
-                        w-full py-2.5
-                        rounded-full
-                        text-[14px] font-medium
-                      "
+                      className="text-[18px] hover:scale-110 transition p-1"
+                      title="ویرایش محصول"
                     >
-                      افزودن به سبد خرید
+                      ✏️
                     </button>
-                  ) : (
-                    <div className="flex gap-4 items-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!cartItem) return;
 
-                          if (count === 1) {
-                            removeItem(cartItem.id);
-                          } else {
-                            updateItem({
-                              itemId: cartItem.id,
-                              quantity: count - 1,
-                            });
-                          }
-                        }}
-                        className="
-                          bg-[#FF6B6B] text-white
-                          w-10 h-10
-                          rounded-full text-lg
-                        "
+                    {/* ✅ کامپوننت جدید وضعیت با قابلیت تغییر فوری */}
+                    <ProductStatusToggle product={p} />
+
+                    {/* حذف */}
+                    <button
+                      disabled={isDeleting}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (
+                          confirm(`آیا از حذف محصول "${p.name}" اطمینان دارید؟`)
+                        ) {
+                          deleteProduct(p.id);
+                        }
+                      }}
+                      className="text-[18px] hover:scale-110 transition p-1 disabled:opacity-30 text-red-500"
+                      title="حذف محصول"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ) : (
+                  /* 🔵 اگر مشتری است 🔵 */
+                  <>
+                    {isOutOfStock || !displayVariant ? (
+                      <button
+                        disabled
+                        className="w-full py-2 bg-gray-200 text-gray-500 rounded-full text-[14px] cursor-not-allowed"
                       >
-                        {count === 1 ? "🗑" : "-"}
+                        ناموجود
                       </button>
-
-                      <span className="font-bold text-[16px]">{count}</span>
-
+                    ) : count === 0 ? (
                       <button
+                        disabled={isAdding}
                         onClick={(e) => {
                           e.stopPropagation();
                           addItem({
@@ -310,79 +323,48 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                             quantity: 1,
                           });
                         }}
-                        className="
-                          bg-[#00B4D8] text-white
-                          w-10 h-10
-                          rounded-full text-lg
-                        "
+                        className="bg-[#00B4D8] hover:bg-[#0096C7] text-white w-full py-2.5 rounded-full text-[14px] font-medium transition-colors"
                       >
-                        +
+                        {isAdding ? "..." : "افزودن به سبد"}
                       </button>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex gap-2">
-                    {/* Edit */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/manager/profile/edit-product/${p.id}`);
-                      }}
-                      className="
-      px-3 py-1.5
-      rounded-full
-      text-[13px]
-      border border-[#0077B6]
-      text-[#0077B6]
-      transition-all
-      hover:bg-[#0077B6]
-      hover:text-white
-      hover:shadow
-      active:scale-95
-    "
-                    >
-                      ✏️ ویرایش
-                    </button>
-                    <Toggle
-                      checked={!p.isBlock} // ✅ فعال = سبز
-                      disabled={isBlocking}
-                      onChange={(isActive) => {
-                        blockProduct({
-                          id: p.id,
-                          isBlock: !isActive,
-                        });
-                      }}
-                    />
+                    ) : (
+                      <div className="flex items-center justify-between bg-white border border-[#00B4D8] rounded-full w-full px-1 py-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!cartItem) return;
+                            count === 1
+                              ? removeItem(cartItem.id)
+                              : updateItem({
+                                  itemId: cartItem.id,
+                                  quantity: count - 1,
+                                });
+                          }}
+                          className="bg-[#FF6B6B] hover:bg-[#ff5252] text-white w-8 h-8 flex items-center justify-center rounded-full text-lg transition"
+                        >
+                          {count === 1 ? "🗑" : "-"}
+                        </button>
 
-                    <span className="text-[12px]">
-                      {p.isBlock ? "مسدود" : "فعال"}
-                    </span>
+                        <span className="font-bold text-[16px] text-[#00B4D8]">
+                          {count}
+                        </span>
 
-                    {/* Delete */}
-                    <button
-                      disabled={isPending}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`حذف "${p.name}"؟`)) deleteProduct(p.id);
-                      }}
-                      className="
-      px-3 py-1.5
-      rounded-full
-      text-[13px]
-      border border-red-500
-      text-red-500
-      transition-all
-      hover:bg-red-500
-      hover:text-white
-      hover:shadow
-      active:scale-95
-      disabled:opacity-50
-      disabled:cursor-not-allowed
-    "
-                    >
-                      🗑 حذف
-                    </button>
-                  </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addItem({
+                              productId: p.id,
+                              variantId: displayVariant.id,
+                              quantity: 1,
+                            });
+                          }}
+                          className="bg-[#00B4D8] hover:bg-[#0096C7] text-white w-8 h-8 flex items-center justify-center rounded-full text-lg transition"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
