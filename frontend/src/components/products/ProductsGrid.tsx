@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react"; // useState اضافه شد
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 // Hooks & Stores
 import { useCategoryStore } from "@/lib/stores/categoryStore";
@@ -15,7 +15,7 @@ import { useBlockProduct } from "@/lib/hooks/useBlockProduct";
 // Types
 import type { Product } from "@/lib/types/product";
 import type { CartItem } from "@/lib/types/cart";
-
+import WishlistButton from "@/src/components/WishlistButton";
 // --- 1. کامپوننت Toggle (بدون تغییر) ---
 function Toggle({
   checked,
@@ -114,7 +114,7 @@ function ProductStatusToggle({ product }: { product: Product }) {
 // --- 3. کامپوننت اصلی ---
 export default function ProductsGrid({ products }: { products: Product[] }) {
   const router = useRouter();
-  const BASE_URL = "http://localhost:5000";
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
 
   const { user, isLoading: isAuthLoading } = useAuth();
   const isAdmin = user?.role === "ADMIN";
@@ -169,10 +169,9 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
         return (
           <div
             key={p.id}
+            // ✅ تغییر اینجا: همیشه به صفحه محصول اجازه می‌دهد
             onClick={() => {
-              if (!isOutOfStock || isAdmin) {
-                router.push(`/product/${p.slug}?id=${p.id}`);
-              }
+              router.push(`/product/${p.id}-${p.slug}`);
             }}
             className={`
               relative flex flex-col
@@ -182,6 +181,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
               h-auto lg:h-[480px]
               transition
               ${
+                // ✅ این فقط برای استایل بصری است، نه جلوگیری از کلیک
                 isOutOfStock && !isAdmin
                   ? "opacity-60"
                   : "cursor-pointer lg:hover:shadow-md"
@@ -194,7 +194,9 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                 %{discountPercent}
               </div>
             )}
-
+            <div className="absolute top-3 left-3 z-20">
+              <WishlistButton productId={p.id} />
+            </div>
             {/* تصویر */}
             <div className="w-full aspect-square flex items-center justify-center bg-white border-b border-[#E5E5E5] rounded-t-[12px] p-2 lg:p-3 relative">
               <Image
@@ -206,6 +208,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                   p.isBlock ? "grayscale opacity-50" : ""
                 }`}
               />
+
               {p.isBlock && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                   <span className="bg-red-600/90 text-white px-3 py-1 rounded text-sm font-bold shadow-lg">
@@ -218,12 +221,13 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
             {/* اطلاعات */}
             <div className="flex flex-col justify-between flex-1 w-full mt-3">
               <div dir="ltr" className="flex flex-col items-end gap-1">
-                <h3 className="font-bold text-[14px] lg:text-[16px] whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-right">
+                <h3 dir="rtl" className="font-bold text-[14px] lg:text-[16px] whitespace-nowrap overflow-hidden text-ellipsis max-w-full text-left">
                   {p.name}
                 </h3>
                 {p.category && (
                   <Link
-                    href={`/categories/${p.category.slug}?id=${p.category.id}`}
+                    // ✅ تغییر اینجا: لینک دسته‌بندی هم باید تمیزتر باشد (اگر slug منحصر به فرد است، id حذف شود)
+                    href={`/categories/${p.category.slug}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedCategory({
@@ -305,6 +309,7 @@ export default function ProductsGrid({ products }: { products: Product[] }) {
                 ) : (
                   /* 🔵 اگر مشتری است 🔵 */
                   <>
+                    {/* ✅ اینجا همچنان منطق ناموجود بودن حفظ می‌شود */}
                     {isOutOfStock || !displayVariant ? (
                       <button
                         disabled

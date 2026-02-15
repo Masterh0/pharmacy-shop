@@ -1,0 +1,14 @@
+{
+  "node": { "version": "18" },
+  "platform": "node",
+  "port": 3000,
+  "app": "pharmacy-api",
+  "build": {
+    "commands": [
+      "npm install",
+      "npx prisma migrate deploy",
+      "npm run build"
+    ]
+  },
+  "run": { "command": "npm start" }
+}

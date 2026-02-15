@@ -18,6 +18,6 @@
       "@types/*": ["src/types/*"]
     }
   },
-  "include": ["src", "src/types/**/*.d.ts"],  // ← این خط اضافه شده
+  "include": ["index.ts", "dto/**/*.ts", "src/**/*.ts", "src/types/**/*.d.ts"],  // ← این خط اضافه شده
   "exclude": ["node_modules", "dist"]
 }

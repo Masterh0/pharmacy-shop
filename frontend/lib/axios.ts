@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
   withCredentials: true,
 });
 
@@ -84,16 +84,26 @@ api.interceptors.response.use(
     /* ---------------------------
      * ✅ 3️⃣ مدیریت لاگ‌ها (جلوگیری از اسپم کنسول)
      * --------------------------- */
-    
+
     // ارورهای ۴۰۱ روی این روت‌ها طبیعی هستند و نباید کنسول را قرمز کنند:
     // 1. refresh: سشن کاربر تمام شده.
     // 2. me: کاربر کلا لاگین نیست (مهمان).
     // 3. login: رمز عبور اشتباه است.
     if (
-        status === 401 && 
-        (url.includes("/auth/refresh") || url.includes("/auth/me") || url.includes("/auth/login"))
+      status === 401 &&
+      (url.includes("/auth/refresh") ||
+        url.includes("/auth/me") ||
+        url.includes("/auth/login"))
     ) {
-       return Promise.reject(err);
+      return Promise.reject(err);
+    }
+    const hasBusinessError =
+      err.response?.data &&
+      typeof err.response.data === "object" &&
+      "error" in err.response.data;
+
+    if (hasBusinessError) {
+      return Promise.reject(err);
     }
 
     // فقط خطاهای واقعی و غیرمنتظره (مثل ۵۰۰ یا قطعی نت) لاگ شوند

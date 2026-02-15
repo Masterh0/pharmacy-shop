@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@prisma/client": "^6.16.3",
+    "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
@@ -28,16 +28,20 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^24.6.2",
     "@types/uuid": "^10.0.0",
-    "prisma": "^6.16.3",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "start": "ts-node index.ts",
-    "build": "tsc && cp -r ./uploads ./dist/uploads",
-    "dev": "ts-node-dev --respawn index.ts"
+    "start": "node dist/index.js",
+    "build": "tsc && node -e \"require('fs').mkdirSync('dist/uploads',{recursive:true})\"",
+    "dev": "ts-node-dev --respawn index.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

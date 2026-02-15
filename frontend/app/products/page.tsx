@@ -54,7 +54,8 @@ export default function ProductsPage() {
       >
         {filteredProducts.map((p: Product) => {
           const variant = p.variants?.[0];
-          const imgUrl = `http://localhost:5000${
+          const baseApi = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
+          const imgUrl = `${baseApi}${
             p.imageUrl.startsWith("/") ? p.imageUrl : "/" + p.imageUrl
           }`;
 

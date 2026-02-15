@@ -12,6 +12,10 @@ import addressRoutes from "./src/routes/addressRouts";
 import cartRoutes from "./src/routes/cartRoutes";
 import shippingRouts from "./src/routes/shippingRouts";
 import searchRoutes from "./src/routes/searchRoutes";
+import orderAdminRoutes from "./src/routes/admin/order.routes";
+import wishlistRoutes from "./src/routes/wishlistRoutes";
+import refundRoutes from "./src/routes/refundRoutes";
+
 import { notFoundMiddleware } from "./src/middlewares/notFoundMiddleware"; // برای مدیریت مسیرهای ناموجود 404
 import { errorMiddleware } from "./src/middlewares/errorMiddleware"; // میان‌افزار مرکزی مدیریت خطا
 
@@ -23,7 +27,10 @@ import path from "path";
 const app = express();
 // ✅ سرو فایل‌های استاتیک از این مسیر
 app.use("/uploads", express.static(path.join(__dirname, "./uploads")));
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = [
+  "http://localhost:3000",
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
 
 /**
  * تنظیمات CORS برای سازگاری با تمام مرورگرها
@@ -39,15 +46,12 @@ app.use(
   cors({
     origin: function (origin, callback) {
       // برای Edge و مرورگرهای دیگر - بررسی دقیق origin
-      if (
-        !origin ||
+      if (!origin) return callback(null, true);
+      const isAllowed =
         origin === "http://localhost:3000" ||
-        origin.startsWith("http://localhost:3000")
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
+        origin.startsWith("http://localhost:3000") ||
+        allowedOrigins.some((o) => origin === o || origin.startsWith(o + "/"));
+      callback(isAllowed ? null : new Error("Not allowed by CORS"));
     },
     credentials: true, // اجازه ارسال کوکی‌ها
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -61,7 +65,7 @@ app.use(
     exposedHeaders: ["Set-Cookie", "Cookie"], // برای Edge
     preflightContinue: false,
     optionsSuccessStatus: 204,
-  })
+  }),
 );
 app.use(cookieParser());
 app.use(express.json());
@@ -87,8 +91,11 @@ app.use("/cart", cartRoutes);
 app.use("/search", searchRoutes);
 app.use("/shipping", shippingRouts);
 app.use("/orders", orderRoutes);
-
+app.use("/admin/orders", orderAdminRoutes);
+app.use("/wishlist", wishlistRoutes);
+app.use("/refund", refundRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 // -----------------------------
-app.listen(5000, () => console.log("Server running on port 5000"));
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
