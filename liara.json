@@ -3,7 +3,7 @@
   "node": {
     "version": "22"
   },
-  "app": "pharmacy-backend",
+  "app": "pharmacy-bakend",
   "port": 3000,
   "path": "backend",
   "build": {
