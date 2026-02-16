@@ -1,14 +1,6 @@
 {
   "platform": "node",
   "app": "pharmacy-backend",
-  "path": "backend",
-  "node": {
-    "version": "22"
-  },
-  "build": {
-    "command": "npm install && npm run build"
-  },
-  "run": {
-    "command": "node dist/index.js"
-  }
+  "port": 3000,
+  "path": "backend"
 }
