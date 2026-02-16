@@ -36,7 +36,7 @@
   },
   "scripts": {
     "start": "npm run build && node dist/index.js",
-    "build": "npx tsc && npx prisma generate && node -e \"require('fs').mkdirSync('dist/uploads',{recursive:true})\"",
+    "build": "node_modules/.bin/tsc && npx prisma generate && node -e \"require('fs').mkdirSync('dist/uploads',{recursive:true})\"",
     "dev": "ts-node-dev --respawn index.ts",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate deploy",
