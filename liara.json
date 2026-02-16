@@ -1,6 +1,6 @@
 {
   "platform": "node",
-  "node": { "version": "18" },
+  "node": { "version": "22" },
   "app": "pharmacy-backend",
   "port": 3000,
   "path": "backend",
