@@ -1,16 +1,6 @@
 {
-  "node": { "version": "18" },
   "platform": "node",
+  "app": "pharmacy-backend",
   "port": 3000,
-  "app": "pharmacy-api",
-  "build": {
-    "commands": [
-      "cd backend && npm install",
-      "cd backend && npx prisma migrate deploy",
-      "cd backend && npm run build"
-    ]
-  },
-  "run": {
-    "command": "cd backend && npm start"
-  }
+  "path": "backend"
 }
