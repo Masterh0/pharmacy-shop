@@ -8,6 +8,12 @@ module.exports = {
   ],
   theme: {
     extend: {
+      keyframes: {
+        heartbeat: {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.2)" },
+        },
+      },
       colors: {
         primary: "#00B4D8",
         secondary: "#0077B6",

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { variantService } from "../services/variantService"; // مسیر را چک کنید که درست باشد
+import { variantService } from "../services/variantService";
 
 export const getAll = async (req: Request, res: Response) => {
   try {
@@ -29,6 +29,7 @@ export const getById = async (req: Request, res: Response) => {
 export const getByProductId = async (req: Request, res: Response) => {
   try {
     const productId = Number(req.params.id);
+
     if (isNaN(productId)) {
       return res.status(400).json({ message: "شناسه محصول نامعتبر است" });
     }
@@ -41,18 +42,58 @@ export const getByProductId = async (req: Request, res: Response) => {
 
 export const create = async (req: Request, res: Response) => {
   try {
-    const result = await variantService.create(req.body);
-    res.status(201).json(result);
+    // ⭐ تبدیل productId از string به number
+    const productId = Number(req.body.productId);
+
+    if (isNaN(productId) || !productId) {
+      return res.status(400).json({
+        status: "error",
+        message: "❌ شناسه محصول نامعتبر است",
+      });
+    }
+
+    // 📸 مسیرهای تصاویر آپلود شده
+    const images =
+      (req.files as Express.Multer.File[])?.map(
+        (file) => `/uploads/${file.filename}`
+      ) || [];
+
+    // 📦 ساخت payload
+    const payload = {
+      ...req.body,
+      productId, // ✅ حالا به صورت number هست
+      packageQuantity: Number(req.body.packageQuantity),
+      price: Number(req.body.price),
+      discountPrice: req.body.discountPrice
+        ? Number(req.body.discountPrice)
+        : undefined,
+      stock: Number(req.body.stock),
+      images,
+    };
+
+    console.log("📦 Payload ارسالی به service:", payload);
+
+    const result = await variantService.create(payload);
+
+    res.status(201).json({
+      status: "success",
+      message: "✅ واریانت با موفقیت ایجاد شد",
+      data: result,
+    });
   } catch (error: any) {
-    console.error("Create Variant Error:", error);
-    // اگر خطا از سمت سرویس با علامت ❌ شروع شده باشد، یعنی خطای اعتبارسنجی است (۴۰۰)
+    console.error("❌ Create Variant Error:", error);
+
     if (error.message && error.message.startsWith("❌")) {
       return res.status(400).json({
         status: "error",
         message: error.message,
       });
     }
-    res.status(500).json({ message: "خطای سرور در ایجاد واریانت" });
+
+    res.status(500).json({
+      status: "error",
+      message: "خطای سرور در ایجاد واریانت",
+    });
   }
 };
 
@@ -63,10 +104,31 @@ export const update = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "شناسه واریانت نامعتبر است" });
     }
 
-    // جدا کردن dbId اگر در بادی ارسال شده باشد تا باعث خطا نشود
+    // ⭐ فایل‌های جدید آپلود شده
+    const files = req.files as Express.Multer.File[];
+
+    // ⭐ پارس کردن existingImages (اگه به صورت JSON string اومده)
+    let existingImages: string[] | undefined;
+    if (req.body.existingImages) {
+      try {
+        existingImages =
+          typeof req.body.existingImages === "string"
+            ? JSON.parse(req.body.existingImages)
+            : req.body.existingImages;
+      } catch (e) {
+        console.error("❌ خطا در پارس existingImages:", e);
+      }
+    }
+
     const { dbId, ...updatePayload } = req.body;
 
-    const result = await variantService.update(id, updatePayload);
+    const payload = {
+      ...updatePayload,
+      existingImages, // ✅ لیست تصاویر موجود که حذف نشدن
+    };
+
+    // ⭐ ارسال files به سرویس
+    const result = await variantService.update(id, payload, files);
 
     res.json({
       status: "success",
@@ -76,7 +138,6 @@ export const update = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Update Variant Error:", error);
 
-    // ✅ نکته مهم: گرفتن خطاهای منطقی سرویس و ارسال کد ۴۰۰
     if (error.message && error.message.startsWith("❌")) {
       return res.status(400).json({
         status: "error",
@@ -98,7 +159,6 @@ export const remove = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "شناسه نامعتبر است" });
     }
     await variantService.delete(id);
-    // معمولاً برای حذف موفق 200 یا 204 برمی‌گردانند
     res.status(200).json({ message: "واریانت با موفقیت حذف شد" });
   } catch (error: any) {
     if (error.message && error.message.startsWith("❌")) {

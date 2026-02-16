@@ -1,6 +1,9 @@
+// src/controllers/productController.ts
 import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
 import { prisma } from "../config/db";
+
+// ✅ همه کاربران (بدون احراز هویت)
 export const getAll = async (
   req: Request,
   res: Response,
@@ -8,10 +11,11 @@ export const getAll = async (
 ) => {
   try {
     const products = await prisma.product.findMany({
+      where: { isBlock: false }, // فقط محصولات فعال
       include: {
         variants: {
-          orderBy: { id: "asc" }, // تا اولین واریانت قابل پیش‌بینی باشه
-          take: 1, // فقط اولین واریانت
+          orderBy: { id: "asc" },
+          take: 1,
         },
       },
       orderBy: { id: "desc" },
@@ -23,7 +27,12 @@ export const getAll = async (
   }
 };
 
-export async function getById(req: Request, res: Response, next: NextFunction) {
+// ✅ همه کاربران
+export const getById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = Number(req.params.id);
     const product = await productService.getById(id);
@@ -31,8 +40,9 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
   } catch (error) {
     next(error);
   }
-}
+};
 
+// 🔒 فقط ادمین
 export const create = async (
   req: Request,
   res: Response,
@@ -40,11 +50,11 @@ export const create = async (
 ) => {
   try {
     const imageUrl = req.file
-      ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+      ? `/uploads/${req.file.filename}` // ✅ مسیر نسبی
       : undefined;
+
     const payload = req.body;
 
-    // اگر variant به صورت JSON string اومده (به خاطر FormData)
     if (typeof payload.variant === "string") {
       payload.variant = JSON.parse(payload.variant);
     }
@@ -63,21 +73,22 @@ export const create = async (
   }
 };
 
-export const update = async (req: Request, res: Response) => {
+// 🔒 فقط ادمین
+export const update = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = Number(req.params.id);
 
-    console.log("📥 req.file:", req.file);
-
-    // دریافت محصول فعلی برای بررسی تصویر موجود
     const existingProduct = await productService.getById(id);
     if (!existingProduct) {
-      return res.status(404).json({ message: "Product not found" });
+      return res.status(404).json({ message: "محصول یافت نشد" });
     }
 
-    let imageUrl: string | undefined | null; // مقدار پیش‌فرض: عکس قبلی
+    let imageUrl: string | undefined | null;
 
-    // در صورت ارسال فایل جدید، جایگزین شود
     if (req.file) {
       imageUrl = `/uploads/${req.file.filename}`;
     } else if (
@@ -88,27 +99,37 @@ export const update = async (req: Request, res: Response) => {
     ) {
       imageUrl = req.body.imageUrl;
     } else {
-      // هیچ مقدار معتبر نیامده، باید عکس موجود حفظ شود
-      const existingProduct = await productService.getById(id);
-      imageUrl = existingProduct.imageUrl;
+      imageUrl = existingProduct.imageUrl; // حفظ عکس قبلی
     }
 
-    // تشکیل داده نهایی آپدیت
     const updateData = { ...req.body, imageUrl };
-
     const result = await productService.update(id, updateData);
-    return res.status(200).json(result);
+
+    return res.status(200).json({
+      status: "success",
+      data: result,
+    });
   } catch (error) {
-    console.error("❌ SERVER ERROR در update:", error);
-    res.status(500).json({ message: "Internal server error", error });
+    next(error);
   }
 };
 
-export const remove = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  await productService.delete(id);
-  res.status(204).send();
+// 🔒 فقط ادمین
+export const remove = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = Number(req.params.id);
+    await productService.delete(id);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
 };
+
+// ✅ همه کاربران
 export const increaseViewCount = async (
   req: Request,
   res: Response,
@@ -122,6 +143,8 @@ export const increaseViewCount = async (
     next(error);
   }
 };
+
+// 🔒 فقط ادمین
 export const blockProduct = async (
   req: Request,
   res: Response,
@@ -132,7 +155,7 @@ export const blockProduct = async (
     const { isBlock } = req.body;
 
     if (typeof isBlock !== "boolean") {
-      return res.status(400).json({ message: "isBlock must be boolean" });
+      return res.status(400).json({ message: "isBlock باید boolean باشد" });
     }
 
     const result = await productService.block(id, isBlock);
@@ -145,6 +168,8 @@ export const blockProduct = async (
     next(error);
   }
 };
+
+// 🔒 فقط ادمین
 export const getAllForAdmin = async (
   req: Request,
   res: Response,
@@ -159,7 +184,7 @@ export const getAllForAdmin = async (
         },
       },
       orderBy: [
-        { isBlock: "asc" }, // ✅ فعال‌ها بالا، بلاک‌ها پایین
+        { isBlock: "asc" },
         { id: "desc" },
       ],
     });

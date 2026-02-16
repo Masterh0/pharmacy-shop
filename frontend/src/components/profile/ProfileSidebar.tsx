@@ -1,3 +1,5 @@
+// src/components/profile/ProfileSidebar.tsx
+
 "use client";
 
 import { useAuth } from "@/lib/context/AuthContext";
@@ -14,11 +16,12 @@ import {
   Add,
   TruckFast,
   ShoppingCart,
+  Heart,
 } from "iconsax-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-// ✅ 1. ایمپورت مودال جدید
 import LogoutModal from "./LogoutModal";
+import { useWishlist } from "@/lib/hooks/useWishlist";
 
 type IconType = typeof Home2;
 
@@ -47,13 +50,10 @@ type MenuItem = LinkMenuItem | ActionMenuItem;
 export default function ProfileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-
-  // ✅ 2. فقط اطلاعات کاربر را می‌گیریم (تابع logout را به مودال سپردیم)
+  const { count: wishlistCount } = useWishlist();
   const { user, isLoading } = useAuth();
 
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  // ✅ 3. استیت برای نمایش مودال خروج
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const toggleExpand = (key: string) =>
@@ -72,7 +72,7 @@ export default function ProfileSidebar() {
 
   const adminMenu: MenuItem[] = [
     { label: "پیشخوان", icon: Home2, href: "/manager/profile" },
-    { label: "تاریخچه سفارشات", icon: Bag2, href: "/manager/profile/orders" },
+    { label: "مدیریت سفارشات", icon: Bag2, href: "/manager/profile/orders" },
     {
       label: "دسته‌بندی‌ها",
       icon: Category,
@@ -126,14 +126,19 @@ export default function ProfileSidebar() {
   ];
 
   const customerMenu: MenuItem[] = [
-    { label: "سفارشات من", icon: Bag2, href: "/customer/orders" },
-    { label: "آدرس‌های من", icon: Location, href: "/customer/addresses" },
-    { label: "سبد خرید", icon: ShoppingCart, href: "/customer/cart" },
-    { label: "اطلاعات حساب کاربری", icon: User, href: "/customer/account" },
+    { label: "سفارشات من", icon: Bag2, href: "/profile/orders" },
+    { label: "آدرس‌های من", icon: Location, href: "/profile/addresses" },
+    { label: "سبد خرید", icon: ShoppingCart, href: "/checkout/cart" },
+    { label: "اطلاعات حساب کاربری", icon: User, href: "/profile/account" },
+    {
+      label: `علاقه‌مندی‌ها ${wishlistCount > 0 ? `(${wishlistCount})` : ""}`,
+      icon: Heart,
+      href: "/profile/wishlist",
+    },
     {
       label: "پیش‌فاکتورها و ارسال‌ها",
       icon: TruckFast,
-      href: "/customer/shipments",
+      href: "/profile/shipments",
     },
     { label: "خروج", icon: LogoutCurve, action: "logout" },
   ];
@@ -144,7 +149,7 @@ export default function ProfileSidebar() {
     <>
       <aside
         dir="rtl"
-        className="w-[310px] bg-white rounded-2xl border border-[#EDEDED] shadow px-4 py-5 mr-[32px] flex flex-col"
+        className="w-[310px] flex-shrink-0 bg-white rounded-2xl border border-[#EDEDED] shadow px-4 py-5 flex flex-col self-start sticky top-10"
       >
         <div className="text-center mb-4 leading-[160%]">
           <span className="text-[#434343] text-[16px] font-medium">
@@ -161,19 +166,16 @@ export default function ProfileSidebar() {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isExpanded = expanded === item.label;
-
             const isActive =
               "href" in item && item.href
                 ? pathname === item.href || pathname.startsWith(item.href + "/")
                 : false;
 
             const handleClick = () => {
-              // ✅ 4. اگر دکمه خروج بود، مودال را باز کن (به جای اجرای مستقیم لاگ‌اوت)
               if (item.action === "logout") {
                 setShowLogoutModal(true);
                 return;
               }
-
               if ("children" in item && item.children) {
                 toggleExpand(item.label);
               } else if ("href" in item && item.href) {
@@ -254,7 +256,6 @@ export default function ProfileSidebar() {
         </nav>
       </aside>
 
-      {/* ✅ 5. رندر کردن مودال خارج از aside */}
       <LogoutModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}

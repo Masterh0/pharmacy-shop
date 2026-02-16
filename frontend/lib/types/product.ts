@@ -16,3 +16,20 @@ export interface Product {
   category?: { id: number; name: string; slug?: string }; // slug ممکن است در category باشد
   variants?: ProductVariant[]; // ممکن است variants نداشته باشد
 }
+export interface ProductImage {
+  id: number;
+  url: string;
+  displayOrder: number;
+  isPrimary: boolean;
+}
+export interface ProductVariant {
+  id: number;
+  flavor?: string;
+  packageQuantity?: number;
+  packageType?: string;
+  price: number;
+  discountPrice?: number;
+  stock: number;
+  expiryDate?: string;
+  images?: ProductImage[];
+}

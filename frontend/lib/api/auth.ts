@@ -7,7 +7,10 @@ export interface User {
   phone: string;
   email?: string;
   role: Role;
-  name: string;
+  name?: string; // نام کامل (در فرانت نام و نام خانوادگی را میچسبانیم)
+  birthday?: string; // تاریخ تولد
+  nationalCode?: string; // کد ملی (نیاز به آپدیت دیتابیس دارد)
+  hasPassword?: boolean; // برای اینکه بفهمیم پسورد دارد یا نه
 }
 // پاسخ لاگین/ثبت‌نام
 export interface AuthResponse {
@@ -56,7 +59,17 @@ export interface AdminResponse {
 export interface ApiError {
   error?: string;
 }
+export interface UpdateProfileInput {
+  name?: string;
+  email?: string;
+  birthday?: string; // فرمت ISO یا Date
+  nationalCode?: string;
+}
 
+export interface ChangePasswordInput {
+  currentPassword?: string; // برای کسانی که پسورد دارند اجباری است
+  newPassword: string;
+}
 // ----------------------
 // ثبت‌نام + OTP
 // ----------------------
@@ -74,9 +87,15 @@ export const verifyRegisterOtp = async (data: VerifyOtpInput) => {
 // ----------------------
 // ورود با پسورد
 // ----------------------
-export const loginWithPassword = async (identifier: string, password: string) => {
+export const loginWithPassword = async (
+  identifier: string,
+  password: string
+) => {
   // اینجا دستی آبجکت رو میسازیم تا توی LoginPage راحت باشیم
-  const res = await api.post<AuthResponse>("/auth/login", { identifier, password });
+  const res = await api.post<AuthResponse>("/auth/login", {
+    identifier,
+    password,
+  });
   return res.data;
 };
 
@@ -132,5 +151,17 @@ export const logout = async () => {
 };
 export const me = async () => {
   const res = await api.get<AuthResponse>("/auth/me", {});
+  return res.data;
+};
+export const updateProfile = async (data: UpdateProfileInput) => {
+  const res = await api.put<AuthResponse>("/auth/profile", data);
+  return res.data;
+};
+
+// ----------------------
+// جدید: تغییر رمز عبور
+// ----------------------
+export const changePassword = async (data: ChangePasswordInput) => {
+  const res = await api.put<{ message: string }>("/auth/change-password", data);
   return res.data;
 };

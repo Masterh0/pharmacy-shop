@@ -22,7 +22,12 @@ export default function EditProductPage() {
   // 🧩 دریافت لیست واریانت‌ها
   const { data: variants, isLoading: loadingVariants } = useQuery({
     queryKey: ["product-variants", productId],
-    queryFn: () => variantApi.getAllByProductId(productId),
+    queryFn: async () => {
+      console.log("🔍 Fetching variants for product:", productId);
+      const result = await variantApi.getAllByProductId(productId);
+      console.log("📦 Variants received:", result);
+      return result;
+    },
     enabled: !!productId,
   });
 

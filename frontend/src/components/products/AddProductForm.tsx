@@ -24,6 +24,7 @@ import { packageTypeOptions } from "@/src/constants/productOptions";
 import Select from "react-select";
 import { numberToPersianText } from "@/lib/utils/numberToText";
 import { RichTextEditor } from "../inputs/RichTextEditor";
+import { MultiImageUploader } from "../inputs/MultiImageUploader";
 
 /* --------------------------------------------------------- */
 /* ✅ فرم بیسیک + پشتیبانی از Error UI و Toast */
@@ -434,6 +435,17 @@ export default function AddProductForm({
                         ? "border-red-500"
                         : "border-[#D6D6D6]"
                     }`}
+                  />
+                  <Controller
+                    name={`variants.${i}.images`}
+                    control={control}
+                    render={({ field }) => (
+                      <MultiImageUploader
+                        images={field.value || []}
+                        onChange={field.onChange}
+                        maxFiles={10}
+                      />
+                    )}
                   />
                 </FormField>
               </div>

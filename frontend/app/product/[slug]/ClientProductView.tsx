@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -9,8 +8,17 @@ import api from "@/lib/axios";
 import InnerImageZoom from "react-inner-image-zoom";
 import { useCart } from "@/lib/hooks/useAddToCart";
 import { toast } from "sonner";
-
-import CartSuccessModal from "@/src/components/CartSuccessModal"; // 👈 اضافه شد
+import CartSuccessModal from "@/src/components/CartSuccessModal";
+import { Product, ProductVariant, Breadcrumb } from "@/lib/types/product";
+import WishlistButton from "@/src/components/WishlistButton";
+interface ClientProductViewProps {
+  product: Product;
+  variants: ProductVariant[];
+  flavors: string[];
+  packages: number[];
+  baseUrl: string;
+  initialVariant?: ProductVariant;
+}
 
 export default function ClientProductView({
   product,
@@ -19,37 +27,148 @@ export default function ClientProductView({
   packages,
   baseUrl,
   initialVariant,
-}) {
+  isOutOfStock,
+}: ClientProductViewProps) {
+  // 🔍 LOG 1: بررسی داده‌های اولیه
+  console.log("🎯 === INITIAL DATA ===");
+  console.log("📦 Product:", product);
+  console.log("🎨 Variants:", variants);
+  console.log("🍫 Flavors:", flavors);
+  console.log("📦 Packages:", packages);
+  console.log("🌐 BaseURL:", baseUrl);
+  console.log("⭐ Initial Variant:", initialVariant);
+  console.log("🖼️ Initial Variant Images:", initialVariant?.images);
+
   const [selectedFlavor, setSelectedFlavor] = useState(
     initialVariant?.flavor || ""
   );
   const [selectedPackage, setSelectedPackage] = useState(
-    initialVariant?.packageQuantity || ""
+    initialVariant?.packageQuantity || 0
   );
-  const [selectedVariant, setSelectedVariant] = useState(initialVariant);
+  const [selectedVariant, setSelectedVariant] = useState<
+    ProductVariant | undefined
+  >(initialVariant);
   const [count, setCount] = useState(1);
-
-  // 👇 برای کنترل نمایش پاپ‌آپ موفقیت
   const [showPopup, setShowPopup] = useState(false);
 
-  function updateVariant(flavor, pkg) {
+  // 🖼️ تصویر اصلی نمایشی (محصول یا واریانت)
+  const [mainImage, setMainImage] = useState<string>(product.imageUrl);
+
+  // 🎨 لیست تصاویر کوچک (thumbnails)
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
+
+  // 🔍 LOG 2: بررسی state اولیه
+  console.log("🎯 === INITIAL STATE ===");
+  console.log("🎨 Selected Flavor:", selectedFlavor);
+  console.log("📦 Selected Package:", selectedPackage);
+  console.log("⭐ Selected Variant:", selectedVariant);
+  console.log("🖼️ Main Image:", mainImage);
+  console.log("🎨 Thumbnails:", thumbnails);
+
+  function updateVariant(flavor: string, pkg: number) {
+    console.log("\n🔄 === UPDATE VARIANT CALLED ===");
+    console.log("🍫 Flavor:", flavor);
+    console.log("📦 Package:", pkg);
+
     const found = variants.find(
       (v) =>
         (!flavor || v.flavor === flavor) && (!pkg || v.packageQuantity === pkg)
     );
-    if (found) setSelectedVariant(found);
+
+    console.log("🔍 Found Variant:", found);
+    console.log("🖼️ Found Variant Images:", found?.images);
+
+    if (found) {
+      setSelectedVariant(found);
+
+      // ⭐ اگر واریانت عکس داشت، اولین عکسش رو نشون بده
+      if (found.images && found.images.length > 0) {
+        console.log("✅ Variant HAS images!");
+        console.log("📸 Images Array:", found.images);
+
+        const sortedImages = [...found.images].sort(
+          (a, b) => a.displayOrder - b.displayOrder
+        );
+        console.log("🔢 Sorted Images:", sortedImages);
+
+        const firstImage = sortedImages[0].url;
+        console.log("🖼️ First Image URL:", firstImage);
+
+        const fullImageUrl = firstImage.startsWith("http")
+          ? firstImage
+          : `${baseUrl}${firstImage}`;
+
+        console.log("🌐 Full Main Image URL:", fullImageUrl);
+        setMainImage(fullImageUrl);
+
+        const thumbnailUrls = sortedImages.map((img) => {
+          const url = img.url.startsWith("http")
+            ? img.url
+            : `${baseUrl}${img.url}`;
+          console.log(`🎨 Thumbnail ${img.displayOrder}:`, url);
+          return url;
+        });
+
+        console.log("🎨 All Thumbnails:", thumbnailUrls);
+        setThumbnails(thumbnailUrls);
+      } else {
+        console.log("❌ Variant has NO images - using product image");
+
+        // ✅ اگه واریانت عکس نداشت، به تصویر اصلی محصول برگرد
+        const productImageUrl = product.imageUrl.startsWith("http")
+          ? product.imageUrl
+          : `${baseUrl}/${product.imageUrl.replace(/^\/+/, "")}`;
+
+        console.log("🖼️ Fallback to Product Image:", productImageUrl);
+        setMainImage(productImageUrl);
+        setThumbnails([]);
+      }
+    } else {
+      console.log("❌ NO variant found for flavor:", flavor, "package:", pkg);
+    }
   }
 
-  const { data: breadcrumb } = useQuery({
+  // 🔍 LOG 3: تغییرات state را رصد کن
+  useEffect(() => {
+    console.log("\n📊 === STATE CHANGED ===");
+    console.log("⭐ Selected Variant:", selectedVariant);
+    console.log("🖼️ Main Image:", mainImage);
+    console.log("🎨 Thumbnails:", thumbnails);
+  }, [selectedVariant, mainImage, thumbnails]);
+
+  // 🔍 LOG 4: اولین واریانت رو بررسی کن
+  useEffect(() => {
+    console.log("\n🚀 === COMPONENT MOUNTED ===");
+
+    if (initialVariant) {
+      console.log("✅ Has initial variant");
+      console.log("🖼️ Initial variant images:", initialVariant.images);
+
+      // اگر واریانت اولیه عکس داشت، بارگذاری کن
+      if (initialVariant.images && initialVariant.images.length > 0) {
+        console.log("📸 Loading initial variant images...");
+        updateVariant(
+          initialVariant.flavor || "",
+          initialVariant.packageQuantity || 0
+        );
+      }
+    } else {
+      console.log("⚠️ No initial variant");
+    }
+  }, []);
+
+  const { data: breadcrumb } = useQuery<Breadcrumb[]>({
     queryKey: ["breadcrumb", product.categoryId],
     queryFn: async () => {
       if (!product.categoryId) return [];
-      const chain = [];
+      const chain: Breadcrumb[] = [];
       let current = await categoryApi.getById(product.categoryId);
+
       while (current && current.parentId) {
         chain.unshift(current);
         current = await categoryApi.getById(current.parentId);
       }
+
       if (current) chain.unshift(current);
       return chain;
     },
@@ -66,7 +185,9 @@ export default function ClientProductView({
     const viewedKey = `viewed_product_${product.id}`;
     const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
     const lastView = localStorage.getItem(viewedKey);
+
     if (lastView && Number(lastView) > sixHoursAgo) return;
+
     viewSentRef.current = true;
     api
       .post(`/products/${product.id}/view`)
@@ -85,17 +206,28 @@ export default function ClientProductView({
     }
 
     addItem(
-      { productId: product.id, variantId: selectedVariant.id, quantity: count },
+      {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity: count,
+      },
       {
         onSuccess: () => {
           toast.success("✅ به سبد خرید اضافه شد");
-          console.log("🟢 addItem success!");
-          setShowPopup(true); // 👈 نمایش مودال موفقیت
+          setShowPopup(true);
           setCount(1);
         },
-        onError: (err) => {
+        onError: (err: any) => {
           console.error("❌ خطا در افزودن به سبد:", err);
-          toast.error("خطا در افزودن به سبد خرید");
+
+          // پیام خطا را با ترتیب اولویت زیر پیدا کن
+          const message =
+            err?.response?.data?.error || // برای axios
+            err?.error || // برخی کتابخانه‌ها
+            err?.message || // پیام عمومی جاوااسکریپت
+            "خطا در افزودن به سبد خرید"; // پیام fallback فارسی
+
+          toast.error(message);
         },
       }
     );
@@ -103,9 +235,8 @@ export default function ClientProductView({
 
   return (
     <>
-      {/* 🔹 بدنه اصلی صفحه */}
       <div className="w-[85%] mx-auto flex flex-col mt-12 font-vazirmatn text-[#434343]">
-        {/* مسیر دسته‌بندی */}
+        {/* 🗂️ Breadcrumb */}
         <div className="text-[#898989] text-[14px] mb-8 flex gap-1 items-center flex-wrap">
           {breadcrumb?.map((cat, i) => (
             <span key={cat.id} className="flex items-center gap-1">
@@ -119,41 +250,67 @@ export default function ClientProductView({
               >
                 {cat.name}
               </Link>
-              {i <= breadcrumb.length - 1 && <span>›</span>}
+              {i < breadcrumb.length && <span>›</span>}
             </span>
           ))}
           <span className="text-[#0077B6] font-semibold">{product.name}</span>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-[64px] items-start">
-          {/* تصویر اصلی */}
-          <div className="flex justify-center items-center">
-            <div className="w-[530px] h-[576px] bg-white rounded-[16px] flex items-center justify-center border border-[#EDEDED] overflow-hidden">
+          {/* 🖼️ بخش تصاویر */}
+          <div className="flex flex-col gap-4">
+            {/* 🔍 تصویر اصلی با زوم */}
+            <div className="w-full max-w-[530px] h-[576px] bg-white rounded-[16px] flex items-center justify-center border border-[#EDEDED] overflow-hidden">
               <InnerImageZoom
-                src={
-                  product.imageUrl?.startsWith("http")
-                    ? product.imageUrl
-                    : `${baseUrl}/${product.imageUrl.replace(/^\/+/, "")}`
-                }
-                zoomSrc={
-                  product.imageUrl?.startsWith("http")
-                    ? product.imageUrl
-                    : `${baseUrl}/${product.imageUrl.replace(/^\/+/, "")}`
-                }
-                alt={product.name}
+                src={mainImage}
+                zoomSrc={mainImage}
                 zoomType="hover"
                 zoomScale={1.8}
-                className="rounded-[8px] object-contain"
+                className="rounded-[8px] object-contain w-full h-full"
               />
             </div>
+
+            {/* 🎨 Thumbnails (فقط اگر واریانت عکس داشت) */}
+            {thumbnails.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {thumbnails.map((thumb, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      console.log("🖱️ Thumbnail clicked:", thumb);
+                      setMainImage(thumb);
+                    }}
+                    className={`
+                      flex-shrink-0 w-[100px] h-[100px] rounded-[8px] 
+                      border-2 transition-all overflow-hidden
+                      ${
+                        mainImage === thumb
+                          ? "border-[#00B4D8] shadow-md"
+                          : "border-[#EDEDED] hover:border-[#00B4D8]"
+                      }
+                    `}
+                  >
+                    <img
+                      src={thumb}
+                      alt={`تصویر ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* توضیحات */}
+          {/* 📝 توضیحات محصول */}
           <div className="flex flex-col gap-8">
             <h1 className="text-[#000] text-[28px] font-bold">
               {product.name}
             </h1>
-
+            <WishlistButton
+              productId={product.id}
+              size={28}
+              showLabel={false}
+            />
             <h3 className="border-b border-[#EDEDED] text-[#656565] pb-1 font-semibold text-lg">
               مشخصات محصول
             </h3>
@@ -163,59 +320,60 @@ export default function ClientProductView({
               className="text-[16px] leading-[32px] text-right space-y-2 [&_strong]:text-[#000]"
             />
 
-            {/* انتخاب طعم و بسته */}
-            <div className="flex flex-row flex-wrap gap-6 w-full mt-2">
-              {flavors?.length > 0 && (
-                <div className="flex flex-col gap-2 flex-1 min-w-[45%]">
-                  <span className="font-bold text-[#000]">طعم:</span>
-                  <div className="flex gap-3 flex-wrap">
-                    {flavors.map((flavor) => (
-                      <button
-                        key={flavor}
-                        onClick={() => {
-                          setSelectedFlavor(flavor);
-                          updateVariant(flavor, selectedPackage);
-                        }}
-                        className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                          flavor === selectedFlavor
-                            ? "bg-[#00B4D8] text-white border-[#00B4D8]"
-                            : "border-[#00B4D8] text-[#0077B6] hover:bg-[#E0F7FA]"
-                        }`}
-                      >
-                        {flavor}
-                      </button>
-                    ))}
-                  </div>
+            {/* 🍫 انتخاب طعم */}
+            {flavors.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <span className="font-bold text-[#000]">طعم:</span>
+                <div className="flex gap-3 flex-wrap">
+                  {flavors.map((flavor) => (
+                    <button
+                      key={flavor}
+                      onClick={() => {
+                        console.log("🍫 Flavor selected:", flavor);
+                        setSelectedFlavor(flavor);
+                        updateVariant(flavor, selectedPackage);
+                      }}
+                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                        flavor === selectedFlavor
+                          ? "bg-[#00B4D8] text-white border-[#00B4D8]"
+                          : "border-[#00B4D8] text-[#0077B6] hover:bg-[#E0F7FA]"
+                      }`}
+                    >
+                      {flavor}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
-              {packages?.length > 0 && (
-                <div className="flex flex-col gap-2 flex-1 min-w-[45%]">
-                  <span className="font-bold text-[#000]">تعداد در بسته:</span>
-                  <div className="flex gap-3 flex-wrap">
-                    {packages.map((pkg) => (
-                      <button
-                        key={pkg}
-                        onClick={() => {
-                          setSelectedPackage(pkg);
-                          updateVariant(selectedFlavor, pkg);
-                        }}
-                        className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                          pkg === selectedPackage
-                            ? "bg-[#0077B6] text-white border-[#0077B6]"
-                            : "border-[#00B4D8] text-[#0077B6] hover:bg-[#E0F7FA]"
-                        }`}
-                      >
-                        {pkg} عدد
-                      </button>
-                    ))}
-                  </div>
+            {/* 📦 انتخاب بسته */}
+            {packages.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <span className="font-bold text-[#000]">تعداد در بسته:</span>
+                <div className="flex gap-3 flex-wrap">
+                  {packages.map((pkg) => (
+                    <button
+                      key={pkg}
+                      onClick={() => {
+                        console.log("📦 Package selected:", pkg);
+                        setSelectedPackage(pkg);
+                        updateVariant(selectedFlavor, pkg);
+                      }}
+                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                        pkg === selectedPackage
+                          ? "bg-[#0077B6] text-white border-[#0077B6]"
+                          : "border-[#00B4D8] text-[#0077B6] hover:bg-[#E0F7FA]"
+                      }`}
+                    >
+                      {pkg} عدد
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* قیمت و دکمه خرید */}
-            <div className="mt-6 flex flex-col gap-8 w-[392px]">
+            {/* 💰 قیمت و خرید */}
+            <div className="mt-6 flex flex-col gap-8 w-full max-w-[392px]">
               <div className="flex flex-col gap-1">
                 {selectedVariant?.discountPrice ? (
                   <>
@@ -242,23 +400,32 @@ export default function ClientProductView({
               </div>
 
               <div className="flex flex-row gap-6 items-center">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isAdding}
-                  className={`flex items-center justify-center gap-2 w-[184px] h-[48px] rounded-[8px] font-medium transition-all 
-  ${
-    isAdding
-      ? "bg-gray-400 cursor-wait"
-      : "bg-gradient-to-r from-[#00B4D8] to-[#0077B6] text-white hover:opacity-90"
-  }`}
-                >
-                  {isAdding ? "در حال افزودن..." : "افزودن به سبد خرید"}
-                </button>
+                {isOutOfStock ? (
+                  <button
+                    disabled
+                    className="w-full py-3 bg-gray-200 text-gray-500 rounded-full cursor-not-allowed"
+                  >
+                    ناموجود
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={isAdding}
+                    className={`flex items-center justify-center gap-2 w-[184px] h-[48px] rounded-[8px] font-medium transition-all 
+                    ${
+                      isAdding
+                        ? "bg-gray-400 cursor-wait"
+                        : "bg-gradient-to-r from-[#00B4D8] to-[#0077B6] text-white hover:opacity-90"
+                    }`}
+                  >
+                    {isAdding ? "در حال افزودن..." : "افزودن به سبد خرید"}
+                  </button>
+                )}
 
                 <div className="flex flex-row items-center justify-center border border-[#00B4D8] rounded-[8px] w-[184px] h-[48px] px-6 gap-4">
                   <button
                     onClick={() => setCount((c) => c + 1)}
-                    className="text-[#00B4D8]"
+                    className="text-[#00B4D8] text-xl"
                   >
                     +
                   </button>
@@ -267,7 +434,7 @@ export default function ClientProductView({
                   </span>
                   <button
                     onClick={() => setCount((c) => (c > 1 ? c - 1 : 1))}
-                    className="text-[#00B4D8]"
+                    className="text-[#00B4D8] text-xl"
                   >
                     –
                   </button>
@@ -278,7 +445,7 @@ export default function ClientProductView({
         </div>
       </div>
 
-      {/* 👇 نمایش پاپ‌آپ موفقیت */}
+      {/* ✅ مودال موفقیت */}
       <CartSuccessModal show={showPopup} onClose={() => setShowPopup(false)} />
     </>
   );

@@ -1,8 +1,21 @@
-// src/services/orderService.ts
 import { prisma } from "../config/db";
-import { Prisma } from "@prisma/client"; // این import برای استفاده از تراکنش‌ها ضروری است
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from "@prisma/client";
 
+/**
+ * Order Service
+ * - createOrder: ایجاد سفارش در حالت PENDING
+ * - verifyPayment: شبیه‌سازی پرداخت موفق (mock)
+ * - cancelOrder: لغو سفارش قبل از پرداخت
+ * - getUserOrders / getOrderById
+ */
 export const orderService = {
+  // ---------------------------------------------------------------------------
+  // CREATE ORDER (PENDING)
+  // ---------------------------------------------------------------------------
   async createOrder(options: {
     userId: number;
     addressId: number;
@@ -10,14 +23,14 @@ export const orderService = {
   }) {
     const { userId, addressId, shippingCost } = options;
 
-    // ۱️⃣ دریافت سبد خرید کاربر به همراه Product و ProductVariant برای هر آیتم
+    // 1️⃣ دریافت سبد
     const cart = await prisma.cart.findFirst({
       where: { userId },
       include: {
         items: {
           include: {
-            variant: true, // ProductVariant مدل مربوط به CartItem.variantId
-            product: true, // Product مدل مربوط به CartItem.productId
+            product: true,
+            variant: true,
           },
         },
       },
@@ -27,32 +40,44 @@ export const orderService = {
       throw new Error("سبد خرید خالی است");
     }
 
-    // ۲️⃣ محاسبه مجموع‌ها (Subtotal, DiscountTotal, FinalTotal)
-    const subtotal = cart.items.reduce((sum, item) => {
-      // استفاده از discountPrice اگر معتبر باشد، در غیر این صورت price
-      const unitPrice = Number(
-        item.variant.discountPrice && Number(item.variant.discountPrice) > 0
-          ? item.variant.discountPrice
-          : item.variant.price
+    // 2️⃣ بررسی بلاک بودن محصولات
+    const blocked = cart.items.filter((i) => i.product.isBlock);
+    if (blocked.length) {
+      throw new Error(
+        `محصولات غیرفعال: ${blocked.map((i) => i.product.name).join(", ")}`
       );
-      return sum + unitPrice * item.quantity;
-    }, 0);
+    }
+
+    // 3️⃣ soft stock check
+    for (const item of cart.items) {
+      if (item.variant.stock < item.quantity) {
+        throw new Error(
+          `موجودی ${item.product.name} کافی نیست (موجودی: ${item.variant.stock})`
+        );
+      }
+    }
+
+    // 4️⃣ محاسبه قیمت‌ها
+    const subtotal = cart.items.reduce(
+      (sum, item) => sum + Number(item.variant.price) * item.quantity,
+      0
+    );
 
     const discountTotal = cart.items.reduce((sum, item) => {
       const price = Number(item.variant.price);
-      const discounted = Number(
-        item.variant.discountPrice && Number(item.variant.discountPrice) > 0
-          ? item.variant.discountPrice
-          : price
-      );
+      const discounted =
+        item.variant.discountPrice &&
+        Number(item.variant.discountPrice) > 0
+          ? Number(item.variant.discountPrice)
+          : price;
       return sum + (price - discounted) * item.quantity;
     }, 0);
 
-    const finalTotal = subtotal + shippingCost;
+    const finalTotal = subtotal + shippingCost - discountTotal;
+    const trackingCode = `ORD-${Date.now()}-${userId}`;
 
-    // ۳️⃣ شروع تراکنش برای اطمینان از اتمیک بودن عملیات (یا همه موفق یا همه ناموفق)
+    // 5️⃣ Transaction
     const order = await prisma.$transaction(async (tx) => {
-      // ۳.۱ ایجاد Order اصلی
       const newOrder = await tx.order.create({
         data: {
           userId,
@@ -61,58 +86,50 @@ export const orderService = {
           discountTotal,
           shippingFee: shippingCost,
           finalTotal,
-          status: "PENDING", // وضعیت اولیه PENDING است تا پس از پرداخت نهایی شود
-          // paidAt: new Date(), // این فیلد باید پس از تأیید موفق پرداخت به‌روز شود
+          trackingCode,
+          status: OrderStatus.PENDING,
         },
       });
 
-      // ۳.۲ ایجاد OrderItem ها، کاهش موجودی (stock) و افزایش تعداد فروش (soldCount)
+      // order items
       for (const item of cart.items) {
-        const itemPrice = Number(
-          item.variant.discountPrice && Number(item.variant.discountPrice) > 0
-            ? item.variant.discountPrice
-            : item.variant.price
-        );
+        const unitPrice =
+          item.variant.discountPrice &&
+          Number(item.variant.discountPrice) > 0
+            ? Number(item.variant.discountPrice)
+            : Number(item.variant.price);
 
-        // ایجاد هر OrderItem برای سفارش جدید
         await tx.orderItem.create({
           data: {
             orderId: newOrder.id,
-            productId: item.productId, // Product.id از CartItem
-            variantId: item.variantId, // ProductVariant.id از CartItem
+            productId: item.productId,
+            variantId: item.variantId,
             quantity: item.quantity,
-            unitPrice: itemPrice,
-            totalPrice: itemPrice * item.quantity,
-          },
-        });
-
-        // کاهش موجودی انبار (stock) برای ProductVariant مربوطه
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { decrement: item.quantity } },
-        });
-
-        // ✅ افزایش soldCount برای Product مرتبط
-        // از item.productId استفاده می‌کنیم که به Product.id اشاره دارد
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            soldCount: {
-              increment: item.quantity, // soldCount به تعداد آیتم‌های فروخته شده افزایش می‌یابد
-            },
+            unitPrice,
+            totalPrice: unitPrice * item.quantity,
           },
         });
       }
 
-      // ۳.۳ پاک کردن آیتم‌های سبد خرید و سپس خود سبد خرید کاربر
+      // پاک کردن سبد
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       await tx.cart.delete({ where: { id: cart.id } });
 
-      // ۳.۴ ایجاد رکورد حمل و نقل (Shipment) اولیه
+      // shipment اولیه
       await tx.shipment.create({
         data: {
           orderId: newOrder.id,
-          status: "در انتظار ارسال", // وضعیت اولیه حمل و نقل
+          status: "در انتظار پرداخت",
+        },
+      });
+
+      // payment mock
+      await tx.payment.create({
+        data: {
+          orderId: newOrder.id,
+          amount: finalTotal,
+          method: PaymentMethod.GATEWAY,
+          status: PaymentStatus.INITIATED,
         },
       });
 
@@ -122,22 +139,146 @@ export const orderService = {
     return order;
   },
 
+  // ---------------------------------------------------------------------------
+  // VERIFY PAYMENT (MOCK)
+  // ---------------------------------------------------------------------------
+  async verifyPayment(orderId: number) {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { orderItems: true },
+      });
+
+      if (!order || order.status !== OrderStatus.PENDING) {
+        throw new Error("سفارش نامعتبر است");
+      }
+
+      // hard stock check + decrement
+      for (const item of order.orderItems) {
+        const variant = await tx.productVariant.findUnique({
+          where: { id: item.variantId },
+          select: { stock: true },
+        });
+
+        if (!variant || variant.stock < item.quantity) {
+          throw new Error("موجودی کافی نیست");
+        }
+
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { decrement: item.quantity } },
+        });
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { soldCount: { increment: item.quantity } },
+        });
+      }
+
+      // update order
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.PAID,
+          paidAt: new Date(),
+        },
+      });
+
+      // update payment
+      await tx.payment.updateMany({
+        where: { orderId },
+        data: {
+          status: PaymentStatus.PAID,
+          paidAt: new Date(),
+        },
+      });
+
+      // update shipment
+      await tx.shipment.updateMany({
+        where: { orderId },
+        data: {
+          status: "در انتظار ارسال",
+        },
+      });
+
+      return { success: true };
+    });
+  },
+
+  // ---------------------------------------------------------------------------
+  // CANCEL ORDER (ONLY PENDING)
+  // ---------------------------------------------------------------------------
+  async cancelOrder(orderId: number, userId: number) {
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId },
+    });
+
+    if (!order) throw new Error("سفارش یافت نشد");
+
+    if (order.status !== OrderStatus.PENDING) {
+      throw new Error("فقط سفارشات در انتظار پرداخت قابل لغو هستند");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.CANCELED },
+      });
+
+      await tx.payment.updateMany({
+        where: { orderId },
+        data: { status: PaymentStatus.FAILED },
+      });
+
+      await tx.shipment.updateMany({
+        where: { orderId },
+        data: { status: "لغو شده" },
+      });
+    });
+
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // GET USER ORDERS
+  // ---------------------------------------------------------------------------
   async getUserOrders(userId: number) {
     return prisma.order.findMany({
       where: { userId },
-      include: { orderItems: true, address: true, payments: true },
+      include: {
+        orderItems: {
+          include: {
+            product: { include: { brand: true, category: true } },
+            variant: true,
+          },
+        },
+        address: true,
+        payments: true,
+        shipment: true,
+      },
       orderBy: { createdAt: "desc" },
     });
   },
 
+  // ---------------------------------------------------------------------------
+  // GET ORDER BY ID
+  // ---------------------------------------------------------------------------
   async getOrderById(orderId: number, userId: number) {
     const order = await prisma.order.findFirst({
       where: { id: orderId, userId },
       include: {
-        orderItems: { include: { product: true, variant: true } },
+        orderItems: {
+          include: {
+            product: { include: { brand: true, category: true } },
+            variant: true,
+          },
+        },
         address: true,
+        payments: true,
+        shipment: true,
       },
     });
+
     if (!order) throw new Error("سفارش یافت نشد");
     return order;
   },

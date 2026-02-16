@@ -26,10 +26,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
 
-  const [preview, setPreview] = useState<string | null>(
-    initialData.imageUrl || null
-  );
-
   /* -------------------------------------------- */
   /* 📋 مقداردهی اولیه فرم */
   /* -------------------------------------------- */
@@ -42,7 +38,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
       brandId: Number(initialData?.brandId ?? ""),
       categoryId: Number(initialData?.categoryId ?? ""),
       isBlock: !!initialData?.isBlock,
-      imageUrlص: undefined,
+      imageUrl: undefined,
     },
   });
 
@@ -50,18 +46,17 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   const { errors } = formState;
 
   useEffect(() => {
-    if (initialData) {
-      reset({
-        name: initialData.name ?? "",
-        sku: initialData.sku ?? "",
-        description: initialData.description ?? "",
-        brandId: Number(initialData.brandId ?? ""),
-        categoryId: Number(initialData.categoryId ?? ""),
-        isBlock: !!initialData.isBlock,
-        imageUrl: undefined,
-      });
-      setPreview(initialData.imageUrl || initialData.image || null);
-    }
+    if (!initialData) return;
+
+    reset({
+      name: initialData.name ?? "",
+      sku: initialData.sku ?? "",
+      description: initialData.description ?? "",
+      brandId: Number(initialData.brandId ?? ""),
+      categoryId: Number(initialData.categoryId ?? ""),
+      isBlock: !!initialData.isBlock,
+      imageUrl: initialData.imageUrl ?? "",
+    });
   }, [initialData, reset]);
 
   /* -------------------------------------------- */
@@ -122,8 +117,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         className="w-[808px] bg-white border border-[#EDEDED] rounded-[16px] p-8 flex flex-col gap-8 font-vazir text-[#434343]"
       >
         {/* 🖼 تصویر محصول */}
-        <ImageUploader name="imageUrl" defaultPreview={preview} />
-
+        <ImageUploader name="imageUrl" />
         <div className="grid grid-cols-2 gap-8">
           <FormField label="نام محصول" error={errors.name?.message}>
             <input
@@ -180,10 +174,10 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
 
         <FormField label="توضیحات" error={errors.description?.message}>
           <RichTextEditor
-    control={control}
-    name="description"
-    label="توضیحات محصول"
-  />
+            control={control}
+            name="description"
+            label="توضیحات محصول"
+          />
         </FormField>
 
         <div className="flex justify-end mt-3">

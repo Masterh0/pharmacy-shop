@@ -1,0 +1,258 @@
+﻿.next/types/app/edit/[id]/page.ts(2,24): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/edit/[id]/page.tsx' is not a module.
+.next/types/app/edit/[id]/page.ts(5,29): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/edit/[id]/page.tsx' is not a module.
+.next/types/app/product/[slug]/page.ts(34,29): error TS2344: Type 'PageProps' does not satisfy the constraint 'import("F:/programing/pharmacy-shop/frontend/.next/types/app/product/[slug]/page").PageProps'.
+  Types of property 'params' are incompatible.
+    Type '{ slug: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/products/[id]/variants/[variantId]/edit/page.ts(2,24): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/products/[id]/variants/[variantId]/edit/page.tsx' is not a module.
+.next/types/app/products/[id]/variants/[variantId]/edit/page.ts(5,29): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/products/[id]/variants/[variantId]/edit/page.tsx' is not a module.
+.next/types/validator.ts(78,39): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/edit/[id]/page.tsx' is not a module.
+.next/types/validator.ts(231,39): error TS2306: File 'F:/programing/pharmacy-shop/frontend/app/products/[id]/variants/[variantId]/edit/page.tsx' is not a module.
+app/authComponents/LoginOtp.tsx(5,30): error TS2306: File 'F:/programing/pharmacy-shop/frontend/lib/stores/authStore.ts' is not a module.
+app/authComponents/LoginOtp.tsx(17,33): error TS7006: Parameter 'state' implicitly has an 'any' type.
+app/authComponents/LoginOtp.tsx(27,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+app/authComponents/LoginOtp.tsx(28,31): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+app/authComponents/LoginOtp.tsx(48,27): error TS2339: Property 'accessToken' does not exist on type 'AuthResponse'.
+app/authComponents/LoginOtp.tsx(49,28): error TS2339: Property 'refreshToken' does not exist on type 'AuthResponse'.
+app/authComponents/LoginOtp.tsx(94,17): error TS2322: Type '{ children: (false | Element)[]; title: string; subtitle: string; }' is not assignable to type 'IntrinsicAttributes & AuthLayoutProps'.
+  Property 'title' does not exist on type 'IntrinsicAttributes & AuthLayoutProps'.
+app/checkout/cart/page.tsx(40,27): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/checkout/cart/page.tsx(126,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/checkout/cart/page.tsx(126,11): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/checkout/cart/page.tsx(131,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/checkout/cart/page.tsx(131,11): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/checkout/payment/PaymentClient.tsx(47,43): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'number'.
+  Type 'null' is not assignable to type 'number'.
+app/checkout/payment/PaymentClient.tsx(66,39): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/checkout/payment/PaymentClient.tsx(66,44): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/checkout/payment/PaymentClient.tsx(72,42): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/checkout/payment/PaymentClient.tsx(72,47): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/login/otp/page.tsx(79,5): error TS2322: Type '(data: VerifyOtpInput) => Promise<AuthResponse>' is not assignable to type 'MutationFunction<VerifyOtpResponse, { phone: string; code: string; }>'.
+  Type 'Promise<AuthResponse>' is not assignable to type 'Promise<VerifyOtpResponse>'.
+    Type 'AuthResponse' is not assignable to type 'VerifyOtpResponse'.
+      The types of 'user.name' are incompatible between these types.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+app/manager/categories/[slug]/page.tsx(8,29): error TS2306: File 'F:/programing/pharmacy-shop/frontend/src/components/products/ProductGridView.tsx' is not a module.
+app/manager/categories/[slug]/page.tsx(10,10): error TS2305: Module '"@/lib/types/category"' has no exported member 'ProductsByCategoryBySlugResponse'.
+app/manager/categories/[slug]/page.tsx(45,53): error TS2345: Argument of type '{ sort: SortType; page: number; limit: number; }' is not assignable to parameter of type 'string'.
+app/manager/profile/edit-product/[id]/page.tsx(55,44): error TS2322: Type '{ productId: number; variants: ProductVariant[]; }' is not assignable to type 'IntrinsicAttributes & VariantsManagerProps'.
+  Property 'variants' does not exist on type 'IntrinsicAttributes & VariantsManagerProps'.
+app/manager/profile/edit-product/[id]/VariantRow.tsx(1,38): error TS7031: Binding element 'variant' implicitly has an 'any' type.
+app/manager/profile/edit-product/[id]/VariantRow.tsx(1,47): error TS7031: Binding element 'onDelete' implicitly has an 'any' type.
+app/manager/profile/orders/[id]/page.tsx(137,38): error TS2339: Property 'street' does not exist on type 'OrderAddress'.
+app/manager/profile/orders/page.tsx(50,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'keepPreviousData' does not exist in type 'DefinedInitialDataOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'keepPreviousData' does not exist in type 'UndefinedInitialDataOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'keepPreviousData' does not exist in type 'UseQueryOptions<AdminOrderListResponse, Error, AdminOrderListResponse, (string | number | undefined)[]>'.
+app/product/[slug]/ClientProductView.tsx(12,35): error TS2305: Module '"@/lib/types/product"' has no exported member 'Breadcrumb'.
+app/product/[slug]/ClientProductView.tsx(30,3): error TS2339: Property 'isOutOfStock' does not exist on type 'ClientProductViewProps'.
+app/product/[slug]/ClientProductView.tsx(55,54): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | (() => string)'.
+  Type 'undefined' is not assignable to type 'string | (() => string)'.
+app/product/[slug]/ClientProductView.tsx(118,33): error TS18049: 'product.imageUrl' is possibly 'null' or 'undefined'.
+app/product/[slug]/ClientProductView.tsx(120,27): error TS18049: 'product.imageUrl' is possibly 'null' or 'undefined'.
+app/product/[slug]/ClientProductView.tsx(123,22): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+app/product/[slug]/page.tsx(31,9): error TS2322: Type 'import("F:/programing/pharmacy-shop/frontend/lib/types/variant").ProductVariant[]' is not assignable to type 'import("F:/programing/pharmacy-shop/frontend/lib/types/product").ProductVariant[]'.
+  Type 'import("F:/programing/pharmacy-shop/frontend/lib/types/variant").ProductVariant' is not assignable to type 'import("F:/programing/pharmacy-shop/frontend/lib/types/product").ProductVariant'.
+    Types of property 'flavor' are incompatible.
+      Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+app/product/[slug]/page.tsx(51,7): error TS2322: Type '{ product: Product; variants: ProductVariant[]; flavors: string[]; packages: number[]; baseUrl: string; initialVariant: ProductVariant; isOutOfStock: boolean; }' is not assignable to type 'IntrinsicAttributes & ClientProductViewProps'.
+  Property 'isOutOfStock' does not exist on type 'IntrinsicAttributes & ClientProductViewProps'.
+app/products/page.tsx(58,13): error TS18049: 'p.imageUrl' is possibly 'null' or 'undefined'.
+app/profile/account/page.tsx(29,32): error TS2749: 'DatePicker' refers to a value, but is being used as a type here. Did you mean 'typeof DatePicker'?
+app/profile/account/page.tsx(48,48): error TS2339: Property 'familyName' does not exist on type 'User'.
+app/profile/account/page.tsx(82,9): error TS2353: Object literal may only specify known properties, and 'familyName' does not exist in type 'UpdateProfileInput'.
+app/profile/addresses/CitySelect.tsx(13,30): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u0634\u0631\u0642\u06CC": string[]; "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u063A\u0631\u0628\u06CC": string[]; ╪º╪▒╪»╪¿█î┘ä: string[]; ╪º╪╡┘ü┘ç╪º┘å: string[]; ╪º┘ä╪¿╪▒╪▓: string[]; ╪º█î┘ä╪º┘à: string[]; ╪¿┘ê╪┤┘ç╪▒: string[]; ╪¬┘ç╪▒╪º┘å: string[]; "\u062E\u0631\u0627\u0633...'.
+  No index signature with a parameter of type 'string' was found on type '{ "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u0634\u0631\u0642\u06CC": string[]; "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u063A\u0631\u0628\u06CC": string[]; ╪º╪▒╪»╪¿█î┘ä: string[]; ╪º╪╡┘ü┘ç╪º┘å: string[]; ╪º┘ä╪¿╪▒╪▓: string[]; ╪º█î┘ä╪º┘à: string[]; ╪¿┘ê╪┤┘ç╪▒: string[]; ╪¬┘ç╪▒╪º┘å: string[]; "\u062E\u0631\u0627\u0633...'.
+app/profile/addresses/CitySelect.tsx(13,50): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u0634\u0631\u0642\u06CC": string[]; "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u063A\u0631\u0628\u06CC": string[]; ╪º╪▒╪»╪¿█î┘ä: string[]; ╪º╪╡┘ü┘ç╪º┘å: string[]; ╪º┘ä╪¿╪▒╪▓: string[]; ╪º█î┘ä╪º┘à: string[]; ╪¿┘ê╪┤┘ç╪▒: string[]; ╪¬┘ç╪▒╪º┘å: string[]; "\u062E\u0631\u0627\u0633...'.
+  No index signature with a parameter of type 'string' was found on type '{ "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u0634\u0631\u0642\u06CC": string[]; "\u0622\u0630\u0631\u0628\u0627\u06CC\u062C\u0627\u0646 \u063A\u0631\u0628\u06CC": string[]; ╪º╪▒╪»╪¿█î┘ä: string[]; ╪º╪╡┘ü┘ç╪º┘å: string[]; ╪º┘ä╪¿╪▒╪▓: string[]; ╪º█î┘ä╪º┘à: string[]; ╪¿┘ê╪┤┘ç╪▒: string[]; ╪¬┘ç╪▒╪º┘å: string[]; "\u062E\u0631\u0627\u0633...'.
+app/profile/addresses/CitySelect.tsx(28,24): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/profile/orders/[id]/page.tsx(47,14): error TS2339: Property 'order' does not exist on type 'Order'.
+app/profile/orders/[id]/page.tsx(66,22): error TS2339: Property 'order' does not exist on type 'Order'.
+app/profile/wishlist/page.tsx(126,30): error TS2339: Property 'variants' does not exist on type '{ id: number; name: string; slug: string; imageUrl: string | null; price: string; soldCount: number; wishlistCount: number; isBlock: boolean; category: { id: number; name: string; }; brand: { id: number; name: string; }; }'.
+app/profile/wishlist/page.tsx(127,54): error TS7006: Parameter 'v' implicitly has an 'any' type.
+app/providers.tsx(24,11): error TS2353: Object literal may only specify known properties, and 'error' does not exist in type 'ToastOptions'.
+app/search/SearchClient.tsx(91,9): error TS2322: Type '{ id: number; name: string; slug: string; sku: string; description: string; imageUrl: string | null; isBlock: boolean; brandId: null; categoryId: number; category: { id: number; name: string; slug: string; } | null; variants: { ...; }[]; }[]' is not assignable to type 'Product[]'.
+  Type '{ id: number; name: string; slug: string; sku: string; description: string; imageUrl: string | null; isBlock: boolean; brandId: null; categoryId: number; category: { id: number; name: string; slug: string; } | null; variants: { ...; }[]; }' is not assignable to type 'Product'.
+    Types of property 'brandId' are incompatible.
+      Type 'null' is not assignable to type 'number'.
+app/search/SearchClient.tsx(219,11): error TS2322: Type 'SortType' is not assignable to type 'ProductSort'.
+  Type '"newest"' is not assignable to type 'ProductSort'.
+app/search/SearchClient.tsx(220,11): error TS2322: Type '(newSort: SortType) => void' is not assignable to type '(s: ProductSort) => void'.
+  Types of parameters 'newSort' and 's' are incompatible.
+    Type 'ProductSort' is not assignable to type 'SortType'.
+      Type '"latest"' is not assignable to type 'SortType'.
+lib/hooks/useAddToCart.ts(5,15): error TS2305: Module '"@/lib/types/cart"' has no exported member 'Cart'.
+lib/hooks/useAddToCart.ts(48,11): error TS2322: Type 'number' is not assignable to type 'string'.
+lib/hooks/useAddToCart.ts(49,11): error TS2322: Type 'undefined' is not assignable to type '{ id: number; name: string; imageUrl: string | null; price: string | null; brandId: number; categoryId: number; }'.
+lib/hooks/useAddToCart.ts(50,11): error TS2322: Type 'undefined' is not assignable to type '{ id: number; productId: number; packageQuantity: number; packageType: string | null; price: string; discountPrice: string | null; stock: number; expiryDate: string | null; flavor: string | null; }'.
+lib/hooks/useAddToCart.ts(95,41): error TS7006: Parameter 'x' implicitly has an 'any' type.
+lib/hooks/useAddToCart.ts(131,38): error TS7006: Parameter 'x' implicitly has an 'any' type.
+lib/hooks/useAuth.ts(59,5): error TS2769: No overload matches this call.
+  Overload 3 of 3, '(options: UseQueryOptions<User | null, AxiosError<ApiErrorResponse, any>, User | null, QueryKey>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<authApi.AuthResponse>' is not assignable to type 'unique symbol | QueryFunction<User | null, QueryKey, never> | undefined'.
+      Type '() => Promise<authApi.AuthResponse>' is not assignable to type 'QueryFunction<User | null, QueryKey, never>'.
+        Type 'Promise<AuthResponse>' is not assignable to type 'User | Promise<User | null> | null'.
+          Type 'Promise<AuthResponse>' is not assignable to type 'Promise<User | null>'.
+            Type 'AuthResponse' is missing the following properties from type 'User': id, phone, name, role
+lib/hooks/useAuth.ts(98,25): error TS2339: Property 'login' does not exist on type 'typeof import("F:/programing/pharmacy-shop/frontend/lib/api/auth")'.
+lib/hooks/useOrders.ts(21,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<Order[], Error, Order[], QueryKey>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'unique symbol | QueryFunction<Order[], QueryKey, never> | undefined'.
+      Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'QueryFunction<Order[], QueryKey, never>'.
+        Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Order[] | Promise<Order[]>'.
+          Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Promise<Order[]>'.
+            Type '{ orders: Order[]; }' is missing the following properties from type 'Order[]': length, pop, push, concat, and 35 more.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<Order[], Error, Order[], QueryKey>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'unique symbol | QueryFunction<Order[], QueryKey, never> | undefined'.
+      Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'QueryFunction<Order[], QueryKey, never>'.
+        Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Order[] | Promise<Order[]>'.
+          Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Promise<Order[]>'.
+            Type '{ orders: Order[]; }' is missing the following properties from type 'Order[]': length, pop, push, concat, and 35 more.
+  Overload 3 of 3, '(options: UseQueryOptions<Order[], Error, Order[], QueryKey>, queryClient?: QueryClient | undefined): UseQueryResult<Order[], Error>', gave the following error.
+    Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'unique symbol | QueryFunction<Order[], QueryKey, never> | undefined'.
+      Type '() => Promise<{ orders: Order[]; }>' is not assignable to type 'QueryFunction<Order[], QueryKey, never>'.
+        Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Order[] | Promise<Order[]>'.
+          Type 'Promise<{ orders: Order[]; }>' is not assignable to type 'Promise<Order[]>'.
+            Type '{ orders: Order[]; }' is missing the following properties from type 'Order[]': length, pop, push, concat, and 35 more.
+lib/hooks/useOrders.ts(34,5): error TS2322: Type '(payload: { addressId: number; shippingCost: number; }) => Promise<{ success: boolean; order: Order; }>' is not assignable to type 'MutationFunction<Order, { addressId: number; shippingCost: number; }>'.
+  Type 'Promise<{ success: boolean; order: Order; }>' is not assignable to type 'Promise<Order>'.
+    Type '{ success: boolean; order: Order; }' is missing the following properties from type 'Order': id, userId, addressId, status, and 10 more.
+lib/types/product.ts(2,15): error TS2440: Import declaration conflicts with local declaration of 'ProductVariant'.
+src/components/admin/orders/AdminOrderCard.tsx(174,33): error TS2339: Property 'imageUrl' does not exist on type '{ id: number; name: string; slug: string; image: string; brand?: { name: string; } | undefined; category?: { name: string; } | undefined; }'.
+src/components/admin/orders/AdminOrderCard.tsx(175,36): error TS2339: Property 'imageUrl' does not exist on type '{ id: number; name: string; slug: string; image: string; brand?: { name: string; } | undefined; category?: { name: string; } | undefined; }'.
+src/components/admin/orders/AdminOrderCard.tsx(176,38): error TS2339: Property 'imageUrl' does not exist on type '{ id: number; name: string; slug: string; image: string; brand?: { name: string; } | undefined; category?: { name: string; } | undefined; }'.
+src/components/admin/orders/AdminOrderCard.tsx(177,44): error TS2339: Property 'imageUrl' does not exist on type '{ id: number; name: string; slug: string; image: string; brand?: { name: string; } | undefined; category?: { name: string; } | undefined; }'.
+src/components/admin/orders/AdminOrderCard.tsx(277,13): error TS2353: Object literal may only specify known properties, and 'note' does not exist in type 'CreateRefundPayload'.
+src/components/header/CartWrapper.tsx(19,12): error TS2739: Type '{}' is missing the following properties from type 'CartPreviewProps': isLoggedIn, onLoginRequired
+src/components/header/HeaderMenu.tsx(54,13): error TS2322: Type '(el: HTMLDivElement | null) => HTMLDivElement | null' is not assignable to type 'Ref<HTMLDivElement> | undefined'.
+  Type '(el: HTMLDivElement | null) => HTMLDivElement | null' is not assignable to type '(instance: HTMLDivElement | null) => void | (() => VoidOrUndefinedOnly)'.
+    Type 'HTMLDivElement | null' is not assignable to type 'void | (() => VoidOrUndefinedOnly)'.
+      Type 'null' is not assignable to type 'void | (() => VoidOrUndefinedOnly)'.
+src/components/header/MegaMenu.tsx(165,16): error TS18048: 'category.subCategories' is possibly 'undefined'.
+src/components/header/MegaMenu.tsx(177,12): error TS18048: 'category.subCategories' is possibly 'undefined'.
+src/components/inputs/CategorySelectSearch.tsx(87,13): error TS2322: Type 'Category[] | Category[]' is not assignable to type 'readonly Category[]'.
+  Type 'Category[]' is not assignable to type 'readonly Category[]'.
+    Type 'import("F:/programing/pharmacy-shop/frontend/lib/types/category").Category' is not assignable to type 'import("F:/programing/pharmacy-shop/frontend/lib/api/category").Category'.
+      Types of property 'slug' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+src/components/inputs/CategorySelectSearch.tsx(88,13): error TS2322: Type 'Category | Category | null' is not assignable to type 'Category | null | undefined'.
+  Type 'import("F:/programing/pharmacy-shop/frontend/lib/types/category").Category' is not assignable to type 'import("F:/programing/pharmacy-shop/frontend/lib/api/category").Category'.
+    Types of property 'slug' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/inputs/RichTextEditor.tsx(6,15): error TS2614: Module '"react-quill-new"' has no exported member 'ReactQuillProps'. Did you mean to use 'import ReactQuillProps from "react-quill-new"' instead?
+src/components/PaymentSummary.tsx(12,27): error TS2339: Property 'items' does not exist on type 'CartItem'.
+src/components/PaymentSummary.tsx(13,6): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/components/PaymentSummary.tsx(13,11): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/PaymentSummary.tsx(17,30): error TS2339: Property 'items' does not exist on type 'CartItem'.
+src/components/PaymentSummary.tsx(17,44): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/components/PaymentSummary.tsx(17,49): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/products/AddProductForm.tsx(48,5): error TS2322: Type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }>' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }>'.
+  Types of parameters 'values' and 'values' are incompatible.
+    Type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }' is not assignable to type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+      Types of property 'variants' are incompatible.
+        Type '{ packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]' is not assignable to type '{ packageQuantity: number; packageType: string; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | undefined; }[]'.
+          Type '{ packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }' is not assignable to type '{ packageQuantity: number; packageType: string; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | undefined; }'.
+            Types of property 'price' are incompatible.
+              Type 'number' is not assignable to type 'string'.
+src/components/products/AddProductForm.tsx(71,9): error TS2322: Type '{ packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate: string | undefined; }[] | { packageQuantity: number; packageType: string; price: string; stock: number; discountPrice: string; expiryDate: undefined; }[]' is not assignable to type '({ packageQuantity?: number | undefined; packageType?: string | undefined; price?: number | undefined; discountPrice?: number | undefined; stock?: number | undefined; expiryDate?: string | undefined; flavor?: string | undefined; } | undefined)[] | undefined'.
+  Type '{ packageQuantity: number; packageType: string; price: string; stock: number; discountPrice: string; expiryDate: undefined; }[]' is not assignable to type '({ packageQuantity?: number | undefined; packageType?: string | undefined; price?: number | undefined; discountPrice?: number | undefined; stock?: number | undefined; expiryDate?: string | undefined; flavor?: string | undefined; } | undefined)[]'.
+    Type '{ packageQuantity: number; packageType: string; price: string; stock: number; discountPrice: string; expiryDate: undefined; }' is not assignable to type '{ packageQuantity?: number | undefined; packageType?: string | undefined; price?: number | undefined; discountPrice?: number | undefined; stock?: number | undefined; expiryDate?: string | undefined; flavor?: string | undefined; }'.
+      Types of property 'price' are incompatible.
+        Type 'string' is not assignable to type 'number'.
+src/components/products/AddProductForm.tsx(72,11): error TS18048: 'initialData.variants' is possibly 'undefined'.
+src/components/products/AddProductForm.tsx(73,15): error TS18048: 'initialData.variants' is possibly 'undefined'.
+src/components/products/AddProductForm.tsx(103,9): error TS2353: Object literal may only specify known properties, and 'imageUrl' does not exist in type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; } | { ...; } | ResetAction<...>'.
+src/components/products/AddProductForm.tsx(136,38): error TS2345: Argument of type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }' is not assignable to parameter of type 'CreateProductDTO'.
+  Types of property 'slug' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/components/products/AddProductForm.tsx(164,32): error TS2345: Argument of type '(data: CreateProductDTO) => void' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+      Type 'FieldValues' is missing the following properties from type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }': name, sku, variants
+src/components/products/AddProductForm.tsx(218,19): error TS2322: Type '{ value: number | undefined; onChange: (...event: any[]) => void; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'value' does not exist on type 'IntrinsicAttributes'.
+src/components/products/AddProductForm.tsx(228,27): error TS2322: Type 'Control<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues>' is not assignable to type 'Control<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }>'.
+  The types of '_options.resolver' are incompatible between these types.
+    Type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues> | undefined' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }> | undefined'.
+      Type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues>' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }>'.
+        Type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, TFieldValues> | Promise<...>' is not assignable to type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, { ...; }> | Promise<...>'.
+          Type 'ResolverSuccess<TFieldValues>' is not assignable to type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, { ...; }> | Promise<...>'.
+            Type 'ResolverSuccess<TFieldValues>' is not assignable to type 'ResolverSuccess<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }>'.
+              Type 'TFieldValues' is not assignable to type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+                Type 'FieldValues' is missing the following properties from type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }': name, sku, variants
+src/components/products/AddProductForm.tsx(440,21): error TS2322: Type '`variants.${number}.images`' is not assignable to type '"name" | "slug" | "sku" | "description" | "brandId" | "categoryId" | "isBlock" | "variants" | "image" | `image.${string}` | `variants.${number}` | `variants.${number}.packageQuantity` | `variants.${number}.packageType` | `variants.${number}.price` | `variants.${number}.discountPrice` | `variants.${number}.stock` | `...'.
+src/components/products/EditProductForm.tsx(33,5): error TS2322: Type 'Resolver<{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: unknown; categoryId?: unknown; isBlock?: boolean | undefined; imageUrl?: any; }, any, { name: string; sku: string; ... 5 more ...; imageUrl?: any; }>' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }>'.
+  Types of parameters 'options' and 'options' are incompatible.
+    Type 'ResolverOptions<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }>' is not assignable to type 'ResolverOptions<{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: unknown; categoryId?: unknown; isBlock?: boolean | undefined; imageUrl?: any; }>'.
+      Property 'variants' is missing in type '{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: unknown; categoryId?: unknown; isBlock?: boolean | undefined; imageUrl?: any; }' but required in type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+src/components/products/EditProductForm.tsx(41,7): error TS2353: Object literal may only specify known properties, and 'imageUrl' does not exist in type '{ name?: string | undefined; sku?: string | undefined; variants?: ({ packageQuantity?: number | undefined; packageType?: string | undefined; price?: number | undefined; discountPrice?: number | undefined; stock?: number | undefined; expiryDate?: string | undefined; flavor?: string | undefined; } | undefined)[] | und...'.
+src/components/products/EditProductForm.tsx(58,7): error TS2353: Object literal may only specify known properties, and 'imageUrl' does not exist in type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; } | { ...; } | ResetAction<...>'.
+src/components/products/EditProductForm.tsx(77,16): error TS2339: Property 'imageUrl' does not exist on type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+src/components/products/EditProductForm.tsx(78,42): error TS2339: Property 'imageUrl' does not exist on type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+src/components/products/EditProductForm.tsx(79,45): error TS2339: Property 'imageUrl' does not exist on type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+src/components/products/EditProductForm.tsx(100,59): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: number | undefined; categoryId?: number | undefined; isBlock?: boolean | undefined; imageUrl?: any; }>'.
+src/components/products/EditProductForm.tsx(103,34): error TS2345: Argument of type '{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: number | undefined; categoryId?: number | undefined; isBlock?: boolean | undefined; imageUrl?: any; }' is not assignable to parameter of type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+  Property 'variants' is missing in type '{ name: string; sku: string; slug?: string | undefined; description?: string | undefined; brandId?: number | undefined; categoryId?: number | undefined; isBlock?: boolean | undefined; imageUrl?: any; }' but required in type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+src/components/products/EditProductForm.tsx(115,32): error TS2345: Argument of type '(data: CreateProductDTO) => Promise<string | number | undefined>' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+      Type 'FieldValues' is missing the following properties from type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }': name, sku, variants
+src/components/products/EditProductForm.tsx(164,19): error TS2322: Type '{ value: number | undefined; onChange: (val: any) => void; defaultValue: number; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'value' does not exist on type 'IntrinsicAttributes'.
+src/components/products/EditProductForm.tsx(165,30): error TS7006: Parameter 'val' implicitly has an 'any' type.
+src/components/products/EditProductForm.tsx(177,13): error TS2322: Type 'Control<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues>' is not assignable to type 'Control<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }>'.
+  The types of '_options.resolver' are incompatible between these types.
+    Type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues> | undefined' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }> | undefined'.
+      Type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, TFieldValues>' is not assignable to type 'Resolver<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, any, { ...; }>'.
+        Type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, TFieldValues> | Promise<...>' is not assignable to type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, { ...; }> | Promise<...>'.
+          Type 'ResolverSuccess<TFieldValues>' is not assignable to type 'ResolverResult<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }, { ...; }> | Promise<...>'.
+            Type 'ResolverSuccess<TFieldValues>' is not assignable to type 'ResolverSuccess<{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }>'.
+              Type 'TFieldValues' is not assignable to type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }'.
+                Type 'FieldValues' is missing the following properties from type '{ name: string; sku: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | undefined; }[]; ... 5 more ...; image?: any; }': name, sku, variants
+src/components/products/ProductEditModal.tsx(3,42): error TS2304: Cannot find name 'product'.
+src/components/products/ProductInfoCard.tsx(5,8): error TS1192: Module '"F:/programing/pharmacy-shop/frontend/src/components/products/ProductEditModal"' has no default export.
+src/components/products/ProductsGrid.tsx(234,29): error TS18048: 'p.category' is possibly 'undefined'.
+src/components/products/ProductsGrid.tsx(235,31): error TS18048: 'p.category' is possibly 'undefined'.
+src/components/products/ProductsListingLayout.tsx(49,28): error TS2322: Type 'ProductSort' is not assignable to type 'SortType'.
+  Type '"latest"' is not assignable to type 'SortType'.
+src/components/products/ProductsListingLayout.tsx(49,40): error TS2322: Type '(s: ProductSort) => void' is not assignable to type '(sort: SortType) => void'.
+  Types of parameters 's' and 'sort' are incompatible.
+    Type 'SortType' is not assignable to type 'ProductSort'.
+      Type '"newest"' is not assignable to type 'ProductSort'.
+src/components/products/VariantList.tsx(66,39): error TS2339: Property 'toLocaleString' does not exist on type 'never'.
+src/components/products/VariantList.tsx(72,49): error TS2339: Property 'toLocaleString' does not exist on type 'never'.
+src/components/products/VariantModal.tsx(39,5): error TS2322: Type 'Resolver<{ packageType: string; packageQuantity: number; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | null | undefined; }, any, { ...; }>' is not assignable to type 'Resolver<{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | null | undefined; }, any, { ...; }>'.
+  Types of parameters 'values' and 'values' are incompatible.
+    Type '{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | null | undefined; }' is not assignable to type '{ packageType: string; packageQuantity: number; price: string; stock: number; discountPrice?: string | undefined; expiryDate?: string | undefined; flavor?: string | null | undefined; }'.
+      Types of property 'price' are incompatible.
+        Type 'number' is not assignable to type 'string'.
+src/components/products/VariantModal.tsx(40,5): error TS2322: Type '{ packageType: string; packageQuantity: number; price: string; discountPrice: string | undefined; stock: number; expiryDate: string; flavor: string | undefined; }' is not assignable to type 'AsyncDefaultValues<{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | null | undefined; }> | { ...; } | undefined'.
+  Types of property 'price' are incompatible.
+    Type 'string' is not assignable to type 'number'.
+src/components/products/VariantModal.tsx(88,34): error TS2345: Argument of type '{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate: string | undefined; flavor: string | undefined; id: number; }' is not assignable to parameter of type 'UpdateVariantParams'.
+  Property 'payload' is missing in type '{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate: string | undefined; flavor: string | undefined; id: number; }' but required in type 'UpdateVariantParams'.
+src/components/products/VariantModal.tsx(94,31): error TS2345: Argument of type '{ productId: number; packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate: string | undefined; flavor: string | undefined; }' is not assignable to parameter of type 'Omit<ProductVariant, "id" | "createdAt" | "updatedAt">'.
+  Types of property 'price' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+src/components/products/VariantModal.tsx(188,59): error TS2345: Argument of type '(data: CreateVariantDTO) => Promise<void>' is not assignable to parameter of type 'SubmitHandler<TFieldValues>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'TFieldValues' is not assignable to type '{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | null | undefined; }'.
+      Type 'FieldValues' is missing the following properties from type '{ packageType: string; packageQuantity: number; price: number; discountPrice: number | undefined; stock: number; expiryDate?: string | undefined; flavor?: string | null | undefined; }': packageType, packageQuantity, price, discountPrice, stock
+src/components/WishlistButton.tsx(8,3): error TS7031: Binding element 'productId' implicitly has an 'any' type.
+src/dev/createDummyProducts.ts(37,31): error TS2345: Argument of type '{ name: string; sku: string; description: string; brandId: number; categoryId: number; isBlock: boolean; imageUrl: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number; stock: number; flavor: string; expiryDate: string; }[]; }' is not assignable to parameter of type 'CreateProductDTO'.
+  Property 'slug' is missing in type '{ name: string; sku: string; description: string; brandId: number; categoryId: number; isBlock: boolean; imageUrl: string; variants: { packageQuantity: number; packageType: string; price: number; discountPrice: number; stock: number; flavor: string; expiryDate: string; }[]; }' but required in type 'CreateProductDTO'.

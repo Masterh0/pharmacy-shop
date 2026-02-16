@@ -120,3 +120,9 @@ export const checkRole =
 
     next();
   };
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user || req.user.role !== "ADMIN") {
+    return res.status(403).json({ message: "دسترسی مجاز نیست" });
+  }
+  next();
+};

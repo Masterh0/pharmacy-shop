@@ -537,9 +537,6 @@ const logout = async (req: Request, res: Response) => {
 
 /* ------------------ ME ------------------ */
 const me = async (req: Request, res: Response) => {
-  console.log("🧠 /me called");
-  console.log("👤 req.user:", req.user);
-
   const userPayload = req.user as { id: number; role: string };
 
   if (!userPayload?.id) {
@@ -563,6 +560,112 @@ const me = async (req: Request, res: Response) => {
 
   return res.status(200).json({ user });
 };
+/* ------------------ UPDATE PROFILE ------------------ */
+const updateProfile = async (req: Request, res: Response) => {
+  try {
+    // فرض بر این است که میدلور احراز هویت، اطلاعات کاربر را در req.user قرار داده است
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { name, email } = req.body;
+
+    // بررسی تکراری نبودن ایمیل (اگر ایمیل جدید وارد شده باشد)
+    if (email) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email: email,
+          NOT: { id: userId }, // ایمیل متعلق به خود کاربر نباشد
+        },
+      });
+      if (existingUser) {
+        return res.status(400).json({ error: "این ایمیل قبلاً ثبت شده است." });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: name || undefined, // اگر ارسال نشده بود تغییر نده
+        email: email || undefined,
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    return res
+      .status(200)
+      .json({ message: "پروفایل با موفقیت بروزرسانی شد.", user: updatedUser });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    return res.status(500).json({ error: "خطا در بروزرسانی پروفایل." });
+  }
+};
+
+/* ------------------ CHANGE PASSWORD ------------------ */
+const changePassword = async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { currentPassword, newPassword } = req.body;
+
+    // ۱. اعتبارسنجی پسورد جدید
+    if (!newPassword || newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "رمز عبور جدید باید حداقل ۶ کاراکتر باشد." });
+    }
+
+    // جلوگیری از پسورد فارسی
+    if (/[\u0600-\u06FF]/.test(newPassword)) {
+      return res.status(400).json({
+        error: "رمز عبور باید با حروف انگلیسی وارد شود",
+      });
+    }
+
+    // ۲. دریافت اطلاعات کاربر از دیتابیس
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: "کاربر یافت نشد." });
+
+    // ۳. بررسی هوشمند: آیا کاربر قبلاً پسورد داشته است؟
+    if (user.hasPassword && user.password) {
+      // حالت الف: کاربر پسورد دارد (باید پسورد قبلی را درست وارد کند)
+      if (!currentPassword) {
+        return res.status(400).json({
+          error:
+            "شما قبلاً رمز عبور تعیین کرده‌اید، لطفاً رمز فعلی را وارد کنید.",
+        });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: "رمز عبور فعلی اشتباه است." });
+      }
+    }
+    // حالت ب: کاربر پسورد ندارد (با OTP آمده) -> از شرط بالا رد می‌شود و مستقیم به مرحله هش کردن می‌رود
+
+    // ۴. هش کردن و ذخیره پسورد جدید
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        hasPassword: true, // حالا دیگر کاربر دارای پسورد است
+      },
+    });
+
+    return res.status(200).json({ message: "رمز عبور با موفقیت ثبت شد." });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ error: "خطا در تغییر رمز عبور." });
+  }
+};
 
 export {
   register,
@@ -573,4 +676,6 @@ export {
   refresh,
   logout,
   me,
+  updateProfile,
+  changePassword,
 };

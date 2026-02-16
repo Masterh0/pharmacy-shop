@@ -1,26 +1,38 @@
 // src/routes/product.routes.ts
-
 import { Router } from "express";
 import * as productController from "../controllers/productController";
-import upload from "../middlewares/upload"; // ✅ مسیر صحیح فایل Multer middleware
-import express from "express";
+import upload from "../middlewares/upload";
+import { verifyAccessToken } from "../middlewares/auth"; // ✅ احراز هویت
+import { isAdmin } from "../middlewares/auth"; // ✅ بررسی ادمین
 
-const router = express.Router();
+const router = Router();
 
-// گرفتن همه محصولات
+// ✅ عمومی (بدون نیاز به لاگین)
 router.get("/", productController.getAll);
-
-// گرفتن محصول بر اساس id
 router.get("/:id", productController.getById);
-
-// ایجاد محصول جدید
-router.post("/", upload.single("image"), productController.create);
-
-// ویرایش کامل محصول
-router.put("/:id", upload.single("imageUrl"), productController.update);
-// حذف محصول
-router.delete("/:id", productController.remove);
 router.post("/:id/view", productController.increaseViewCount);
-router.patch("/:id/block", productController.blockProduct);
-router.get("/admin/all", productController.getAllForAdmin);
+
+// 🔒 فقط ادمین
+router.post(
+  "/",
+  verifyAccessToken,
+  isAdmin,
+  upload.single("image"),
+  productController.create
+);
+
+router.put(
+  "/:id",
+  verifyAccessToken,
+  isAdmin,
+  upload.single("imageUrl"),
+  productController.update
+);
+
+router.delete("/:id", verifyAccessToken, isAdmin, productController.remove);
+
+router.patch("/:id/block", verifyAccessToken, isAdmin, productController.blockProduct);
+
+router.get("/admin/all", verifyAccessToken, isAdmin, productController.getAllForAdmin);
+
 export default router;

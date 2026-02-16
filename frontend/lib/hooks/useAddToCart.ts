@@ -29,9 +29,9 @@ export function useCart() {
       variantId: number;
       quantity: number;
     }) => {
-    console.log("🚀 Sending to API:", payload); // ✅ چک کنید
-    return cartApi.add(payload);
-  },
+      console.log("🚀 Sending to API:", payload); // ✅ چک کنید
+      return cartApi.add(payload);
+    },
 
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: ["cart"] });
@@ -59,10 +59,15 @@ export function useCart() {
       return { previous };
     },
 
-    onError: (_err, _payload, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(["cart"], ctx.previous);
+    onError: (err: any, _payload, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(["cart"], ctx.previous);
+      }
 
-      toast.error("مشکلی پیش آمد. دوباره امتحان کنید.");
+      const message =
+        err?.response?.data?.error ?? "مشکلی پیش آمد. دوباره امتحان کنید.";
+
+      toast.error(message);
     },
 
     onSuccess: () => {

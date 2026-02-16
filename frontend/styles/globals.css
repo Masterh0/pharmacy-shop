@@ -5,6 +5,7 @@
 /* فونت و کتابخانه‌های خارجی باید قبل از Tailwind باشند */
 @import "@fontsource-variable/vazirmatn";
 @import "react-quill-new/dist/quill.snow.css";
+@import "react-multi-date-picker/styles/backgrounds/bg-dark.css";
 
 /* -------------------------- */
 /* ✅ Tailwind layers */

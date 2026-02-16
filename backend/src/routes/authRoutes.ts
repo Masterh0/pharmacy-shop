@@ -8,10 +8,16 @@ import {
   verifyLoginOtp,
   refresh,
   logout,
-  me
+  me,
+  changePassword,
+  updateProfile,
 } from "../controllers/authController";
 
-import { verifyAccessToken, verifyRefreshToken, checkRole } from "../middlewares/auth";
+import {
+  verifyAccessToken,
+  verifyRefreshToken,
+  checkRole,
+} from "../middlewares/auth";
 import { cartIdentity } from "../middlewares/cartIdentity";
 
 const router = Router();
@@ -38,6 +44,8 @@ router.post("/login/verify-otp", verifyLoginOtp);
 router.post("/refresh", refresh);
 router.post("/logout", verifyAccessToken, logout);
 router.get("/me", verifyAccessToken, me);
+router.put("/profile", verifyAccessToken, updateProfile);
+router.put("/change-password", verifyAccessToken, changePassword);
 // -----------------------------
 // مسیر تست فقط برای ADMINS
 // -----------------------------

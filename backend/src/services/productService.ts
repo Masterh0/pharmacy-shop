@@ -18,7 +18,15 @@ export const productService = {
       include: {
         brand: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
-        variants: true,
+        variants: {
+          include: {
+            images: {
+              // ⭐⭐⭐ این خط رو اضافه کن!
+              orderBy: { displayOrder: "asc" },
+            },
+          },
+          orderBy: [{ flavor: "asc" }, { packageQuantity: "asc" }],
+        },
       },
     });
 
@@ -106,8 +114,6 @@ export const productService = {
         },
       });
 
-      console.log("🎯 محصول ساخته شد:", product);
-
       // 🧩 ساخت واریانت
       const variantRecord = await prisma.productVariant.create({
         data: {
@@ -123,7 +129,16 @@ export const productService = {
           flavor: variant.flavor ?? null,
         },
       });
-
+      if (variant.images && Array.isArray(variant.images)) {
+        await prisma.productImage.createMany({
+          data: variant.images.map((url: string, index: number) => ({
+            variantId: variantRecord.id,
+            url,
+            displayOrder: index,
+            isPrimary: index === 0, // اولین عکس primary
+          })),
+        });
+      }
       console.log("📦 واریانت ثبت شد:", variantRecord);
 
       // 🧾 بازگرداندن محصول با واریانت‌هایش
@@ -238,9 +253,8 @@ export const productService = {
         where: { id },
         data: { viewCount: { increment: 1 } },
         select: { id: true, name: true, viewCount: true },
-        
       });
-      console.log(updated)
+      console.log(updated);
       return updated;
     } catch (error) {
       if (
@@ -271,31 +285,31 @@ export const productService = {
     }
   },
   block: async (id: number, isBlock: boolean) => {
-  const product = await prisma.product.findUnique({
-    where: { id },
-    select: { id: true, isBlock: true },
-  });
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true, isBlock: true },
+    });
 
-  if (!product) {
-    throw new NotFoundError(`Product with ID ${id} not found.`);
-  }
+    if (!product) {
+      throw new NotFoundError(`Product with ID ${id} not found.`);
+    }
 
-  if (product.isBlock === isBlock) {
-    throw new BadRequestError(
-      isBlock ? "محصول از قبل بلاک است." : "محصول از قبل فعال است."
-    );
-  }
+    if (product.isBlock === isBlock) {
+      throw new BadRequestError(
+        isBlock ? "محصول از قبل بلاک است." : "محصول از قبل فعال است."
+      );
+    }
 
-  const updated = await prisma.product.update({
-    where: { id },
-    data: { isBlock },
-    select: {
-      id: true,
-      name: true,
-      isBlock: true,
-    },
-  });
+    const updated = await prisma.product.update({
+      where: { id },
+      data: { isBlock },
+      select: {
+        id: true,
+        name: true,
+        isBlock: true,
+      },
+    });
 
-  return updated;
-},
+    return updated;
+  },
 };

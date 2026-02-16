@@ -1,5 +1,6 @@
 // src/services/cart.service.ts
 import { prisma } from "../config/db";
+import { BusinessError } from "./errors/BusinessError";
 
 export class CartService {
   /**
@@ -19,7 +20,7 @@ export class CartService {
         cart = await prisma.cart.create({ data: { sessionId } });
       }
     } else {
-      throw new Error("UserId or sessionId is required");
+      throw new BusinessError("شناسه کاربر یا نشست نامعتبر است", 400);
     }
 
     return cart;
@@ -43,7 +44,22 @@ export class CartService {
   }) {
     const cart = await this.getOrCreateCart(userId, sessionId);
 
-    // چک اگر آیتم از قبل وجود دارد
+    // 🔍 چک واریانت و موجودی
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: variantId },
+      select: {
+        id: true,
+        price: true,
+        stock: true,
+        flavor: true,
+      },
+    });
+
+    if (!variant) {
+      throw new BusinessError("واریانت مورد نظر یافت نشد");
+    }
+
+    // چک آیتم موجود در سبد
     const existingItem = await prisma.cartItem.findUnique({
       where: {
         cartId_variantId: {
@@ -53,28 +69,33 @@ export class CartService {
       },
     });
 
+    const currentCartQuantity = existingItem?.quantity || 0;
+    const totalRequested = currentCartQuantity + quantity;
+
+    // 🔍 چک موجودی کل
+    if (variant.stock < totalRequested) {
+      throw new BusinessError(
+        `موجودی کافی نیست! موجودی فعلی: ${variant.stock} - در سبد: ${currentCartQuantity}`,
+        422 // یا 409 اگر تداخل
+      );
+    }
+
+    // اگه از قبل داشتیم، افزایش بده
     if (existingItem) {
       return prisma.cartItem.update({
         where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + quantity },
+        data: { quantity: totalRequested },
       });
     }
 
-    const variant = await prisma.productVariant.findUnique({
-      where: { id: variantId },
-    });
-
-    if (!variant) {
-      throw new Error("Variant not found");
-    }
-
+    // ایجاد آیتم جدید
     return prisma.cartItem.create({
       data: {
         cartId: cart.id,
         productId,
         variantId,
         quantity,
-        priceAtAdd: variant.price, // قیمت ثابت در هنگام افزودن
+        priceAtAdd: variant.price,
       },
     });
   }
@@ -120,8 +141,32 @@ export class CartService {
    */
   async updateItemQuantity(itemId: number, quantity: number) {
     if (quantity < 1) {
-      // اگر کم‌تر از 1 بود، به‌جای آپدیت کردن، آیتم حذف شود
       return this.removeItem(itemId);
+    }
+
+    // پیدا کردن آیتم
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: itemId },
+      include: {
+        variant: {
+          select: {
+            stock: true,
+            flavor: true,
+          },
+        },
+      },
+    });
+
+    if (!cartItem) {
+      throw new BusinessError("آیتم در سبد یافت نشد");
+    }
+
+    // 🔍 چک موجودی
+    if (cartItem.variant.stock < quantity) {
+      throw new BusinessError(
+        `موجودی کافی نیست! موجودی فعلی: ${cartItem.variant.stock}`,
+        422
+      );
     }
 
     return prisma.cartItem.update({
@@ -129,6 +174,7 @@ export class CartService {
       data: { quantity },
     });
   }
+
   async mergeGuestCartToUserCart(sessionId: string, userId: number) {
     if (!sessionId || !userId) {
       console.log("mergeGuestCartToUserCart: Missing sessionId or userId");
