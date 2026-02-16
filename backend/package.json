@@ -40,10 +40,10 @@
     "dev": "ts-node-dev --respawn index.ts",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "postinstall": "npx prisma generate"
+    "prisma:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "schema": "./prisma/schema.prisma"
   }
 }

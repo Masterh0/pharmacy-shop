@@ -1,0 +1,12 @@
+{
+  "platform": "node",
+  "node": { "version": "22" },
+  "app": "pharmacy-backend",
+  "port": 3000,
+  "build": {
+    "command": "npx prisma generate && npx prisma migrate deploy && npm run build"
+  },
+  "run": {
+    "command": "npm start"
+  }
+}
