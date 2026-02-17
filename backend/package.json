@@ -36,14 +36,14 @@
   },
   "scripts": {
     "start": "node dist/index.js",
-    "build": "npx tsc && npx prisma generate && node -e \"require('fs').mkdirSync('dist/uploads',{recursive:true})\"",
+    "build": "npx prisma generate && npx tsc && node -e \"require('fs').mkdirSync('dist/uploads',{recursive:true})\"",
     "dev": "ts-node-dev --respawn index.ts",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts",
-    "schema": "./prisma/schema.prisma"
+    "schema": "./prisma/schema.prisma",
+    "seed": "tsx prisma/seed.ts"
   }
 }
