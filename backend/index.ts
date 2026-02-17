@@ -42,17 +42,10 @@ const allowedOrigins = [
  *
  * @see BROWSER_COMPATIBILITY.md برای جزئیات بیشتر
  */
+
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // برای Edge و مرورگرهای دیگر - بررسی دقیق origin
-      if (!origin) return callback(null, true);
-      const isAllowed =
-        origin === "http://localhost:3000" ||
-        origin.startsWith("http://localhost:3000") ||
-        allowedOrigins.some((o) => origin === o || origin.startsWith(o + "/"));
-      callback(isAllowed ? null : new Error("Not allowed by CORS"));
-    },
+    origin: allowedOrigins,
     credentials: true, // اجازه ارسال کوکی‌ها
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
