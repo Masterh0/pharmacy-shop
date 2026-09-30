@@ -5,8 +5,7 @@ import EditProductForm from "@/src/components/products/EditProductForm";
 import VariantsTable from "./VariantsTable";
 import { productApi } from "@/lib/api/products";
 import { variantApi } from "@/lib/api/variantApi";
-import AddProductForm from "@/src/components/products/AddProductForm";
-import { createDummyProducts } from "@/src/dev/createDummyProducts";
+import VariantsManager from "@/src/components/forms/VariantsManager";
 
 export default function EditProductPage() {
   const { id } = useParams();
@@ -23,9 +22,7 @@ export default function EditProductPage() {
   const { data: variants, isLoading: loadingVariants } = useQuery({
     queryKey: ["product-variants", productId],
     queryFn: async () => {
-      console.log("🔍 Fetching variants for product:", productId);
       const result = await variantApi.getAllByProductId(productId);
-      console.log("📦 Variants received:", result);
       return result;
     },
     enabled: !!productId,
@@ -38,21 +35,12 @@ export default function EditProductPage() {
   if (!product) {
     return <div className="p-10 text-red-600">محصول پیدا نشد 😕</div>;
   }
-  console.log(variants);
   return (
     <div className="p-10 space-y-8">
       {/* فرم اطلاعات اصلی محصول */}
       <EditProductForm initialData={product} />
-      <div className="p-8">
-        <button
-          onClick={createDummyProducts}
-          className="bg-[#0077B6] text-white px-6 py-3 rounded-lg hover:bg-[#009DC1] transition-all"
-        >
-          🚀 ساخت ۳۰ محصول تستی برای Pagination
-        </button>
-      </div>
       {/* جدول واریانت‌ها */}
-      <VariantsTable productId={productId} variants={variants ?? []} />
+      <VariantsManager productId={productId} />
     </div>
   );
 }

@@ -9,30 +9,49 @@ const router = Router();
 
 // ✅ عمومی (بدون نیاز به لاگین)
 router.get("/", productController.getAll);
-router.get("/:id", productController.getById);
-router.post("/:id/view", productController.increaseViewCount);
 
+router.get(
+  "/admin/all",
+  verifyAccessToken,
+  isAdmin,
+  productController.getAllForAdmin,
+);
 // 🔒 فقط ادمین
 router.post(
   "/",
   verifyAccessToken,
   isAdmin,
-  upload.single("image"),
-  productController.create
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "variantImages_0", maxCount: 10 },
+    { name: "variantImages_1", maxCount: 10 },
+    { name: "variantImages_2", maxCount: 10 },
+    { name: "variantImages_3", maxCount: 10 },
+    { name: "variantImages_4", maxCount: 10 },
+  ]),
+  productController.create,
 );
-
 router.put(
   "/:id",
   verifyAccessToken,
   isAdmin,
-  upload.single("imageUrl"),
-  productController.update
+  upload.single("image"),
+  productController.update,
 );
+
+router.patch(
+  "/:id/block",
+  verifyAccessToken,
+  isAdmin,
+  productController.blockProduct,
+);
+router.get("/filter", productController.getFilteredProducts);
+router.get("/:id/similar", productController.getSimilarProducts);
 
 router.delete("/:id", verifyAccessToken, isAdmin, productController.remove);
 
-router.patch("/:id/block", verifyAccessToken, isAdmin, productController.blockProduct);
+router.post("/:id/view", productController.increaseViewCount);
 
-router.get("/admin/all", verifyAccessToken, isAdmin, productController.getAllForAdmin);
+router.get("/:id", productController.getById);
 
 export default router;

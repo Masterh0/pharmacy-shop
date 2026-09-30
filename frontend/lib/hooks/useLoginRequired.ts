@@ -19,7 +19,8 @@ export function useLoginRequired() {
       if (isLoading) return false;
 
       if (!user) {
-        const targetPath = path || window.location.pathname;
+        const targetPath =
+          path || window.location.pathname + window.location.search;
         setIntendedPath(targetPath);
         setShowModal(true);
         return false;
@@ -27,7 +28,7 @@ export function useLoginRequired() {
 
       return true;
     },
-    [user, isLoading]
+    [user, isLoading],
   );
 
   /**

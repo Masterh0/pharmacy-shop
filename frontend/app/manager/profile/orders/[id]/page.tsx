@@ -13,17 +13,35 @@ import {
   User,
   Location,
   Call,
-  Box1,
   Calendar,
   DollarCircle,
   TruckFast,
 } from "iconsax-react";
+import { useState } from "react";
+
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING: "در انتظار پرداخت",
+  PAID: "پرداخت شده",
+  SHIPPED: "ارسال شده",
+  DELIVERED: "تحویل داده شده",
+  CANCELED: "لغو شده",
+};
+
+const STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ["PAID", "CANCELED"],
+  PAID: ["SHIPPED", "CANCELED"],
+  SHIPPED: ["DELIVERED", "CANCELED"],
+  DELIVERED: [],
+  CANCELED: [],
+};
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const orderId = Number(params.id);
+  const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
 
   const {
     data: order,
@@ -41,19 +59,28 @@ export default function AdminOrderDetailPage() {
       toast.success("وضعیت سفارش به‌روزرسانی شد");
       refetch();
     },
-    onError: () => {
-      toast.error("خطا در به‌روزرسانی وضعیت");
+    onError: (error: any) => {
+      toast.error(error?.message || "خطا در به‌روزرسانی وضعیت");
     },
   });
 
-  // ✅ اضافه شد: بررسی console
-  console.log("Order data:", order);
+  const handleStatusChange = (newStatus: OrderStatus) => {
+    if (!order) return;
+    const allowed = STATUS_FLOW[order.status as OrderStatus] ?? [];
+    if (!allowed.includes(newStatus)) {
+      toast.error(
+        `انتقال از "${STATUS_LABELS[order.status as OrderStatus]}" به "${STATUS_LABELS[newStatus]}" مجاز نیست`,
+      );
+      return;
+    }
+    setPendingStatus(newStatus);
+  };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00B4D8] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00B4D8] mx-auto" />
           <p className="mt-4 text-gray-600">در حال بارگذاری...</p>
         </div>
       </div>
@@ -74,32 +101,39 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  // ✅ اصلاح: استفاده از orderItems به جای items
   const orderItems = order.orderItems || [];
+  const currentStatus = order.status as OrderStatus;
+  const allowedNextStatuses = STATUS_FLOW[currentStatus] ?? [];
 
-  // ✅ محاسبات مالی با بررسی مقادیر
-  const formatPrice = (price: number | undefined | null) => {
-    const validPrice = Number(price) || 0;
-    return validPrice.toLocaleString("fa-IR");
+  const formatPrice = (price: number | undefined | null) =>
+    (Number(price) || 0).toLocaleString("fa-IR");
+
+  // snapshot — مطابق با Order model در schema
+  const shippingInfo = {
+    fullName: order.shippingFullName ?? "نامشخص",
+    phone: order.shippingPhone ?? "ثبت نشده",
+    province: order.shippingProvince ?? "",
+    city: order.shippingCity ?? "",
+    address: order.shippingAddress ?? "", // ← shippingAddress نه shippingStreet
+    postalCode: order.shippingPostalCode ?? "",
+    notes: order.shippingNotes ?? "",
   };
 
   return (
     <div className="p-6 space-y-6">
       {/* هدر */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowRight size="24" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">جزئیات سفارش</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              کد سفارش: {order.trackingCode || `#${order.id}`}
-            </p>
-          </div>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => router.back()}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowRight size="24" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">جزئیات سفارش</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            کد سفارش: {order.trackingCode || `#${order.id}`}
+          </p>
         </div>
       </div>
 
@@ -109,41 +143,92 @@ export default function AdminOrderDetailPage() {
           {/* اطلاعات مشتری */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">
-              اطلاعات مشتری
+              اطلاعات مشتری و آدرس تحویل
             </h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <User size="20" className="text-gray-500" />
-                <span className="text-gray-700">
-                  {order.user?.name || "نامشخص"}
-                </span>
-                <span className="text-gray-700">
-                  شماره کابر: {order.user?.phone || "نامشخص"}
-                </span>
-              </div>
 
-              <div className="flex items-center gap-3">
-                <Call size="20" className="text-gray-500" />
-                <span className="text-gray-700 font-english">
-                  شماره ثبت در آدرس: {order.address?.phone || "ثبت نشده"}
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Location size="20" className="text-gray-500 mt-1" />
-                <p className="text-gray-700 flex-1">
-                  {order.address ? (
-                    <>
-                      {order.address.province}, {order.address.city},{" "}
-                      {order.address.street}
-                      <br />
-                      کد پستی: {order.address.postalCode}
-                    </>
-                  ) : (
-                    "آدرس ثبت نشده"
-                  )}
-                </p>
+            <div className="mb-6 pb-6 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-600 mb-3">
+                اطلاعات کاربر (در زمان ثبت سفارش)
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <User size="20" className="text-gray-500" />
+                  <span className="text-gray-700">
+                    {order.shippingFullName ?? "نامشخص"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Call size="20" className="text-gray-500" />
+                  <span className="text-gray-700 font-english">
+                    {order.shippingPhone ?? "نامشخص"}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* آدرس تحویل */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600 mb-3">
+                آدرس تحویل (در زمان ثبت سفارش)
+              </h3>
+              <div className="bg-blue-50 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <User size="20" className="text-blue-600" />
+                  <span className="font-medium text-gray-900">
+                    گیرنده: {shippingInfo.fullName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Call size="20" className="text-blue-600" />
+                  <span className="text-gray-700 font-english">
+                    {shippingInfo.phone}
+                  </span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Location size="20" className="text-blue-600 mt-1" />
+                  <div className="flex-1 text-gray-700 leading-relaxed">
+                    {shippingInfo.province && (
+                      <span>{shippingInfo.province} - </span>
+                    )}
+                    {shippingInfo.city && <span>{shippingInfo.city}</span>}
+                    {shippingInfo.address && (
+                      <>
+                        <br />
+                        <span>{shippingInfo.address}</span>
+                      </>
+                    )}
+                    {shippingInfo.postalCode && (
+                      <>
+                        <br />
+                        <span className="text-sm text-gray-600">
+                          کد پستی: {shippingInfo.postalCode}
+                        </span>
+                      </>
+                    )}
+                    {shippingInfo.notes && (
+                      <>
+                        <br />
+                        <span className="text-sm text-gray-600 italic">
+                          توضیحات: {shippingInfo.notes}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* یادداشت مشتری — اگر ثبت شده باشد */}
+            {order.customerNote && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-600 mb-2">
+                  یادداشت مشتری
+                </h3>
+                <p className="text-sm text-gray-700 bg-yellow-50 rounded-lg p-3">
+                  {order.customerNote}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* محصولات */}
@@ -158,59 +243,68 @@ export default function AdminOrderDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* ✅ اصلاح شد */}
-                {orderItems.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg"
-                  >
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
-                      <Image
-                        src={
-                          item.product?.imageUrl
-                            ? item.product.imageUrl.startsWith("http")
-                              ? item.product.imageUrl
-                              : `${baseUrl}/${item.product.imageUrl.replace(
-                                  /^\/+/,
-                                  ""
-                                )}`
-                            : "/pic/placeholder-product.png"
-                        }
-                        alt={item.product?.name ?? "محصول"}
-                        width={64}
-                        height={64}
-                        className="rounded-lg object-cover"
-                        unoptimized
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">
-                        {item.product?.name || "نامشخص"}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        تعداد سفارش: {item.quantity}
-                      </p>
-                      {item.variant?.flavor && (
+                {orderItems.map((item: any) => {
+                  // snapshot — مطابق OrderItem schema
+                  const productName = item.productName ?? "نامشخص";
+                  const rawImage = item.imageUrl ?? null;
+                  const imageSrc = rawImage
+                    ? rawImage.startsWith("http")
+                      ? rawImage
+                      : `${baseUrl}/${rawImage.replace(/^\/+/, "")}`
+                    : "/pic/placeholder-product.png";
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                    >
+                      <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0">
+                        <Image
+                          src={imageSrc}
+                          alt={productName}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900">
+                          {productName}
+                        </h3>
+                        {/* برند و دسته‌بندی از snapshot */}
+                        {(item.brandName || item.categoryName) && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {[item.brandName, item.categoryName]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        )}
+                        {/* خلاصه آتریبیوت‌های واریانت — فیلد واقعی: variantAttributesSummary */}
+                        {item.variantAttributesSummary && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {item.variantAttributesSummary}
+                          </p>
+                        )}
+                        {item.sku && (
+                          <p className="text-xs text-gray-400 mt-0.5 font-english">
+                            SKU: {item.sku}
+                          </p>
+                        )}
                         <p className="text-sm text-gray-500 mt-1">
-                          طعم: {item.variant?.flavor}
+                          تعداد: {item.quantity}
                         </p>
-                      )}
-                      {item.variant?.packageQuantity > 1 && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          تعداد در بسته: {item.variant?.packageQuantity}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          قیمت واحد: {formatPrice(item.unitPrice)} تومان
                         </p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        قیمت واحد: {formatPrice(item.unitPrice)} تومان
-                      </p>
+                      </div>
+                      <div className="text-left flex-shrink-0">
+                        <p className="font-bold text-gray-900">
+                          {formatPrice(item.totalPrice)} تومان
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="font-bold text-gray-900">
-                        {formatPrice(item.totalPrice)} تومان
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -223,27 +317,108 @@ export default function AdminOrderDetailPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-4">
               وضعیت سفارش
             </h2>
-            <select
-              value={order.status}
-              onChange={(e) =>
-                updateStatusMutation.mutate(e.target.value as OrderStatus)
-              }
-              disabled={updateStatusMutation.isPending}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="PENDING">در انتظار پرداخت</option>
-              <option value="PAID">پرداخت شده</option>
-              <option value="SHIPPED">ارسال شده</option>
-              <option value="DELIVERED">تحویل داده شده</option>
-              <option value="CANCELED">لغو شده</option>
-            </select>
+
+            <div className="mb-3 px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
+              وضعیت فعلی:{" "}
+              <span className="font-semibold">
+                {STATUS_LABELS[currentStatus]}
+              </span>
+            </div>
+
+            {allowedNextStatuses.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500 mb-2">انتقال به:</p>
+                {allowedNextStatuses.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleStatusChange(s)}
+                    disabled={updateStatusMutation.isPending}
+                    className={`w-full px-4 py-2.5 rounded-lg text-sm font-medium transition
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                      ${
+                        s === "CANCELED"
+                          ? "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                          : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                      }`}
+                  >
+                    {STATUS_LABELS[s]}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-2">
+                این سفارش به مرحله نهایی رسیده است
+              </p>
+            )}
 
             {updateStatusMutation.isPending && (
               <p className="text-sm text-gray-500 mt-2 text-center">
                 در حال به‌روزرسانی...
               </p>
             )}
+
+            {/* Confirmation Dialog */}
+            {pendingStatus && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    تأیید تغییر وضعیت
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    وضعیت سفارش از{" "}
+                    <span className="font-semibold">
+                      {STATUS_LABELS[currentStatus]}
+                    </span>{" "}
+                    به{" "}
+                    <span
+                      className={`font-semibold ${
+                        pendingStatus === "CANCELED"
+                          ? "text-red-600"
+                          : "text-blue-600"
+                      }`}
+                    >
+                      {STATUS_LABELS[pendingStatus]}
+                    </span>{" "}
+                    تغییر می‌کند. آیا مطمئنید؟
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        updateStatusMutation.mutate(pendingStatus);
+                        setPendingStatus(null);
+                      }}
+                      className={`flex-1 text-white py-2 px-4 rounded-lg transition font-medium
+                        ${
+                          pendingStatus === "CANCELED"
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-blue-600 hover:bg-blue-700"
+                        }`}
+                    >
+                      بله، تأیید می‌کنم
+                    </button>
+                    <button
+                      onClick={() => setPendingStatus(null)}
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition font-medium"
+                    >
+                      انصراف
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* یادداشت ادمین */}
+          {order.adminNotes && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-3">
+                یادداشت ادمین
+              </h2>
+              <p className="text-sm text-gray-700 bg-orange-50 rounded-lg p-3">
+                {order.adminNotes}
+              </p>
+            </div>
+          )}
 
           {/* خلاصه مالی */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -253,30 +428,46 @@ export default function AdminOrderDetailPage() {
                 <span>جمع کل:</span>
                 <span>{formatPrice(order.subtotal)} تومان</span>
               </div>
-
-              {/* ✅ بررسی اگر تخفیف داشت نمایش بده */}
-              {order.discountTotal > 0 && (
+              {Number(order.discountTotal) > 0 && (
                 <div className="flex justify-between text-red-600">
                   <span>تخفیف:</span>
                   <span>−{formatPrice(order.discountTotal)} تومان</span>
                 </div>
               )}
-
+              {Number(order.taxAmount) > 0 && (
+                <div className="flex justify-between text-gray-700">
+                  <span>مالیات:</span>
+                  <span>{formatPrice(order.taxAmount)} تومان</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-700">
                 <span>هزینه ارسال:</span>
                 <span>{formatPrice(order.shippingFee)} تومان</span>
               </div>
-
               <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-lg">
                 <span>مبلغ نهایی:</span>
                 <span className="text-[#00B4D8]">
                   {formatPrice(order.finalTotal)} تومان
                 </span>
               </div>
+              {/* وضعیت ریفاند */}
+              {order.refundStatus !== "NONE" && (
+                <div className="border-t border-gray-200 pt-3 space-y-1">
+                  <div className="flex justify-between text-orange-600">
+                    <span>مبلغ بازگشتی:</span>
+                    <span>{formatPrice(order.refundedAmount)} تومان</span>
+                  </div>
+                  {order.refundNote && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {order.refundNote}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* اطلاعات تاریخ */}
+          {/* اطلاعات تاریخی */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">
               اطلاعات تاریخی
@@ -289,7 +480,6 @@ export default function AdminOrderDetailPage() {
                   {format(new Date(order.createdAt), "yyyy/MM/dd HH:mm")}
                 </span>
               </div>
-
               {order.paidAt && (
                 <div className="flex items-center gap-2">
                   <DollarCircle size="18" className="text-gray-500" />
@@ -299,13 +489,29 @@ export default function AdminOrderDetailPage() {
                   </span>
                 </div>
               )}
-
+              {order.refundedAt && (
+                <div className="flex items-center gap-2">
+                  <DollarCircle size="18" className="text-orange-500" />
+                  <span className="text-gray-600">بازگشت وجه:</span>
+                  <span className="text-gray-900">
+                    {format(new Date(order.refundedAt), "yyyy/MM/dd HH:mm")}
+                  </span>
+                </div>
+              )}
               {order.updatedAt && (
                 <div className="flex items-center gap-2">
                   <TruckFast size="18" className="text-gray-500" />
                   <span className="text-gray-600">آخرین به‌روزرسانی:</span>
                   <span className="text-gray-900">
                     {format(new Date(order.updatedAt), "yyyy/MM/dd HH:mm")}
+                  </span>
+                </div>
+              )}
+              {order.discountCode && (
+                <div className="pt-2 border-t border-gray-100">
+                  <span className="text-gray-600">کد تخفیف: </span>
+                  <span className="font-english text-gray-900 font-medium">
+                    {order.discountCode}
                   </span>
                 </div>
               )}

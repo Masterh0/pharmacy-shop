@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   useForm,
@@ -11,9 +11,9 @@ import {
 import Select from "react-select";
 import { toast } from "sonner";
 import { variantApi } from "@/lib/api/variantApi";
-import { packageTypeOptions } from "@/src/constants/productOptions";
 import { MultiImageUploader } from "@/src/components/inputs/MultiImageUploader";
 import api from "@/lib/axios";
+import { numberToPersianText } from "@/lib/utils/numberToText";
 
 // ✅ Type Definitions
 interface VariantFormData {
@@ -21,10 +21,9 @@ interface VariantFormData {
   packageType: string;
   packageQuantity: number;
   price: number;
-  discountPrice: number;
+  discountPrice: number | null;
   stock: number;
   expiryDate: string;
-  flavor: string;
   images: File[];
   existingImages: string[];
   deletedImages: string[];
@@ -36,6 +35,8 @@ interface VariantsManagerProps {
 
 export default function VariantsManager({ productId }: VariantsManagerProps) {
   const queryClient = useQueryClient();
+  const [priceTexts, setPriceTexts] = useState<string[]>([]);
+  const [discountTexts, setDiscountTexts] = useState<string[]>([]);
 
   // 🧩 گرفتن واریانت‌ها از سرور
   const { data: variants, isLoading } = useQuery({
@@ -114,23 +115,30 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
   // 🔄 Sync سرور با فرم
   useEffect(() => {
     if (variants) {
-      console.log("✅ واریانت‌های دریافتی از سرور:", variants);
-
       replace(
         variants.map((v: any) => ({
           dbId: v.id,
           packageType: v.packageType || "",
           packageQuantity: v.packageQuantity ?? 1,
           price: Number(v.price) ?? 0,
-          discountPrice: Number(v.discountPrice) ?? 0,
+          discountPrice: v.discountPrice ? Number(v.discountPrice) : null,
           stock: v.stock ?? 0,
           expiryDate: v.expiryDate?.slice(0, 10) || "",
-          flavor: v.flavor ?? "",
           images: [],
           existingImages:
             v.images?.map((img: any) => img.url).filter(Boolean) || [],
           deletedImages: [],
-        }))
+        })),
+      );
+      setPriceTexts(
+        variants.map((v: any) =>
+          v.price ? numberToPersianText(String(v.price)) : "",
+        ),
+      );
+      setDiscountTexts(
+        variants.map((v: any) =>
+          v.discountPrice ? numberToPersianText(String(v.discountPrice)) : "",
+        ),
       );
     }
   }, [variants, replace]);
@@ -141,20 +149,21 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
       packageType: "",
       packageQuantity: 1,
       price: 0,
-      discountPrice: 0,
+      discountPrice: null,
       stock: 0,
       expiryDate: "",
-      flavor: "",
       images: [],
       existingImages: [],
       deletedImages: [],
     });
+    setPriceTexts((prev) => [...prev, ""]);
+    setDiscountTexts((prev) => [...prev, ""]);
   };
 
   // 🗑️ حذف تصویر موجود
   const handleRemoveExistingImage = (
     variantIndex: number,
-    urlToRemove: string
+    urlToRemove: string,
   ) => {
     const currentExisting =
       watch(`variants.${variantIndex}.existingImages`) || [];
@@ -163,7 +172,7 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
 
     setValue(
       `variants.${variantIndex}.existingImages`,
-      currentExisting.filter((url: string) => url !== urlToRemove)
+      currentExisting.filter((url: string) => url !== urlToRemove),
     );
 
     setValue(`variants.${variantIndex}.deletedImages`, [
@@ -171,7 +180,6 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
       urlToRemove,
     ]);
 
-    console.log(`🗑️ تصویر ${urlToRemove} از لیست حذف شد`);
   };
 
   // 💾 ذخیره واریانت
@@ -189,12 +197,12 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
       formDataToSend.append("packageType", formData.packageType);
       formDataToSend.append(
         "packageQuantity",
-        formData.packageQuantity.toString()
+        formData.packageQuantity.toString(),
       );
       formDataToSend.append("price", formData.price.toString());
       formDataToSend.append(
         "discountPrice",
-        (formData.discountPrice || 0).toString()
+        formData.discountPrice ? formData.discountPrice.toString() : "0",
       );
       formDataToSend.append("stock", formData.stock.toString());
 
@@ -202,21 +210,16 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
         formDataToSend.append("expiryDate", formData.expiryDate);
       }
 
-      if (formData.flavor) {
-        formDataToSend.append("flavor", formData.flavor);
-      }
-
       // ⭐ 2️⃣ اضافه کردن تصاویر موجود (که حذف نشدن)
       // ✅ این قسمت رو درست کن:
       const remainingExistingImages = formData.existingImages || [];
 
-      console.log("📸 تصاویر موجود باقی‌مانده:", remainingExistingImages);
 
       if (remainingExistingImages.length > 0) {
         // ✅ فرستادن به صورت JSON array
         formDataToSend.append(
           "existingImages",
-          JSON.stringify(remainingExistingImages)
+          JSON.stringify(remainingExistingImages),
         );
       } else {
         // ✅ اگه هیچی نمونده، یه آرایه خالی بفرست
@@ -228,17 +231,8 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
         formData.images.forEach((file) => {
           formDataToSend.append("images", file);
         });
-        console.log(`📤 ${formData.images.length} تصویر جدید اضافه شد`);
       }
 
-      console.log("📦 داده‌های ارسالی:");
-      for (let pair of formDataToSend.entries()) {
-        if (pair[1] instanceof File) {
-          console.log(pair[0], "FILE:", pair[1].name);
-        } else {
-          console.log(pair[0], pair[1]);
-        }
-      }
 
       // 4️⃣ ارسال به سرور
       if (variantId) {
@@ -256,7 +250,6 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
       setValue(`variants.${index}.images`, []);
       setValue(`variants.${index}.deletedImages`, []);
 
-      console.log("✅ واریانت با موفقیت ذخیره شد");
     } catch (error: any) {
       console.error("❌ خطا در ذخیره واریانت:", error);
       toast.error(error.message || "خطا در ذخیره واریانت");
@@ -329,72 +322,85 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
 
                 {/* 📝 فیلدهای فرم */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <FormField label="🍫 طعم">
-                    <input
-                      {...register(`variants.${i}.flavor`)}
-                      placeholder="مثلاً شکلاتی، وانیلی، توت‌فرنگی..."
-                      className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
-                    />
-                  </FormField>
-
-                  <FormField label="📦 نوع بسته‌بندی">
-                    <Controller
-                      name={`variants.${i}.packageType`}
-                      control={control}
-                      render={({ field: controllerField }) => (
-                        <Select
-                          options={packageTypeOptions}
-                          value={packageTypeOptions.find(
-                            (opt) => opt.value === controllerField.value
-                          )}
-                          onChange={(opt) =>
-                            controllerField.onChange(opt?.value || "")
-                          }
-                          placeholder="انتخاب نوع بسته"
-                          styles={{
-                            control: (base) => ({
-                              ...base,
-                              minHeight: "42px",
-                              borderRadius: "8px",
-                              borderColor: "#D1D5DB",
-                            }),
-                          }}
-                        />
-                      )}
-                    />
-                  </FormField>
-
-                  <FormField label="🔢 تعداد در بسته">
-                    <input
-                      type="number"
-                      {...register(`variants.${i}.packageQuantity`, {
-                        valueAsNumber: true,
-                      })}
-                      placeholder="مثلاً 12"
-                      className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
-                    />
-                  </FormField>
-
                   <FormField label="💰 قیمت (تومان)">
-                    <input
-                      type="number"
-                      {...register(`variants.${i}.price`, {
-                        valueAsNumber: true,
-                      })}
-                      placeholder="مثلاً 250000"
-                      className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
-                    />
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        {...register(`variants.${i}.price`)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/,/g, "");
+                          if (!/^\d*$/.test(raw)) {
+                            e.target.value = e.target.value.replace(
+                              /[^\d,]/g,
+                              "",
+                            );
+                            return;
+                          }
+                          const formatted = raw.replace(
+                            /\B(?=(\d{3})+(?!\d))/g,
+                            ",",
+                          );
+                          e.target.value = formatted;
+                          setValue(`variants.${i}.price`, Number(raw) as any);
+                          setPriceTexts((prev) =>
+                            prev.map((t, idx) =>
+                              idx === i ? numberToPersianText(raw) : t,
+                            ),
+                          );
+                        }}
+                        placeholder="مثلاً 250,000"
+                        className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
+                      />
+                      {priceTexts[i] && (
+                        <p className="text-xs mt-1 text-gray-600">
+                          {priceTexts[i]}
+                        </p>
+                      )}
+                    </div>
                   </FormField>
-
                   <FormField label="🏷️ قیمت با تخفیف (تومان)">
-                    <input
-                      type="number"
-                      {...register(`variants.${i}.discountPrice`, {
-                        valueAsNumber: true,
-                      })}
-                      placeholder="مثلاً 200000"
-                      className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
-                    />
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        {...register(`variants.${i}.discountPrice`)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/,/g, "");
+                          if (!/^\d*$/.test(raw)) {
+                            e.target.value = e.target.value.replace(
+                              /[^\d,]/g,
+                              "",
+                            );
+                            return;
+                          }
+                          const formatted = raw.replace(
+                            /\B(?=(\d{3})+(?!\d))/g,
+                            ",",
+                          );
+                          e.target.value = formatted;
+                          setValue(
+                            `variants.${i}.discountPrice`,
+                            raw === "" || raw === "0"
+                              ? null
+                              : (Number(raw) as any),
+                          );
+                          setDiscountTexts((prev) =>
+                            prev.map((t, idx) =>
+                              idx === i ? numberToPersianText(raw) : t,
+                            ),
+                          );
+                        }}
+                        placeholder="اختیاری — خالی یا ۰ = بدون تخفیف"
+                        className="border border-gray-300 rounded-[8px] h-[42px] px-3 text-[13px] focus:border-[#00B4D8] focus:ring-2 focus:ring-[#E0F7FA] transition-all outline-none"
+                      />
+                      {discountTexts[i] && (
+                        <p className="text-xs mt-1 text-gray-600">
+                          {discountTexts[i]}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-gray-400 mt-1 pr-1">
+                        ۰ یا خالی = بدون تخفیف
+                      </p>
+                    </div>
                   </FormField>
 
                   <FormField label="📊 موجودی">
@@ -449,7 +455,7 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
                         onClick={() => {
                           if (
                             confirm(
-                              "⚠️ آیا از حذف این واریانت از دیتابیس مطمئن هستید؟\n\n⚠️ توجه: تمام تصاویر این واریانت هم حذف خواهند شد!"
+                              "⚠️ آیا از حذف این واریانت از دیتابیس مطمئن هستید؟\n\n⚠️ توجه: تمام تصاویر این واریانت هم حذف خواهند شد!",
                             )
                           ) {
                             deleteMutation.mutate(field.dbId!);
@@ -475,8 +481,8 @@ export default function VariantsManager({ productId }: VariantsManagerProps) {
                     createVariantMutation.isPending
                       ? "در حال ذخیره..."
                       : field.dbId
-                      ? "💾 ثبت تغییرات"
-                      : "✅ ثبت واریانت"}
+                        ? "💾 ثبت تغییرات"
+                        : "✅ ثبت واریانت"}
                   </button>
                 </div>
               </div>

@@ -6,16 +6,20 @@ import { ReactNode, useState } from "react";
 import "@/styles/globals.css";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { LoadingProvider } from "@/src/components/LoadingProvider";
+import LogoutModal from "@/src/components/profile/LogoutModal";
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => {
-    console.log("🧠 CREATE QueryClient");
     return new QueryClient();
   });
   return (
     <QueryClientProvider client={queryClient}>
       <LoadingProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <LogoutModal />
+        </AuthProvider>
       </LoadingProvider>
+
       <Toaster
         richColors
         position="top-center"

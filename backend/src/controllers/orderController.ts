@@ -1,7 +1,7 @@
 // src/controllers/orderController.ts
 import { Request, Response } from "express";
 import { orderService } from "../services/orderService";
-import {UserRole} from "../types/express.user"
+import { UserRole } from "../types/express.user";
 interface AuthRequest extends Request {
   user?: {
     id: number;
@@ -21,7 +21,7 @@ export const orderController = {
       const order = await orderService.createOrder({
         userId,
         addressId: Number(addressId),
-        shippingCost: Number(shippingCost || 0),
+        
       });
 
       res.status(201).json({ success: true, order });
@@ -53,6 +53,9 @@ export const orderController = {
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
       const order = await orderService.getOrderById(orderId, userId);
+      if (order.userId !== req.user?.id && req.user?.role !== "ADMIN") {
+        return res.status(403).json({ message: "دسترسی ندارید" });
+      }
       res.json(order);
     } catch (err: any) {
       res.status(404).json({ message: err.message });
@@ -63,13 +66,13 @@ export const orderController = {
     try {
       const userId = req.user?.id;
       const orderId = Number(req.params.id);
-
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
       const result = await orderService.cancelOrder(orderId, userId);
       res.json(result);
     } catch (err: any) {
-      res.status(400).json({ message: err.message });
+      const status = err.message === "سفارش یافت نشد" ? 404 : 400;
+      res.status(status).json({ message: err.message });
     }
   },
 };

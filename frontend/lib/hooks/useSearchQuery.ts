@@ -9,16 +9,25 @@ export function useSearchQuery(query: string) {
 
   // debounce 300ms
   useEffect(() => {
-    const timer = setTimeout(() => setDebounced(query.trim()), 300);
+    const timer = setTimeout(() => {
+      setDebounced(query.trim());
+    }, 300);
+
     return () => clearTimeout(timer);
   }, [query]);
 
   const result = useQuery({
-    queryKey: ["search", debounced],
-    // ❌ خطای اینجا بود: به جای ارسال رشته، باید یک شیء ارسال کنید
-    queryFn: () => searchApi.search({ q: debounced }), // ✅ تصحیح شد
+    queryKey: ["search", debounced, 10],
+
+    queryFn: () =>
+      searchApi.search({
+        q: debounced,
+        limit: 10,
+      }),
+
     enabled: debounced.length >= 2,
-    staleTime: 1000 * 10, // 10 seconds
+
+    staleTime: 1000 * 10,
   });
 
   return {

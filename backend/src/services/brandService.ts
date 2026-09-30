@@ -2,13 +2,20 @@ import { prisma } from "../config/db";
 import { makeSlug } from "../utils/slugify";
 import { CreateBrandDto, UpdateBrandDto } from "../../dto/brandDto";
 import { ApiError, NotFoundError, BadRequestError } from "../utils/ApiError";
+import { productService } from "./productService";
 
 export const brandService = {
   /** 🟦 دریافت تمام برندها */
   async getAll() {
     return prisma.brand.findMany({
-      include: { products: true },
-      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
     });
   },
 
@@ -72,7 +79,7 @@ export const brandService = {
         (error.message && error.message.includes("violates RESTRICT"))
       ) {
         throw new BadRequestError(
-          "این برند به یک یا چند محصول متصل است و نمی‌توان آن را حذف کرد."
+          "این برند به یک یا چند محصول متصل است و نمی‌توان آن را حذف کرد.",
         );
       }
 
@@ -83,5 +90,66 @@ export const brandService = {
 
       throw new ApiError("خطا در حذف برند.", 500);
     }
+  },
+  async getActiveBrands() {
+    const brands = await prisma.brand.findMany({
+      where: {
+        products: {
+          some: {
+            isBlock: false,
+          },
+        },
+      },
+      orderBy: {
+        products: {
+          _count: "desc",
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        _count: {
+          select: {
+            products: {
+              where: {
+                isBlock: false,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return brands.map((brand) => ({
+      id: brand.id,
+      name: brand.name,
+      slug: brand.slug,
+      count: brand._count.products,
+    }));
+  },
+  async getProductsBySlug(slug: string, filters: any) {
+    const brand = await prisma.brand.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+    });
+
+    if (!brand) {
+      throw new NotFoundError("Brand not found");
+    }
+
+    const result = await productService.getFilteredProducts({
+      ...filters,
+      brand: brand.id,
+    });
+
+    return {
+      brand,
+      ...result,
+    };
   },
 };

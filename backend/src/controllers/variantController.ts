@@ -55,9 +55,22 @@ export const create = async (req: Request, res: Response) => {
     // 📸 مسیرهای تصاویر آپلود شده
     const images =
       (req.files as Express.Multer.File[])?.map(
-        (file) => `/uploads/${file.filename}`
+        (file) => `/uploads/${file.filename}`,
       ) || [];
+    let attributes: number[] = [];
 
+    if (req.body.attributes) {
+      try {
+        attributes =
+          typeof req.body.attributes === "string"
+            ? JSON.parse(req.body.attributes)
+            : req.body.attributes;
+      } catch {
+        return res.status(400).json({
+          message: "فرمت attributes نامعتبر است",
+        });
+      }
+    }
     // 📦 ساخت payload
     const payload = {
       ...req.body,
@@ -108,7 +121,14 @@ export const update = async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
 
     // ⭐ پارس کردن existingImages (اگه به صورت JSON string اومده)
-    let existingImages: string[] | undefined;
+    type ExistingImage = {
+      id: number;
+      url: string;
+      displayOrder: number;
+      isPrimary: boolean;
+    };
+
+    let existingImages: ExistingImage[] | undefined;
     if (req.body.existingImages) {
       try {
         existingImages =
@@ -121,10 +141,19 @@ export const update = async (req: Request, res: Response) => {
     }
 
     const { dbId, ...updatePayload } = req.body;
+    let attributes: number[] | undefined;
+
+    if (updatePayload.attributes) {
+      attributes =
+        typeof updatePayload.attributes === "string"
+          ? JSON.parse(updatePayload.attributes)
+          : updatePayload.attributes;
+    }
 
     const payload = {
       ...updatePayload,
-      existingImages, // ✅ لیست تصاویر موجود که حذف نشدن
+      attributes,
+      existingImages,
     };
 
     // ⭐ ارسال files به سرویس

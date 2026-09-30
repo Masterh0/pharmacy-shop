@@ -11,24 +11,22 @@ interface CartPreviewProps {
   onLoginRequired: (path: string) => boolean;
 }
 
-export default function CartPreview({ 
-  isLoggedIn, 
-  onLoginRequired 
+export default function CartPreview({
+  isLoggedIn,
+  onLoginRequired,
 }: CartPreviewProps) {
   const { cart, isLoading, isError, removeItem, isRemoving } = useCart();
   const [removingId, setRemovingId] = useState<number | null>(null);
 
   const items: CartItem[] = cart?.items ?? [];
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
   if (isLoading)
     return <div className="p-4 text-center">در حال بارگذاری سبد...</div>;
 
   if (isError)
     return (
-      <div className="p-4 text-center text-red-500">
-        مشکل در دریافت اطلاعات
-      </div>
+      <div className="p-4 text-center text-red-500">مشکل در دریافت اطلاعات</div>
     );
 
   if (!items.length)
@@ -41,25 +39,25 @@ export default function CartPreview({
   const totalBeforeDiscount = items.reduce(
     (sum: number, item: CartItem) =>
       sum + Number(item.variant?.price ?? item.priceAtAdd) * item.quantity,
-    0
+    0,
   );
 
   const totalAfterDiscount = items.reduce(
     (sum: number, item: CartItem) =>
       sum +
       Number(
-        item.variant?.discountPrice ?? item.variant?.price ?? item.priceAtAdd
+        item.variant?.discountPrice ?? item.variant?.price ?? item.priceAtAdd,
       ) *
         item.quantity,
-    0
+    0,
   );
 
   const totalDiscount = totalBeforeDiscount - totalAfterDiscount;
 
-  const handleRemove = async (id: number) => {
-    setRemovingId(id);
+  const handleRemove = async (itemId: number) => {
+    setRemovingId(itemId);
     await new Promise((r) => setTimeout(r, 250));
-    await removeItem(id);
+    removeItem({ itemId }); // ← آبجکت با key درست
     setRemovingId(null);
   };
 
@@ -78,7 +76,7 @@ export default function CartPreview({
     <div
       className={clsx(
         "p-4 w-[360px] flex flex-col rounded-xl bg-white shadow-[0_4px_20px_rgba(0,0,0,0.1)]",
-        "animate-[fadeIn_0.25s_ease-out]"
+        "animate-[fadeIn_0.25s_ease-out]",
       )}
     >
       <div
@@ -98,7 +96,7 @@ export default function CartPreview({
                 "flex items-center justify-between gap-3 py-3 transition-all duration-300",
                 removingId === item.id
                   ? "opacity-0 -translate-x-4"
-                  : "opacity-100 translate-x-0"
+                  : "opacity-100 translate-x-0",
               )}
             >
               <Image
@@ -113,7 +111,6 @@ export default function CartPreview({
                 width={64}
                 height={64}
                 className="rounded-lg object-cover"
-                unoptimized
               />
 
               <div className="flex-1 text-right">
@@ -136,8 +133,8 @@ export default function CartPreview({
                     </p>
 
                     <p className="text-gray-800 font-bold">
-                      {item.quantity} ×{" "}
-                      {discountPrice.toLocaleString("fa-IR")} تومان
+                      {item.quantity} × {discountPrice.toLocaleString("fa-IR")}{" "}
+                      تومان
                     </p>
                   </div>
                 ) : (

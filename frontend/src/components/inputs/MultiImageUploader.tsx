@@ -26,40 +26,53 @@ export function MultiImageUploader({
 
   // ✅ ایجاد پیش‌نمایش از فایل‌های جدید
   useEffect(() => {
-    const newPreviews = images.map((f) => URL.createObjectURL(f));
+    const fileImages = images.filter(
+      (file): file is File => file instanceof File,
+    );
+
+    const newPreviews = fileImages.map((file) => URL.createObjectURL(file));
+
     setPreviews(newPreviews);
 
     return () => {
-      newPreviews.forEach((url) => URL.revokeObjectURL(url));
+      newPreviews.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
     };
   }, [images]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      const totalImages =
-        images.length + existingImages.length + acceptedFiles.length;
-
-      if (totalImages > maxFiles) {
-        alert(`حداکثر ${maxFiles} عکس مجاز است`);
-        return;
-      }
-
       const validFiles = acceptedFiles.filter((file) => {
         if (!file.type.startsWith("image/")) {
           alert(`${file.name} تصویر نیست`);
           return false;
         }
+
         if (file.size > 5 * 1024 * 1024) {
           alert(`${file.name} بیشتر از ۵ مگابایت است`);
           return false;
         }
+
         return true;
       });
 
-      const newImages = [...images, ...validFiles];
-      onChange(newImages);
+      const availableSlots = maxFiles - existingImages.length - images.length;
+
+      if (availableSlots <= 0) {
+        alert(`حداکثر ${maxFiles} عکس مجاز است`);
+        return;
+      }
+
+      const filesToAdd = validFiles.slice(0, availableSlots);
+
+      if (filesToAdd.length < validFiles.length) {
+        alert(`حداکثر ${maxFiles} عکس مجاز است`);
+      }
+
+      onChange([...images, ...filesToAdd]);
     },
-    [images, existingImages, onChange, maxFiles]
+    [images, existingImages, onChange, maxFiles],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -73,7 +86,7 @@ export function MultiImageUploader({
     onChange(newImages);
   };
 
-  const totalImages = existingImages.length + previews.length;
+  const totalImages = existingImages.length + images.length;
 
   return (
     <div className="flex flex-col gap-4">

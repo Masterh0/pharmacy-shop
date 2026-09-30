@@ -11,6 +11,9 @@ import {
   me,
   changePassword,
   updateProfile,
+  requestPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPassword,
 } from "../controllers/authController";
 
 import {
@@ -42,10 +45,13 @@ router.post("/login/verify-otp", verifyLoginOtp);
 // رفرش توکن
 // -----------------------------
 router.post("/refresh", refresh);
-router.post("/logout", verifyAccessToken, logout);
+router.post("/logout", logout);
 router.get("/me", verifyAccessToken, me);
 router.put("/profile", verifyAccessToken, updateProfile);
 router.put("/change-password", verifyAccessToken, changePassword);
+router.post("/forgot-password/request", requestPasswordResetOtp);
+router.post("/forgot-password/verify", verifyPasswordResetOtp);
+router.post("/forgot-password/reset", resetPassword);
 // -----------------------------
 // مسیر تست فقط برای ADMINS
 // -----------------------------

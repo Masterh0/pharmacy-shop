@@ -3,8 +3,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// ایجاد پوشه uploads اگر وجود نداره
-const uploadDir = path.join(__dirname, "../../uploads");
+// توی production از مسیر مطلق استفاده کن
+const uploadDir = process.env.NODE_ENV === "production"
+  ? "/app/uploads"
+  : path.join(process.cwd(), "uploads");
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -37,7 +40,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // حداکثر 5MB
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 export default upload;

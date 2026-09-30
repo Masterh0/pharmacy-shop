@@ -1,45 +1,60 @@
-import { productApi } from "@/lib/api/products";
+const dummyProduct = {
+  name: "پروتئین وی گلد استاندارد",
+  description: "پودر پروتئین وی مناسب برای افزایش حجم و ریکاوری عضلات",
+  sku: "WHEY-001",
+  brandId: 1,
+  categoryId: 2,
+  isBlock: false,
 
-/**
- * ✅ ساخت ۳۰ محصول تستی تصادفی برای تست Pagination
- */
-export async function createDummyProducts() {
-  const IMAGE_URL = "/uploads/وی-کالخ-1763233078375-745252.jfif";
+  // تصویر اصلی محصول
+  imageUrl: "uploads/products/imageUrl-1781260533677-105215362.webp",
 
-  // تو اینجا عدد ۳۰ رو می‌تونی تغییر بدی اگر خواستی بیشتر تست کنی
-  const productCount = 30;
+  variants: [
+    {
+      packageQuantity: 1,
+      packageType: "قوطی 1 کیلویی",
+      flavor: "شکلات",
+      price: 2500000,
+      discountPrice: 2200000,
+      stock: 15,
+      expiryDate: "2027-12-31",
 
-  for (let i = 1; i <= productCount; i++) {
-    const productData = {
-      name: `محصول تستی شماره ${i}`,
-      sku: `SKU-${1000 + i}`,
-      description: `این توضیحات محصول تستی شماره ${i} است.`,
-      brandId: 1,          // یکی از برندهای موجود در دیتابیس‌ت
-      categoryId: 1,       // یکی از دسته‌بندی‌های معتبر
-      isBlock: false,
-      imageUrl: IMAGE_URL,
-      variants: [
+      images: [
+        "uploads/products/imageUrl-1781260533677-105215362.webp",
+        "uploads/products/imageUrl-1781260533678-345678901.webp",
+        "uploads/products/imageUrl-1781260533679-987654321.webp",
+      ],
+    },
+
+    {
+      packageQuantity: 2,
+      packageType: "قوطی 2 کیلویی",
+      flavor: "وانیل",
+      price: 4500000,
+      discountPrice: 4100000,
+      stock: 8,
+      expiryDate: "2027-12-31",
+
+      images: [
         {
-          packageQuantity: Math.floor(Math.random() * 3 + 1) * 10, // مثلاً 10، 20، 30
-          packageType: "بسته",
-          price: Math.floor(Math.random() * 500000 + 100000),
-          discountPrice: Math.floor(Math.random() * 400000 + 90000),
-          stock: Math.floor(Math.random() * 50 + 1),
-          flavor: ["وانیل", "شکلات", "توت فرنگی", "قهوه"][
-            Math.floor(Math.random() * 4)
-          ],
-          expiryDate: "2026-12-31",
+          url: "uploads/products/imageUrl-1781260533680-123456789.webp",
+          altText: "نمای جلو",
+          displayOrder: 0,
+          isPrimary: true,
+        },
+        {
+          url: "uploads/products/imageUrl-1781260533681-987123654.webp",
+          altText: "نمای پشت",
+          displayOrder: 1,
+          isPrimary: false,
+        },
+        {
+          url: "uploads/products/imageUrl-1781260533682-456789123.webp",
+          altText: "نمای کنار",
+          displayOrder: 2,
+          isPrimary: false,
         },
       ],
-    };
-
-    try {
-      await productApi.create(productData);
-      console.log(`✅ محصول ${i} ثبت شد`);
-    } catch (err) {
-      console.error(`❌ خطا در ساخت محصول شماره ${i}`, err);
-    }
-  }
-
-  console.log("🎯 ساخت ۳۰ محصول تصادفی تمام شد!");
-}
+    },
+  ],
+};

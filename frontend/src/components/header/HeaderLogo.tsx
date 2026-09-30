@@ -1,23 +1,45 @@
 "use client";
+
 import Image from "next/image";
 
 export default function HeaderLogo() {
   return (
     <div
       className="
-        flex flex-row items-center justify-center gap-[4px]
-        w-[204px] h-[50px] mx-auto
+        flex
+        items-center
+        justify-center
+        gap-2
+        w-[50px]
+        h-[50px]
+        lg:w-[260px]
+        lg:h-[50px]
+        shrink-0
       "
     >
-      <span className="font-IRANYekanX font-bold text-[20px] text-[#0077B6] leading-[36px]">
-        داروخانه بهوندی
+      {/* متن فقط دسکتاپ */}
+      <span
+        className="
+          hidden
+          lg:block
+          whitespace-nowrap
+          font-IRANYekanX
+          font-bold
+          text-[20px]
+          text-[#0077B6]
+          leading-[36px]
+        "
+      >
+        داروخانه دکتر بهوندی
       </span>
+
       <Image
-        src="/pic/22.png"   // ✅ اگر در پوشه public است
-        alt="Logo"
+        src="/pic/headersPic/logo.webp"
+        alt="داروخانه دکتر بهوندی"
         width={50}
         height={50}
-        className="w-[50px] h-[50px]"
+        priority
+        className="h-[50px] w-[50px] shrink-0"
       />
     </div>
   );

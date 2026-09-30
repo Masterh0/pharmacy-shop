@@ -1,13 +1,13 @@
 "use client";
 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { categoryApi } from "@/lib/api/category";
 import type { Product } from "@/lib/types/product";
 import ProductsListingLayout from "@/src/components/products/ProductsListingLayout";
-
+import axios from "axios";
 /* =============================
  ✅ types & constants
 ============================= */
@@ -20,7 +20,6 @@ export type SortType =
 
 const DEFAULT_SORT: SortType = "latest";
 const DEFAULT_PAGE = 1;
-
 /* =============================
  ✅ helpers
 ============================= */
@@ -35,9 +34,6 @@ export default function CategoryProductsClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  /* =============================
-   ✅ URL = SOT (read only)
-  ============================= */
   const sort = (searchParams.get("sort") as SortType) ?? DEFAULT_SORT;
 
   const page = safeNumber(searchParams.get("page")) ?? DEFAULT_PAGE;
@@ -74,25 +70,26 @@ export default function CategoryProductsClient() {
   ============================= */
   const search = useMemo(
     () => (searchParams.size ? `?${searchParams.toString()}` : ""),
-    [searchParams]
+    [searchParams],
   );
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isFetching, isError, error } = useQuery({
     enabled: !!slug,
     queryKey: ["category-products", slug, search], // ✅ SAME SOURCE
     queryFn: () => {
-      console.log("🚀 FETCHING WITH:", search);
       return categoryApi.getProductsByCategoryBySlug(slug!, search);
     },
+    staleTime: 1000 * 60,
+    placeholderData: keepPreviousData,
   });
-
+  const status = axios.isAxiosError(error) ? error.response?.status : undefined;
   const products: Product[] = data?.products ?? [];
   const category = data?.category;
   const pagination = data?.pagination;
 
   const activeProducts = useMemo(
     () => products.filter((p) => !p.isBlock),
-    [products]
+    [products],
   );
 
   /* =============================
@@ -105,26 +102,34 @@ export default function CategoryProductsClient() {
   });
 
   const brands = filtersData?.brands ?? [];
+  const isFiltering = isFetching && !isLoading;
 
   /* =============================
    ✅ states
   ============================= */
-  if (isLoading) {
-    return (
-      <div className="text-center py-20 text-gray-600">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#00B4D8]" />
-          <p>در حال بارگذاری محصولات...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (isError) {
+    const status = axios.isAxiosError(error)
+      ? error.response?.status
+      : undefined;
+
+    if (status === 404) {
+      router.replace("/not-found");
+      return null;
+    }
+
+    if (status === 500) {
+      router.replace("/server-error");
+      return null;
+    }
+
     return (
-      <div className="text-center py-20 text-red-500">
-        خطا در دریافت محصولات
-        <pre className="text-xs mt-2">{JSON.stringify(error, null, 2)}</pre>
+      <div dir="rtl" className="text-center py-20">
+        <h2 className="text-lg font-semibold text-red-500">
+          خطا در دریافت محصولات
+        </h2>
+
+        
       </div>
     );
   }
@@ -144,6 +149,8 @@ export default function CategoryProductsClient() {
       }}
       setPage={setPage}
       brands={brands}
+      isLoading={isLoading}
+      isFiltering={isFiltering}
     />
   );
 }

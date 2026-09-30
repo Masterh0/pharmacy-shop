@@ -9,33 +9,60 @@ export const variantService = {
   async getById(id: number) {
     return prisma.productVariant.findUnique({
       where: { id },
-      include: { product: true, images: { orderBy: { displayOrder: "asc" } } },
+      include: {
+        images: {
+          orderBy: {
+            displayOrder: "asc",
+          },
+        },
+
+        attributes: {
+          include: {
+            value: {
+              include: {
+                attribute: true,
+              },
+            },
+          },
+        },
+
+        product: true,
+      },
     });
   },
 
   async getByProductId(productId: number) {
-    console.log("🧠 Service: getByProductId called with productId:", productId);
-
     try {
       const result = await prisma.productVariant.findMany({
         where: { productId },
         orderBy: { id: "asc" },
         include: {
-          images: { orderBy: { displayOrder: "asc" } }, // 👈 اضافه شد
+          images: {
+            orderBy: {
+              displayOrder: "asc",
+            },
+          },
+
+          attributes: {
+            include: {
+              value: {
+                include: {
+                  attribute: true,
+                },
+              },
+            },
+          },
         },
       });
 
-      // اگر بخوایم مطمئن شیم که نتیجه‌ای برگشته:
-      console.log(
-        `✅ Service: Found ${result.length} variants for product ${productId}`
-      );
+    
 
       return result;
     } catch (error) {
       // 🔥 این قسمت حیاتی‌ترین بخش برای یافتن ارور 500 هستش
       console.error(
         `🔥 Prisma ERROR in getByProductId for product ${productId}:`,
-        error
+        error,
       );
       // ارور رو re-throw می‌کنیم تا کنترلر بتونه 500 رو بفرسته.
       throw error;
@@ -47,23 +74,42 @@ export const variantService = {
     const discountPrice = data.discountPrice
       ? Number(data.discountPrice)
       : null;
-
-    if (discountPrice && discountPrice > price) {
-      throw new Error("❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر باشد");
+    const finalDiscountPrice =
+      discountPrice !== null && discountPrice >= 1 && discountPrice < price
+        ? discountPrice
+        : null;
+    if (discountPrice !== null) {
+      if (discountPrice >= price) {
+        throw new Error(
+          "❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر یا مساوی باشد",
+        );
+      }
     }
 
     const variant = await prisma.productVariant.create({
       data: {
         productId: data.productId,
-        packageType: data.packageType,
-        packageQuantity: Number(data.packageQuantity),
+        sku: data.sku || null,
+        barcode: data.barcode || null,
+        purchasePrice:
+          data.purchasePrice !== undefined && data.purchasePrice !== null
+            ? Number(data.purchasePrice)
+            : null,
         price,
-        discountPrice,
+        discountPrice: finalDiscountPrice,
         stock: Number(data.stock),
-        flavor: data.flavor,
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
       },
     });
+
+    if (data.attributes && data.attributes.length > 0) {
+      await prisma.productVariantAttribute.createMany({
+        data: data.attributes.map((valueId: number) => ({
+          variantId: variant.id,
+          valueId: Number(valueId),
+        })),
+      });
+    }
 
     if (data.images && data.images.length > 0) {
       await prisma.productImage.createMany({
@@ -78,27 +124,37 @@ export const variantService = {
 
     return prisma.productVariant.findUnique({
       where: { id: variant.id },
-      include: { images: true },
+      include: {
+        images: true,
+        attributes: {
+          include: {
+            value: {
+              include: {
+                attribute: true,
+              },
+            },
+          },
+        },
+      },
     });
   },
 
   async update(
     id: number,
     data: UpdateVariantDTO,
-    files?: Express.Multer.File[]
+    files?: Express.Multer.File[],
   ) {
     if (!id || isNaN(id)) throw new Error("❌ شناسه واریانت معتبر نیست");
 
     const updateData: Prisma.ProductVariantUpdateInput = {};
 
-    if (data.packageType !== undefined)
-      updateData.packageType = data.packageType;
-    if (data.flavor !== undefined) updateData.flavor = data.flavor;
+    if (data.sku !== undefined) updateData.sku = data.sku || null;
+    if (data.barcode !== undefined) updateData.barcode = data.barcode || null;
 
-    if (data.packageQuantity !== undefined) {
-      const qty = Number(data.packageQuantity);
-      if (isNaN(qty)) throw new Error("❌ تعداد بسته نامعتبر است");
-      updateData.packageQuantity = qty;
+    if (data.purchasePrice !== undefined) {
+      const pp = data.purchasePrice ? Number(data.purchasePrice) : null;
+      if (pp !== null && isNaN(pp)) throw new Error("❌ قیمت خرید نامعتبر است");
+      updateData.purchasePrice = pp;
     }
 
     if (data.stock !== undefined) {
@@ -117,7 +173,10 @@ export const variantService = {
       const disc = data.discountPrice ? Number(data.discountPrice) : null;
       if (disc !== null && isNaN(disc))
         throw new Error("❌ قیمت تخفیف نامعتبر است");
-      updateData.discountPrice = disc;
+      // ⭐ اصلاح شده
+      if (disc !== null && disc !== 0 && disc < 1)
+        throw new Error("❌ قیمت با تخفیف نمی‌تواند کمتر از ۱ باشد");
+      updateData.discountPrice = disc !== null && disc >= 1 ? disc : null;
     }
 
     if (data.expiryDate !== undefined) {
@@ -132,8 +191,10 @@ export const variantService = {
       updateData.discountPrice !== undefined &&
       updateData.discountPrice !== null
     ) {
-      if (Number(updateData.discountPrice) > Number(updateData.price)) {
-        throw new Error("❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر باشد");
+      if (Number(updateData.discountPrice) >= Number(updateData.price)) {
+        throw new Error(
+          "❌ قیمت با تخفیف نباید از قیمت اصلی بیشتر یا مساوی باشد",
+        );
       }
     }
 
@@ -142,7 +203,23 @@ export const variantService = {
         where: { id },
         data: updateData,
       });
+      // ⭐ فقط وقتی Attributeها تغییر کرده
+      if (data.attributes !== undefined) {
+        await tx.productVariantAttribute.deleteMany({
+          where: {
+            variantId: id,
+          },
+        });
 
+        if (data.attributes.length > 0) {
+          await tx.productVariantAttribute.createMany({
+            data: data.attributes.map((valueId: number) => ({
+              variantId: id,
+              valueId: Number(valueId),
+            })),
+          });
+        }
+      }
       // ⭐ فقط وقتی تصاویر تغییر کرده
       if (data.existingImages !== undefined || (files && files.length > 0)) {
         // 🗑️ حذف همه تصاویر قدیمی
@@ -160,12 +237,12 @@ export const variantService = {
 
         // ✅ اضافه کردن تصاویر موجود که حذف نشدن
         if (data.existingImages && data.existingImages.length > 0) {
-          data.existingImages.forEach((url: string, index: number) => {
+          data.existingImages.forEach((img) => {
             imagesToCreate.push({
               variantId: id,
-              url,
-              displayOrder: index,
-              isPrimary: index === 0,
+              url: img.url,
+              displayOrder: img.displayOrder,
+              isPrimary: img.isPrimary,
             });
           });
         }
@@ -193,7 +270,18 @@ export const variantService = {
 
       return tx.productVariant.findUnique({
         where: { id },
-        include: { images: { orderBy: { displayOrder: "asc" } } },
+        include: {
+          images: { orderBy: { displayOrder: "asc" } },
+          attributes: {
+            include: {
+              value: {
+                include: {
+                  attribute: true,
+                },
+              },
+            },
+          },
+        },
       });
     });
   },

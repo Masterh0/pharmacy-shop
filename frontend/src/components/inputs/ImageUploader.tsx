@@ -33,7 +33,7 @@ export function ImageUploader({
       setPreview(
         file.startsWith("http")
           ? file
-          : `${baseUrl}/${file.replace(/^\/+/, "")}`
+          : `${baseUrl}/${file.replace(/^\/+/, "")}`,
       );
       return;
     }
@@ -65,7 +65,7 @@ export function ImageUploader({
 
       setValue(name, selected, { shouldValidate: true });
     },
-    [name, setValue]
+    [name, setValue],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -105,7 +105,10 @@ export function ImageUploader({
 
             <button
               type="button"
-              onClick={() => setValue(name, "", { shouldValidate: true })}
+              onClick={(e) => {
+                e.stopPropagation();
+                setValue(name, undefined, { shouldValidate: true });
+              }}
               className="absolute top-2 left-2 opacity-0 group-hover:opacity-100
               transition bg-red-500 hover:bg-red-600 text-white
               w-8 h-8 rounded-full flex items-center justify-center shadow"
@@ -115,12 +118,8 @@ export function ImageUploader({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 text-gray-500">
-            <p className="text-[13px]">
-              کلیک یا درگ برای آپلود تصویر
-            </p>
-            <p className="text-[12px] text-gray-400">
-              JPG, PNG – حداکثر ۲MB
-            </p>
+            <p className="text-[13px]">کلیک یا درگ برای آپلود تصویر</p>
+            <p className="text-[12px] text-gray-400">JPG, PNG – حداکثر ۲MB</p>
           </div>
         )}
       </div>

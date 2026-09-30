@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm, Controller, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   editProductSchema,
-  CreateProductDTO,
+  EditProductDTO,
 } from "@/lib/validators/productSchema";
 import { productApi } from "@/lib/api/products";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,8 @@ import { Product } from "@/lib/types/product";
 import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSearch";
 import { ImageUploader } from "../inputs/ImageUploader";
 import { RichTextEditor } from "../inputs/RichTextEditor";
+import { SearchableSelect } from "@/src/components/ui/SearchableSelect";
+import ProductAttributeSelector from "./ProductAttributeSelector";
 
 interface EditProductFormProps {
   initialData: Product;
@@ -26,89 +28,87 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   const { data: brands } = useBrands();
   const { data: categories } = useCategories();
 
-  /* -------------------------------------------- */
-  /* 📋 مقداردهی اولیه فرم */
-  /* -------------------------------------------- */
-  const form = useForm<CreateProductDTO>({
+  const form = useForm<EditProductDTO>({
     resolver: zodResolver(editProductSchema),
     defaultValues: {
-      name: initialData?.name ?? "",
-      sku: initialData?.sku ?? "",
-      description: initialData?.description ?? "",
-      brandId: Number(initialData?.brandId ?? ""),
-      categoryId: Number(initialData?.categoryId ?? ""),
-      isBlock: !!initialData?.isBlock,
-      imageUrl: undefined,
+      name: initialData.name ?? "",
+      slug: initialData.slug ?? "",
+      description: initialData.description ?? "",
+      shortDescription: initialData.shortDescription ?? "",
+      metaTitle: initialData.metaTitle ?? "",
+      metaDescription: initialData.metaDescription ?? "",
+      brandId: Number(initialData.brandId),
+      categoryId: Number(initialData.categoryId),
+      isBlock: initialData.isBlock ?? false,
+      image: undefined,
+      attributes:
+        initialData.attributes?.map((a) => ({
+          attributeId: a.attributeId,
+          valueId: a.valueId,
+        })) ?? [],
     },
   });
 
-  const { control, register, reset, handleSubmit, formState } = form;
-  const { errors } = formState;
+  const {
+    control,
+    register,
+    reset,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = form;
 
   useEffect(() => {
-    if (!initialData) return;
-
     reset({
       name: initialData.name ?? "",
-      sku: initialData.sku ?? "",
+      slug: initialData.slug ?? "",
       description: initialData.description ?? "",
-      brandId: Number(initialData.brandId ?? ""),
-      categoryId: Number(initialData.categoryId ?? ""),
-      isBlock: !!initialData.isBlock,
-      imageUrl: initialData.imageUrl ?? "",
+      shortDescription: initialData.shortDescription ?? "",
+      metaTitle: initialData.metaTitle ?? "",
+      metaDescription: initialData.metaDescription ?? "",
+      brandId: Number(initialData.brandId),
+      categoryId: Number(initialData.categoryId),
+      isBlock: initialData.isBlock ?? false,
+      image: initialData.imageUrl ?? undefined,
+      attributes:
+        initialData.attributes?.map((a) => ({
+          attributeId: a.value.attributeId,
+          valueId: a.valueId,
+        })) ?? [],
     });
   }, [initialData, reset]);
 
-  /* -------------------------------------------- */
-  /* 🚀 Mutation برای update محصول */
-  /* -------------------------------------------- */
   const mutation = useMutation({
-    mutationFn: async (data: CreateProductDTO) => {
-      if (!initialData?.id) throw new Error("شناسه محصول نامعتبر است");
-
+    mutationFn: async (data: EditProductDTO) => {
       const formData = new FormData();
-      formData.append("name", data.name || "");
-      formData.append("sku", data.sku || "");
-      formData.append("description", data.description || "");
-      formData.append("brandId", String(data.brandId || ""));
-      formData.append("categoryId", String(data.categoryId || ""));
-      formData.append("isBlock", String(data.isBlock ?? false));
-
-      if (data.imageUrl instanceof File)
-        formData.append("imageUrl", data.imageUrl); // فقط در صورت فایل فیزیکی
-      else formData.append("imageUrl", data.imageUrl as string);
-      const res = await productApi.update(initialData.id, formData);
-      return res;
+      
+      formData.append("name", data.name);
+      formData.append("slug", data.slug);
+      if (data.description) formData.append("description", data.description);
+      if (data.shortDescription)
+        formData.append("shortDescription", data.shortDescription);
+      if (data.metaTitle) formData.append("metaTitle", data.metaTitle);
+      if (data.metaDescription)
+        formData.append("metaDescription", data.metaDescription);
+      formData.append("brandId", String(data.brandId));
+      formData.append("categoryId", String(data.categoryId));
+      if (data.isBlock !== undefined)
+        formData.append("isBlock", String(data.isBlock));
+      if (data.image instanceof File) formData.append("image", data.image);
+      if (data.attributes?.length)
+        formData.append("attributes", JSON.stringify(data.attributes));
+      return productApi.update(initialData.id, formData);
     },
     onSuccess: () => {
       toast.success("✅ تغییرات ذخیره شد");
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", initialData.id] });
     },
-    onError: (err: any) => {
-      console.error("❌ خطا در بروزرسانی:", err);
-      toast.error("❌ خطا در بروزرسانی محصول");
-    },
+    onError: () => toast.error("❌ خطا در بروزرسانی محصول"),
   });
 
-  /* -------------------------------------------- */
-  /* 🎯 تابع ارسال فرم */
-  /* -------------------------------------------- */
-  const onSubmit = async (data: CreateProductDTO) => {
-    try {
-      const parsed = editProductSchema.safeParse(data);
-      if (!parsed.success) {
-        console.error("⚠️ خطای اعتبارسنجی:", parsed.error.errors);
-        return toast.error("داده نامعتبر است");
-      }
-      await mutation.mutateAsync(parsed.data);
-    } catch (err) {
-      console.error("💥 خطا در فراخوانی mutation:", err);
-    }
-  };
+  const onSubmit = (data: EditProductDTO) => mutation.mutate(data);
 
-  /* -------------------------------------------- */
-  /* 🧩 قالب UI فرم */
-  /* -------------------------------------------- */
   return (
     <FormProvider {...form}>
       <form
@@ -116,43 +116,80 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         dir="rtl"
         className="w-[808px] bg-white border border-[#EDEDED] rounded-[16px] p-8 flex flex-col gap-8 font-vazir text-[#434343]"
       >
-        {/* 🖼 تصویر محصول */}
-        <ImageUploader name="imageUrl" />
+        <div className="space-y-2">
+          <ImageUploader name="image" label="تصویر اصلی محصول" />
+          {errors.image && (
+            <p className="text-xs text-red-500">
+              {errors.image.message as string}
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-8">
           <FormField label="نام محصول" error={errors.name?.message}>
             <input
               {...register("name")}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.name ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
+              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${errors.name ? "border-red-500" : "border-[#D6D6D6]"}`}
             />
           </FormField>
-
-          <FormField label="کد محصول (SKU)" error={errors.sku?.message}>
+          <FormField label="Slug" error={errors.slug?.message}>
             <input
-              {...register("sku")}
+              {...register("slug", {
+                required: "Slug الزامی است",
+                pattern: {
+                  value: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+                  message:
+                    "Slug فقط باید شامل حروف انگلیسی، عدد و خط تیره باشد",
+                },
+              })}
+              onChange={(e) => {
+                const value = e.target.value
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")
+                  .replace(/[^a-z0-9-]/g, "")
+                  .replace(/-+/g, "-")
+                  .replace(/^-+|-+$/g, "");
+
+                setValue("slug", value, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+              }}
+              dir="ltr"
+              placeholder="magnesium-citrate-200mg"
               className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.sku ? "border-red-500" : "border-[#D6D6D6]"
+                errors.slug ? "border-red-500" : "border-[#D6D6D6]"
               }`}
+            />
+
+            <p className="text-xs text-gray-400 mt-1" dir="rtl">
+              فاصله‌ها به خط تیره تبدیل می‌شوند.
+            </p>
+          </FormField>
+          <FormField
+            label="توضیح کوتاه"
+            error={errors.shortDescription?.message}
+          >
+            <textarea
+              rows={4}
+              {...register("shortDescription")}
+              className={`w-full border px-3 py-2 rounded-[8px] ${errors.shortDescription ? "border-red-500" : "border-[#D6D6D6]"}`}
             />
           </FormField>
 
           <FormField label="برند" error={errors.brandId?.message}>
-            <select
-              {...register("brandId", {
-                setValueAs: (v) => (v === "" ? undefined : Number(v)),
-              })}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.brandId ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
-            >
-              <option value="">انتخاب کنید</option>
-              {brands?.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <Controller
+              name="brandId"
+              control={control}
+              render={({ field }) => (
+                <SearchableSelect
+                  options={brands ?? []}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={!!errors.brandId}
+                />
+              )}
+            />
           </FormField>
 
           <FormField label="دسته‌بندی" error={errors.categoryId?.message}>
@@ -162,10 +199,7 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
               render={({ field }) => (
                 <CategorySelectSearch
                   value={field.value}
-                  onChange={(val) => {
-                    field.onChange(val ? Number(val) : undefined);
-                  }}
-                  defaultValue={Number(initialData.categoryId)}
+                  onChange={field.onChange}
                 />
               )}
             />
@@ -173,11 +207,26 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
         </div>
 
         <FormField label="توضیحات" error={errors.description?.message}>
-          <RichTextEditor
-            control={control}
-            name="description"
-            label="توضیحات محصول"
-          />
+          <RichTextEditor control={control} name="description" />
+          <div className="grid grid-cols-2 gap-8 mt-4">
+            <FormField label="Meta Title" error={errors.metaTitle?.message}>
+              <input
+                {...register("metaTitle")}
+                className={`w-full h-[40px] border px-3 rounded-[8px] ${errors.metaTitle ? "border-red-500" : "border-[#D6D6D6]"}`}
+              />
+            </FormField>
+            <FormField
+              label="Meta Description"
+              error={errors.metaDescription?.message}
+            >
+              <textarea
+                rows={4}
+                {...register("metaDescription")}
+                className={`w-full border px-3 py-2 rounded-[8px] ${errors.metaDescription ? "border-red-500" : "border-[#D6D6D6]"}`}
+              />
+            </FormField>
+          </div>
+          <ProductAttributeSelector />
         </FormField>
 
         <div className="flex justify-end mt-3">
@@ -194,7 +243,6 @@ export default function EditProductForm({ initialData }: EditProductFormProps) {
   );
 }
 
-/* -------------------------------------------- */
 interface FormFieldProps {
   label: string;
   error?: string;

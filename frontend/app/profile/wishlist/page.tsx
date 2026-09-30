@@ -15,10 +15,19 @@ import { toast } from "sonner";
 import type { CartItem } from "@/lib/types/cart";
 
 export default function WishlistPage() {
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
+  const BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "http://localhost:5000";
   const router = useRouter();
 
-  const { wishlist, isLoading, removeFromWishlist, clearWishlist, count: wishlistCount } = useWishlist();
+  const {
+    wishlist,
+    isLoading,
+    removeFromWishlist,
+    clearWishlist,
+    count: wishlistCount,
+  } = useWishlist();
   const { cart, addItem, removeItem, updateItem, isAdding } = useCart();
 
   const [removingIds, setRemovingIds] = useState<Set<number>>(new Set());
@@ -26,7 +35,11 @@ export default function WishlistPage() {
   const cartItems: CartItem[] = cart?.items ?? [];
 
   // ✅ هندلر حذف تکی از لیست علاقه‌مندی‌ها
-  const handleRemoveFromWishlist = async (e: React.MouseEvent, productId: number, productName: string) => {
+  const handleRemoveFromWishlist = async (
+    e: React.MouseEvent,
+    productId: number,
+    productName: string,
+  ) => {
     e.stopPropagation(); // جلوگیری از کلیک روی کارت
     setRemovingIds((prev) => new Set(prev).add(productId));
 
@@ -49,7 +62,9 @@ export default function WishlistPage() {
     return (
       <div className="flex flex-col justify-center items-center h-[60vh] gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-100 border-t-[#00B4D8]"></div>
-        <p className="text-gray-500 text-sm font-medium animate-pulse">در حال دریافت لیست...</p>
+        <p className="text-gray-500 text-sm font-medium animate-pulse">
+          در حال دریافت لیست...
+        </p>
       </div>
     );
   }
@@ -68,7 +83,8 @@ export default function WishlistPage() {
             لیست علاقه‌مندی‌ها خالی است
           </h2>
           <p className="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed">
-            شما هنوز محصولی را لایک نکرده‌اید. برای دسترسی سریع‌تر، محصولات محبوب خود را اضافه کنید.
+            شما هنوز محصولی را لایک نکرده‌اید. برای دسترسی سریع‌تر، محصولات
+            محبوب خود را اضافه کنید.
           </p>
         </div>
 
@@ -84,7 +100,6 @@ export default function WishlistPage() {
 
   return (
     <div className="w-full lg:w-[95%] mx-auto px-4 py-8" dir="rtl">
-      
       {/* 📊 Header Modern */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-10">
         <div className="flex items-center gap-4">
@@ -111,7 +126,10 @@ export default function WishlistPage() {
             }}
             className="text-red-500 hover:text-white hover:bg-red-500 px-5 py-2.5 rounded-xl transition-all border border-red-100 hover:border-red-500 flex items-center gap-2 text-sm font-medium group"
           >
-            <HiTrash size={18} className="group-hover:scale-110 transition-transform" />
+            <HiTrash
+              size={18}
+              className="group-hover:scale-110 transition-transform"
+            />
             پاک کردن همه
           </button>
         )}
@@ -121,7 +139,7 @@ export default function WishlistPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:gap-8">
         {wishlist.map((item) => {
           const p = item.product;
-          
+
           // محاسبات
           const variants = p.variants ?? [];
           const availableVariants = variants.filter((v) => v.stock > 0);
@@ -146,10 +164,10 @@ export default function WishlistPage() {
           const imageSrc = !p.imageUrl
             ? "/no-image.png"
             : p.imageUrl.startsWith("http")
-            ? p.imageUrl
-            : `${BASE_URL}${
-                p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
-              }`;
+              ? p.imageUrl
+              : `${BASE_URL}${
+                  p.imageUrl.startsWith("/") ? p.imageUrl : `/${p.imageUrl}`
+                }`;
 
           const isRemoving = removingIds.has(p.id);
 
@@ -157,7 +175,7 @@ export default function WishlistPage() {
             <div
               key={item.id}
               onClick={() => {
-                if (!isOutOfStock) router.push(`/product/${p.slug}?id=${p.id}`);
+                if (!isOutOfStock) router.push(`/product/${p.id}-${p.slug}`);
               }}
               className={`
                 group relative flex flex-col justify-between
@@ -174,10 +192,8 @@ export default function WishlistPage() {
                 ${p.isBlock || isOutOfStock ? "opacity-80" : "cursor-pointer"}
               `}
             >
-              
               {/* --- بخش بالا: تصویر و بج‌ها --- */}
               <div className="relative w-full aspect-[4/3] bg-gray-50 rounded-[18px] overflow-hidden mb-4 flex items-center justify-center">
-                
                 {/* دکمه حذف (مخصوص صفحه ویش‌لیست) */}
                 <button
                   onClick={(e) => handleRemoveFromWishlist(e, p.id, p.name)}
@@ -206,7 +222,7 @@ export default function WishlistPage() {
                     </span>
                   </div>
                 )}
-                 {p.isBlock && (
+                {p.isBlock && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center">
                     <span className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg transform -rotate-6">
                       توقف فروش
@@ -232,7 +248,7 @@ export default function WishlistPage() {
                     {p.category.name}
                   </span>
                 )}
-                
+
                 {/* نام محصول */}
                 <h3 className="font-bold text-gray-800 text-[15px] leading-snug line-clamp-2 h-[42px]">
                   {p.name}
@@ -240,48 +256,59 @@ export default function WishlistPage() {
 
                 {/* قیمت */}
                 <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
-                   {/* فضای خالی برای تراز بندی */}
-                   <div className="flex-1"></div>
-                   
-                   <div className="flex flex-col items-end">
-                      {hasDiscount && (
-                        <span className="text-xs text-gray-400 line-through decoration-red-400 decoration-1 mb-0.5">
-                          {price.toLocaleString("fa-IR")}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1 text-[#00B4D8]">
-                        <span className="text-lg font-black tracking-tight">
-                          {(hasDiscount ? discount : price).toLocaleString("fa-IR")}
-                        </span>
-                        <span className="text-xs text-gray-500 font-medium">تومان</span>
-                      </div>
-                   </div>
+                  {/* فضای خالی برای تراز بندی */}
+                  <div className="flex-1"></div>
+
+                  <div className="flex flex-col items-end">
+                    {hasDiscount && (
+                      <span className="text-xs text-gray-400 line-through decoration-red-400 decoration-1 mb-0.5">
+                        {price.toLocaleString("fa-IR")}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1 text-[#00B4D8]">
+                      <span className="text-lg font-black tracking-tight">
+                        {(hasDiscount ? discount : price).toLocaleString(
+                          "fa-IR",
+                        )}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium">
+                        تومان
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* --- بخش پایین: دکمه خرید --- */}
               <div className="mt-5 pt-4 border-t border-gray-50">
                 {isOutOfStock || !displayVariant ? (
-                   <button disabled className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 text-sm font-medium cursor-not-allowed">
-                     فعلا موجود نیست
-                   </button>
+                  <button
+                    disabled
+                    className="w-full py-3 rounded-xl bg-gray-100 text-gray-400 text-sm font-medium cursor-not-allowed"
+                  >
+                    فعلا موجود نیست
+                  </button>
                 ) : quantityInCart === 0 ? (
                   <button
                     disabled={isAdding}
                     onClick={(e) => {
                       e.stopPropagation();
-                      addItem({ productId: p.id, variantId: displayVariant.id, quantity: 1 });
+                      addItem({
+                        productId: p.id,
+                        variantId: displayVariant.id,
+                        quantity: 1,
+                      });
                     }}
                     className="w-full py-3 bg-gray-900 hover:bg-[#00B4D8] text-white rounded-xl text-sm font-bold transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg shadow-gray-200 hover:shadow-blue-200"
                   >
-                     {isAdding ? (
-                       <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                     ) : (
-                       <>
-                         <span>افزودن به سبد</span>
-                         <FiShoppingCart size={16} />
-                       </>
-                     )}
+                    {isAdding ? (
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span>افزودن به سبد</span>
+                        <FiShoppingCart size={16} />
+                      </>
+                    )}
                   </button>
                 ) : (
                   // کنترلر تعداد (استایل قرصی شکل)
@@ -292,11 +319,18 @@ export default function WishlistPage() {
                         if (!cartItem) return;
                         quantityInCart === 1
                           ? removeItem(cartItem.id)
-                          : updateItem({ itemId: cartItem.id, quantity: quantityInCart - 1 });
+                          : updateItem({
+                              itemId: cartItem.id,
+                              quantity: quantityInCart - 1,
+                            });
                       }}
                       className="w-9 h-full bg-white text-red-500 hover:bg-red-50 rounded-[10px] flex items-center justify-center transition-colors shadow-sm"
                     >
-                      {quantityInCart === 1 ? <HiTrash size={18} /> : <HiMinus size={16} />}
+                      {quantityInCart === 1 ? (
+                        <HiTrash size={18} />
+                      ) : (
+                        <HiMinus size={16} />
+                      )}
                     </button>
 
                     <span className="font-bold text-lg text-[#0077B6] min-w-[30px] text-center select-none">
@@ -306,7 +340,11 @@ export default function WishlistPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        addItem({ productId: p.id, variantId: displayVariant.id, quantity: 1 });
+                        addItem({
+                          productId: p.id,
+                          variantId: displayVariant.id,
+                          quantity: 1,
+                        });
                       }}
                       className="w-9 h-full bg-[#00B4D8] text-white hover:bg-[#0096C7] rounded-[10px] flex items-center justify-center transition-colors shadow-sm"
                     >
@@ -315,7 +353,6 @@ export default function WishlistPage() {
                   </div>
                 )}
               </div>
-
             </div>
           );
         })}

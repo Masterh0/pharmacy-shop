@@ -6,18 +6,19 @@ import { OrderStatus } from "@prisma/client";
 export const adminOrderController = {
   async getAllOrders(req: Request, res: Response) {
     try {
-      const { status, userId, startDate, endDate, page, limit } = req.query;
+      const { status, userId, search, startDate, endDate, page, limit } =
+        req.query;
 
       const result = await adminOrderService.getAllOrders({
-        status: status as OrderStatus,
+        status: status as OrderStatus | undefined,
         userId: userId ? Number(userId) : undefined,
+        search: search as string | undefined, // ← اضافه شد
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
         page: page ? Number(page) : 1,
         limit: limit ? Number(limit) : 20,
       });
 
-      // ✅ ساختار response مطابق با Frontend
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -27,7 +28,7 @@ export const adminOrderController = {
   async getOrderDetails(req: Request, res: Response) {
     try {
       const orderId = Number(req.params.id);
-      
+
       if (isNaN(orderId)) {
         return res.status(400).json({ message: "شناسه سفارش نامعتبر است" });
       }
@@ -56,12 +57,13 @@ export const adminOrderController = {
       const order = await adminOrderService.updateOrderStatus(
         orderId,
         status,
-        adminNote
+        adminNote,
       );
 
       res.json({ success: true, order });
     } catch (err: any) {
-      res.status(500).json({ message: err.message });
+      const statusCode = err.message === "سفارش یافت نشد" ? 404 : 500;
+      res.status(statusCode).json({ message: err.message });
     }
   },
 
@@ -71,7 +73,7 @@ export const adminOrderController = {
 
       const stats = await adminOrderService.getOrderStatistics(
         startDate ? new Date(startDate as string) : undefined,
-        endDate ? new Date(endDate as string) : undefined
+        endDate ? new Date(endDate as string) : undefined,
       );
 
       res.json(stats);

@@ -1,69 +1,154 @@
 import { z } from "zod";
 
 /* ----------------------------------------------------- */
-/* 🎯 واریانت — تبدیل فقط برای قیمت‌ها                  */
+/* Helpers                                               */
 /* ----------------------------------------------------- */
+
+const priceField = z.any().transform((val) => {
+  if (val === "" || val === null || val === undefined) return undefined;
+
+  if (typeof val === "number") return val;
+
+  if (typeof val === "string") {
+    const num = Number(val.replace(/,/g, ""));
+    return isNaN(num) ? undefined : num;
+  }
+
+  return undefined;
+});
+
+/* ----------------------------------------------------- */
+/* Variant Attribute                                     */
+/* ----------------------------------------------------- */
+
+export const variantAttributeSchema = z.object({
+  attributeId: z.number(),
+  valueId: z.number(),
+});
+
+/* ----------------------------------------------------- */
+/* Product Attribute                                     */
+/* ----------------------------------------------------- */
+
+export const productAttributeSchema = z.object({
+  attributeId: z.number(),
+  valueId: z.number(),
+});
+
+/* ----------------------------------------------------- */
+/* Variant                                               */
+/* ----------------------------------------------------- */
+
 export const variantSchema = z
   .object({
-    packageQuantity: z.number().min(1, "تعداد بسته حداقل ۱ باید باشد"),
-    packageType: z.string().min(1, "نوع بسته‌بندی الزامی است"),
+    sku: z.string().optional(),
 
-    price: z
-      .string()
-      .transform((val) => {
-        const num = Number(val.replace(/,/g, ""));
-        return isNaN(num) ? 0 : num; // فقط تبدیل رشته کامادار به عدد
-      })
-      .refine((val) => val > 0, "قیمت باید عدد معتبر باشد"),
+    barcode: z.string().optional(),
 
-    discountPrice: z
-      .string()
-      .optional()
-      .transform((val) => {
-        if (!val) return undefined;
-        const num = Number(val.replace(/,/g, ""));
-        return isNaN(num) ? undefined : num;
-      }),
+    purchasePrice: priceField.optional(),
 
-    stock: z.number().min(0, "موجودی نمی‌تواند منفی باشد"),
+    price: priceField.refine(
+      (v) => v !== undefined && v > 0,
+      "قیمت فروش الزامی است",
+    ),
+
+    discountPrice: priceField,
+
+    stock: z.coerce.number().min(0, "موجودی نمی‌تواند منفی باشد"),
+
     expiryDate: z.string().optional(),
-    flavor: z.string().optional(),
+
+    images: z.any().array().optional(),
+
+    attributes: z.array(variantAttributeSchema).default([]),
   })
-  // 🧩 منطق اضافی: بررسی اختلاف قیمت‌ها
   .refine(
     (data) =>
-      data.discountPrice === undefined || data.discountPrice < data.price,
+      data.discountPrice === undefined ||
+      data.discountPrice < (data.price ?? 0),
     {
-      message: "قیمت با تخفیف نمی‌تواند از قیمت اصلی بیشتر باشد",
-      path: ["discountPrice"], // خطا برای فیلد خود تخفیف نمایش داده شود
-    }
+      message: "قیمت تخفیف باید کمتر از قیمت فروش باشد",
+      path: ["discountPrice"],
+    },
   );
 
 /* ----------------------------------------------------- */
-/* 🎯 محصول — اسکیمای نهایی برای ارسال به API            */
+/* Product                                               */
 /* ----------------------------------------------------- */
+
 export const productSchema = z.object({
   name: z.string().min(1, "نام محصول الزامی است"),
-  slug: z.string().optional(),
-  sku: z.string().min(1, "کد SKU الزامی است"),
-  description: z.string().optional(),
-  brandId: z.number().optional(),
-  categoryId: z.number().optional(),
+
+  slug: z
+    .string()
+    .min(1, "Slug الزامی است")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug فقط باید شامل حروف انگلیسی، عدد و خط تیره باشد",
+    ),
+
+  description: z.string().default(""),
+
+  shortDescription: z.string().max(500, "حداکثر ۵۰۰ کاراکتر").optional(),
+
+  metaTitle: z.string().optional(),
+
+  metaDescription: z.string().optional(),
+
+  brandId: z.coerce.number(),
+
+  categoryId: z.coerce.number(),
+
   isBlock: z.boolean().optional(),
+
   image: z.any().optional(),
+
+  attributes: z
+    .array(
+      z.object({
+        attributeId: z.number().optional(),
+        valueId: z.number().optional(),
+      }),
+    )
+    .default([]),
 
   variants: z
     .array(variantSchema)
     .min(1, "حداقل یک واریانت باید وجود داشته باشد"),
 });
+
+/* ----------------------------------------------------- */
+/* Edit Product                                          */
+/* ----------------------------------------------------- */
+
 export const editProductSchema = z.object({
   name: z.string().min(1, "نام محصول الزامی است"),
-  slug: z.string().optional(),
-  sku: z.string().min(1, "کد SKU الزامی است"),
   description: z.string().optional(),
-  brandId: z.coerce.number().optional(),
-  categoryId: z.coerce.number().optional(),
+  shortDescription: z.string().optional(),
+  slug: z
+    .string()
+    .min(1, "Slug الزامی است")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Slug فقط باید شامل حروف انگلیسی، عدد و خط تیره باشد",
+    ),
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+  brandId: z.number({ invalid_type_error: "برند الزامی است" }),
+  categoryId: z.number({ invalid_type_error: "دسته‌بندی الزامی است" }),
   isBlock: z.boolean().optional(),
-  imageUrl: z.any().optional(),
+  image: z.union([z.instanceof(File), z.string(), z.undefined()]).optional(),
+  attributes: z
+    .array(
+      z.object({
+        attributeId: z.number(),
+        valueId: z.number(),
+      }),
+    )
+    .optional(),
 });
+
+/* ----------------------------------------------------- */
+
 export type CreateProductDTO = z.infer<typeof productSchema>;
+export type EditProductDTO = z.infer<typeof editProductSchema>;

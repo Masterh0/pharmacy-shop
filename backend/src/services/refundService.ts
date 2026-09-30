@@ -43,15 +43,18 @@ export const refundService = {
       // ✅ برگشت موجودی فقط در FULL refund
       if (restock && isFullRefund) {
         for (const item of order.orderItems) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { increment: item.quantity } },
-          });
-
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { soldCount: { decrement: item.quantity } },
-          });
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: { stock: { increment: item.quantity } },
+            });
+          }
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { soldCount: { decrement: item.quantity } },
+            });
+          }
         }
       }
 

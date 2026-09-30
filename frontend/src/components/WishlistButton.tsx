@@ -6,9 +6,14 @@ import { useEffect, useState } from "react";
 
 export default function WishlistButton({
   productId,
-  size = 28,
+  size = 22,
   showLabel = false,
   className = "",
+}: {
+  productId: string | number;
+  size?: number;
+  showLabel?: boolean;
+  className?: string;
 }) {
   const { isInWishlist, toggleWishlist, isAdding, isRemoving } = useWishlist();
 
@@ -37,30 +42,28 @@ export default function WishlistButton({
           : "علاقه‌مندی"
       }
       className={`
-        group relative
+        relative
         flex items-center justify-center gap-2
-        transition-all duration-300
-        ${showLabel ? "px-4 py-2.5" : "w-11 h-11"}
-        rounded-full z-50
-        ${isLoading
-          ? "opacity-50 cursor-wait"
-          : "hover:scale-110 hover:-translate-y-1 active:scale-95"}
+        transition-all duration-200
+        p-1 rounded-full
+        z-10
+        ${isLoading ? "opacity-50 cursor-wait" : "hover:scale-110 active:scale-95"}
         ${className}
       `}
     >
       {mounted && inWishlist ? (
-        <IoMdHeart size={size} className="text-[#2196F3]" />
+        <IoMdHeart size={size} className="text-[#E53935]" />
       ) : (
         <IoMdHeartEmpty
           size={size}
-          className="text-[#434343] group-hover:text-[#2196F3]"
+          className="text-[#8C8C8C] hover:text-[#E53935] transition-colors duration-200"
         />
       )}
 
       {showLabel && mounted && (
         <span
           className={`text-sm font-medium ${
-            inWishlist ? "text-[#2196F3]" : "text-gray-700"
+            inWishlist ? "text-[#E53935]" : "text-gray-700"
           }`}
         >
           {inWishlist ? "در علاقه‌مندی‌ها" : "افزودن"}

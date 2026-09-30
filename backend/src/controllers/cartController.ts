@@ -21,7 +21,7 @@ export class CartController {
 
       res.status(200).json(item);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(400).json({ error: err.message });
     }
   }
 
@@ -37,15 +37,27 @@ export class CartController {
 
   async removeItem(req: Request, res: Response) {
     try {
+      const { userId, sessionId } = req.cartIdentity!;
       const id = Number(req.params.id);
-      const result = await cartService.removeItem(id);
+
+      if (!req.params.id || isNaN(id)) {
+        return res.status(400).json({ error: "شناسه آیتم معتبر نیست" });
+      }
+
+      const result = await cartService.removeItem({
+        itemId: id,
+        userId,
+        sessionId,
+      });
       res.status(200).json(result);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(400).json({ error: err.message });
     }
   }
+
   async updateItemQuantity(req: Request, res: Response) {
     try {
+      const { userId, sessionId } = req.cartIdentity!;
       const itemId = Number(req.params.id);
       const { quantity } = req.body;
 
@@ -53,13 +65,15 @@ export class CartController {
         return res.status(400).json({ error: "quantity is required" });
       }
 
-      const result = await cartService.updateItemQuantity(
+      const result = await cartService.updateItemQuantity({
         itemId,
-        Number(quantity),
-      );
+        quantity: Number(quantity),
+        userId,
+        sessionId,
+      });
       return res.status(200).json(result);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return res.status(400).json({ error: err.message });
     }
   }
 }

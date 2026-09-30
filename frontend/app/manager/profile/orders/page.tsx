@@ -1,7 +1,7 @@
 // app/(admin)/manager/profile/orders/page.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminOrderApi } from "@/lib/api/adminOrder";
 import type { OrderStatus } from "@/lib/types/order";
@@ -12,9 +12,6 @@ import OrderStatistics from "@/src/components/admin/orders/OrderStatistics";
 
 import { SearchNormal1 } from "iconsax-react";
 
-/* =======================
-   Types
-======================= */
 interface OrderFiltersState {
   status?: OrderStatus;
   search?: string;
@@ -22,11 +19,22 @@ interface OrderFiltersState {
   limit: number;
 }
 
-/* =======================
-   Page
-======================= */
+const DEBOUNCE_MS = 400;
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
 export default function AdminOrdersPage() {
   const queryClient = useQueryClient();
+
+  // مقدار لحظه‌ای input (برای نمایش)
+  const [searchInput, setSearchInput] = useState("");
 
   const [filters, setFilters] = useState<OrderFiltersState>({
     status: undefined,
@@ -35,19 +43,33 @@ export default function AdminOrdersPage() {
     limit: 10,
   });
 
-  /** ✅ queryKey پایدار */
+  // مقدار debounce‌شده برای ارسال به API
+  const debouncedSearch = useDebounce(searchInput, DEBOUNCE_MS);
+
+  // هر بار که debouncedSearch عوض شد، filters رو sync کن و به صفحه ۱ برگرد
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      search: debouncedSearch,
+      page: 1,
+    }));
+  }, [debouncedSearch]);
+
   const ordersQueryKey = useMemo(
-    () => ["admin-orders", filters.status, filters.search, filters.page, filters.limit],
-    [filters]
+    () => [
+      "admin-orders",
+      filters.status,
+      filters.search,
+      filters.page,
+      filters.limit,
+    ],
+    [filters],
   );
 
-  /* =======================
-     Queries
-  ======================= */
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ordersQueryKey,
     queryFn: () => adminOrderApi.getAllOrders(filters),
-    keepPreviousData: true,
+    placeholderData: (prev) => prev,
   });
 
   const { data: stats } = useQuery({
@@ -55,31 +77,31 @@ export default function AdminOrdersPage() {
     queryFn: adminOrderApi.getStatistics,
   });
 
-  /* =======================
-     Handlers
-  ======================= */
-  const updateFilter = <K extends keyof OrderFiltersState>(
-    key: K,
-    value: OrderFiltersState[K]
-  ) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-      page: key === "page" ? (value as number) : 1,
-    }));
-  };
+  const updateFilter = useCallback(
+    <K extends keyof OrderFiltersState>(
+      key: K,
+      value: OrderFiltersState[K],
+    ) => {
+      setFilters((prev) => ({
+        ...prev,
+        [key]: value,
+        page: key === "page" ? (value as number) : 1,
+      }));
+    },
+    [],
+  );
 
-  const handleOrderUpdated = () => {
+  const handleOrderUpdated = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
     queryClient.invalidateQueries({ queryKey: ["order-statistics"] });
-  };
+  }, [queryClient]);
 
-  /* =======================
-     Render
-  ======================= */
+  const orders = data?.orders ?? [];
+  const pagination = data?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">مدیریت سفارشات</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -87,13 +109,10 @@ export default function AdminOrdersPage() {
         </p>
       </div>
 
-      {/* Statistics */}
       {stats && <OrderStatistics stats={stats} />}
 
-      {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
           <div className="flex-1 relative">
             <SearchNormal1
               size="20"
@@ -102,13 +121,13 @@ export default function AdminOrdersPage() {
             <input
               type="text"
               placeholder="جستجو در کد سفارش یا نام کاربر..."
-              value={filters.search}
-              onChange={(e) => updateFilter("search", e.target.value)}
-              className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00B4D8]"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-[#00B4D8]"
             />
           </div>
 
-          {/* Status Filter */}
           <OrderFilters
             selectedStatus={filters.status}
             onStatusChange={(status) => updateFilter("status", status)}
@@ -116,59 +135,69 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* Orders */}
       <div className="space-y-4">
         {isLoading ? (
-          <div className="py-12 text-center text-gray-500">
-            در حال بارگذاری سفارشات...
-          </div>
-        ) : data?.orders.length === 0 ? (
-          <div className="bg-white rounded-xl border p-12 text-center">
+          Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border border-gray-200 p-5 animate-pulse h-28"
+            />
+          ))
+        ) : orders.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <p className="text-gray-500">هیچ سفارشی یافت نشد</p>
           </div>
         ) : (
           <>
-            {data?.orders.map((order) => (
-              <AdminOrderCard
-                key={order.id}
-                order={order}
-                onUpdated={handleOrderUpdated}
-                isUpdating={isFetching}
-              />
-            ))}
+            <div
+              className={
+                isFetching
+                  ? "opacity-60 pointer-events-none transition-opacity"
+                  : ""
+              }
+            >
+              {orders.map((order) => (
+                <AdminOrderCard
+                  key={order.id}
+                  order={order}
+                  onUpdated={handleOrderUpdated}
+                  isUpdating={isFetching}
+                />
+              ))}
+            </div>
 
-            {/* Pagination */}
-            {data && data.pagination.totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
                 <button
                   disabled={filters.page === 1}
                   onClick={() => updateFilter("page", filters.page - 1)}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm
+                             disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   قبلی
                 </button>
 
-                {Array.from(
-                  { length: data.pagination.totalPages },
-                  (_, i) => i + 1
-                ).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => updateFilter("page", page)}
-                    className={`w-10 h-10 rounded-lg ${
-                      page === filters.page
-                        ? "bg-[#00B4D8] text-white"
-                        : "border hover:bg-gray-50"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => updateFilter("page", page)}
+                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
+                        page === filters.page
+                          ? "bg-[#00B4D8] text-white shadow-sm"
+                          : "border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
 
                 <button
-                  disabled={filters.page === data.pagination.totalPages}
+                  disabled={filters.page === totalPages}
                   onClick={() => updateFilter("page", filters.page + 1)}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm
+                             disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   بعدی
                 </button>

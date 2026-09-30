@@ -4,28 +4,180 @@ import { prisma } from "../config/db";
 import { Product } from "@prisma/client";
 import { NotFoundError, BadRequestError } from "../utils/ApiError"; // وارد کردن کلاس‌های خطا
 import { Prisma } from "@prisma/client"; // وارد کردن Prisma برای دسترسی به کد خطا
-import { makeSlug } from "../utils/slugify";
+import { getPagination, buildPaginationMeta } from "../utils/pagination";
+import { categoryService } from "./categoryService";
+import { decorateProduct } from "../utils/productHelper";
+
+type ProductSort =
+  | "latest"
+  | "bestseller"
+  | "cheapest"
+  | "expensive"
+  | "most_viewed"
+  | "default";
+
+// تبدیل ورودی‌های مختلف (string, number, boolean) به boolean
+
+// نرمال‌سازی نوع مرتب‌سازی
+const normalizeSort = (sort?: string): ProductSort => {
+  const validSorts: ProductSort[] = [
+    "latest",
+    "bestseller",
+    "cheapest",
+    "expensive",
+    "most_viewed",
+    "default",
+  ];
+  return validSorts.includes(sort as ProductSort)
+    ? (sort as ProductSort)
+    : "default";
+};
+const normalizeAndValidateSlug = (value: unknown): string => {
+  if (typeof value !== "string") {
+    throw new BadRequestError("Slug الزامی است.");
+  }
+
+  const slug = value.trim().toLowerCase();
+
+  if (!slug) {
+    throw new BadRequestError("Slug الزامی است.");
+  }
+
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    throw new BadRequestError(
+      "Slug فقط باید شامل حروف انگلیسی، عدد و خط تیره باشد.",
+    );
+  }
+
+  return slug;
+};
+// محاسبه قیمت موثر (برای استفاده در مرتب‌سازی)
+const calculateEffectivePrice = (
+  product: any,
+  mode: "min" | "max" = "min",
+): number => {
+  if (!product.variants?.length) return mode === "min" ? Infinity : -Infinity;
+
+  const prices = product.variants.map((v: any) =>
+    v.discountPrice && Number(v.discountPrice) > 0
+      ? Number(v.discountPrice)
+      : Number(v.price) || 0,
+  );
+
+  return mode === "min" ? Math.min(...prices) : Math.max(...prices);
+};
+
+// تابع اصلی مرتب‌سازی (جاوااسکریپتی)
+const sortProducts = (products: any[], sort: ProductSort) => {
+  return [...products].sort((a, b) => {
+    // 1. اولویت اصلی: موجود بودن کالا
+    const aInStock = a.variants?.some((v: any) => v.stock > 0);
+    const bInStock = b.variants?.some((v: any) => v.stock > 0);
+
+    if (aInStock !== bInStock) {
+      return aInStock ? -1 : 1; // موجودها بالاتر
+    }
+
+    // 2. اولویت‌های بعدی بر اساس نوع مرتب‌سازی
+    switch (sort) {
+      case "cheapest":
+        return a.effectivePrice - b.effectivePrice;
+
+      case "expensive":
+        return b.effectivePrice - a.effectivePrice;
+
+      case "bestseller":
+        // اگر فیلد soldCount در دیتابیس دارید
+        return (b.soldCount || 0) - (a.soldCount || 0);
+
+      case "most_viewed":
+        // اگر فیلد viewCount در دیتابیس دارید
+        return (b.viewCount || 0) - (a.viewCount || 0);
+
+      case "latest":
+      case "default":
+      default:
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+    }
+  });
+};
 export const productService = {
   // ۱. getAll: بدون تغییر خاص
   getAll: async (): Promise<Product[]> => {
     return prisma.product.findMany();
   },
-
+  async getAllActiveProducts() {
+    return prisma.product.findMany({
+      where: {
+        isBlock: false,
+      },
+      include: {
+        variants: {
+          orderBy: {
+            id: "asc",
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        id: "desc",
+      },
+    });
+  },
+  async getAllProductsForAdmin() {
+    return prisma.product.findMany({
+      include: {
+        variants: {
+          orderBy: {
+            id: "asc",
+          },
+          take: 1,
+        },
+      },
+      orderBy: [
+        {
+          isBlock: "asc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+    });
+  },
   // ۲. getById: اگر null برگردد، 404 پرتاب کن
   getById: async (id: number) => {
     const product = await prisma.product.findUnique({
       where: { id },
       include: {
-        brand: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
-        variants: {
+        brand: true,
+        category: true,
+
+        attributes: {
           include: {
-            images: {
-              // ⭐⭐⭐ این خط رو اضافه کن!
-              orderBy: { displayOrder: "asc" },
+            value: {
+              include: {
+                attribute: true,
+              },
             },
           },
-          orderBy: [{ flavor: "asc" }, { packageQuantity: "asc" }],
+        },
+
+        variants: {
+          include: {
+            images: true,
+
+            attributes: {
+              include: {
+                value: {
+                  include: {
+                    attribute: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -34,29 +186,18 @@ export const productService = {
       throw new NotFoundError(`Product with ID ${id} not found.`);
     }
 
-    return product;
+    return decorateProduct(product);
   },
 
   // ۳. create: مدیریت خطای Unique Constraint
   create: async (data: any) => {
     try {
-      console.log("📦 [ProductService.create] داده خام:", {
-        name: data.name,
-        brandId: data.brandId,
-        categoryId: data.categoryId,
-        variants: data.variants,
-        imageUrl: data.imageUrl,
-        isBlock: data.isBlock,
-      });
-
-      // 🧩 سازگاری با اطلاعات ارسالی از فرانت
       let variants: any[] = [];
 
       if (typeof data.variants === "string") {
         try {
           variants = JSON.parse(data.variants);
         } catch (err) {
-          console.error("❌ خطا در parse کردن variants:", err);
           throw new BadRequestError("فرمت واریانت‌ها نادرست است.");
         }
       } else if (Array.isArray(data.variants)) {
@@ -65,90 +206,172 @@ export const productService = {
         variants = [data.variant];
       }
 
-      const variant = variants?.[0];
-      if (!variant) {
+      if (!variants || variants.length === 0) {
         throw new BadRequestError(
-          "واریانت محصول الزامی است و نباید خالی باشد."
+          "واریانت محصول الزامی است و نباید خالی باشد.",
         );
       }
 
-      // 🧠 ساخت slug از name
-      const slug = makeSlug(data.name);
+      // اعتبارسنجی قیمت همه واریانت‌ها
+      for (const v of variants) {
+        const p = Number(v.price);
+        const d = v.discountPrice ? Number(v.discountPrice) : null;
+        if (d !== null && d >= p) {
+          throw new BadRequestError(
+            "قیمت با تخفیف نباید از قیمت اصلی بیشتر یا مساوی باشد",
+          );
+        }
+      }
 
-      // 🧩 بررسی تکراری بودن محصول
-      const OR: Prisma.ProductWhereInput[] = [];
-      if (data.sku) OR.push({ sku: data.sku });
-      if (data.name) OR.push({ name: data.name.trim() });
-      if (slug) OR.push({ slug });
+      const slug = normalizeAndValidateSlug(data.slug);
 
-      console.log("🔍 بررسی تکراری بودن:", OR);
+      const OR: Prisma.ProductWhereInput[] = [
+        {
+          name: data.name.trim(),
+        },
+        {
+          slug,
+        },
+      ];
 
-      const existing = await prisma.product.findFirst({ where: { OR } });
+      const existing = await prisma.product.findFirst({
+        where: {
+          OR,
+        },
+      });
+
       if (existing) {
-        console.error("⚠️ محصول مشابه وجود دارد:", existing);
-        throw new BadRequestError(
-          "محصولی با این شناسه، نام یا slug وجود دارد."
-        );
+        if (existing.name === data.name.trim()) {
+          throw new BadRequestError("محصولی با این نام قبلاً وجود دارد.");
+        }
+
+        if (existing.slug === slug) {
+          throw new BadRequestError("این slug قبلاً استفاده شده است.");
+        }
+
+        throw new BadRequestError("محصولی با این نام یا slug قبلاً وجود دارد.");
       }
 
-      // 🔢 پاک‌سازی و تبدیل انواع
       const isBlock =
         typeof data.isBlock === "string"
           ? data.isBlock === "true"
           : Boolean(data.isBlock);
 
-      const basePrice = Number(variant.price);
-
-      // ✅ ساخت محصول اصلی
-      const product = await prisma.product.create({
-        data: {
-          name: data.name.trim(),
-          description: data.description?.trim() || "",
-          sku: data.sku?.trim() || "",
-          slug,
-          imageUrl: data.imageUrl ?? "",
-          brandId: Number(data.brandId),
-          categoryId: Number(data.categoryId),
-          isBlock,
-          price: basePrice, // قیمت از واریانت اول گرفته می‌شود
-        },
-      });
-
-      // 🧩 ساخت واریانت
-      const variantRecord = await prisma.productVariant.create({
-        data: {
-          productId: product.id,
-          packageQuantity: Number(variant.packageQuantity ?? 1),
-          packageType: variant.packageType || "بسته پیش‌فرض",
-          price: new Prisma.Decimal(variant.price),
-          discountPrice: variant.discountPrice
-            ? new Prisma.Decimal(variant.discountPrice)
-            : null,
-          stock: Number(variant.stock ?? 0),
-          expiryDate: variant.expiryDate ? new Date(variant.expiryDate) : null,
-          flavor: variant.flavor ?? null,
-        },
-      });
-      if (variant.images && Array.isArray(variant.images)) {
-        await prisma.productImage.createMany({
-          data: variant.images.map((url: string, index: number) => ({
-            variantId: variantRecord.id,
-            url,
-            displayOrder: index,
-            isPrimary: index === 0, // اولین عکس primary
-          })),
+      // ✅ کل عملیات نوشتن در دیتابیس داخل transaction
+      return await prisma.$transaction(async (tx) => {
+        // ✅ ساخت محصول اصلی
+        const product = await tx.product.create({
+          data: {
+            name: data.name.trim(),
+            description: data.description?.trim() || "",
+            shortDescription: data.shortDescription?.trim() || "",
+            metaTitle: data.metaTitle?.trim() || "",
+            metaDescription: data.metaDescription?.trim() || "",
+            slug,
+            imageUrl: data.imageUrl ?? "",
+            brandId: Number(data.brandId),
+            categoryId: Number(data.categoryId),
+            isBlock,
+          },
         });
-      }
-      console.log("📦 واریانت ثبت شد:", variantRecord);
+        if (Array.isArray(data.attributes) && data.attributes.length) {
+          await tx.productAttribute.createMany({
+            data: data.attributes.map((attr: any) => ({
+              productId: product.id,
+              valueId: Number(typeof attr === "object" ? attr.valueId : attr),
+            })),
+          });
+        }
+        // ✅ ساخت همه واریانت‌ها (نه فقط اول)
+        for (const variant of variants) {
+          const variantPrice = Number(variant.price);
+          const variantDiscountPrice = variant.discountPrice
+            ? Number(variant.discountPrice)
+            : null;
+          const finalDiscountPrice =
+            variantDiscountPrice !== null &&
+            variantDiscountPrice >= 1 &&
+            variantDiscountPrice < variantPrice
+              ? variantDiscountPrice
+              : null;
 
-      // 🧾 بازگرداندن محصول با واریانت‌هایش
-      const result = await prisma.product.findUnique({
-        where: { id: product.id },
-        include: { variants: true },
+          const variantRecord = await tx.productVariant.create({
+            data: {
+              productId: product.id,
+
+              sku: variant.sku || null,
+              barcode: variant.barcode || null,
+
+              purchasePrice: variant.purchasePrice
+                ? new Prisma.Decimal(variant.purchasePrice)
+                : null,
+
+              price: new Prisma.Decimal(variant.price),
+
+              discountPrice:
+                variant.discountPrice &&
+                Number(variant.discountPrice) < Number(variant.price)
+                  ? new Prisma.Decimal(variant.discountPrice)
+                  : null,
+
+              stock: Number(variant.stock ?? 0),
+
+              expiryDate: variant.expiryDate
+                ? new Date(variant.expiryDate)
+                : null,
+            },
+          });
+          if (Array.isArray(variant.attributes) && variant.attributes.length) {
+            await tx.productVariantAttribute.createMany({
+              data: variant.attributes.map((attr: any) => ({
+                variantId: variantRecord.id,
+                valueId: Number(typeof attr === "object" ? attr.valueId : attr),
+              })),
+            });
+          }
+          // ✅ ذخیره تصاویر این واریانت
+          if (Array.isArray(variant.images) && variant.images.length > 0) {
+            await tx.productImage.createMany({
+              data: variant.images.map((img: any, index: number) => ({
+                variantId: variantRecord.id,
+                url: typeof img === "string" ? img : img.url,
+                altText: typeof img === "string" ? "" : (img.altText ?? ""),
+                displayOrder:
+                  typeof img === "string" ? index : (img.displayOrder ?? index),
+                isPrimary:
+                  typeof img === "string"
+                    ? index === 0
+                    : (img.isPrimary ?? index === 0),
+              })),
+            });
+          }
+        }
+
+        // بازگرداندن محصول نهایی با همه واریانت‌ها و تصاویر
+        return await tx.product.findUnique({
+          where: { id: product.id },
+          include: {
+            variants: {
+              include: {
+                images: {
+                  orderBy: {
+                    displayOrder: "asc",
+                  },
+                },
+                attributes: {
+                  include: {
+                    value: {
+                      include: {
+                        attribute: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
       });
-
-      console.log("✅ خروجی نهایی:", result);
-      return result;
     } catch (error: any) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -158,14 +381,21 @@ export const productService = {
           (error.meta?.target as string[])?.join("، ") || "فیلد منحصربه‌فرد";
         throw new BadRequestError(`مقدار تکراری در ${target}.`);
       }
-
       console.error("🔥 خطای غیرمنتظره در ProductService.create:", error);
       throw error;
     }
   },
 
   // ۴. update: مدیریت خطای پیدا نشدن و بازگرداندن رکورد به‌روز شده
-  update: async (id: number, data: Partial<Product>): Promise<Product> => {
+  update: async (
+    id: number,
+    data: Partial<Product> & {
+      attributes?: {
+        attributeId: number;
+        valueId: number;
+      }[];
+    },
+  ): Promise<Product> => {
     try {
       // 🔹 یافتن محصول فعلی برای تصمیم در مورد اسلاگ
       const existing = await prisma.product.findUnique({
@@ -175,21 +405,42 @@ export const productService = {
 
       if (!existing) {
         throw new NotFoundError(
-          `Cannot update: Product with ID ${id} not found.`
+          `Cannot update: Product with ID ${id} not found.`,
         );
       }
 
       // 🔹 تعیین اسلاگ جدید فقط در صورتی که نام تغییر کرده باشد
       const slug =
-        data.name && data.name !== existing.name
-          ? makeSlug(data.name)
+        data.slug !== undefined
+          ? normalizeAndValidateSlug(data.slug)
           : existing.slug;
+      if (slug !== existing.slug) {
+        const slugOwner = await prisma.product.findFirst({
+          where: {
+            slug,
+            NOT: {
+              id,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
 
+        if (slugOwner) {
+          throw new BadRequestError(
+            "این slug قبلاً برای محصول دیگری استفاده شده است.",
+          );
+        }
+      }
       // 🔹 نرمال‌سازی داده‌های ورودی (از FormData)
       const normalizedData = {
         ...data,
         brandId: data.brandId ? Number(data.brandId) : undefined,
         categoryId: data.categoryId ? Number(data.categoryId) : undefined,
+        shortDescription: data.shortDescription,
+        metaTitle: data.metaTitle,
+        metaDescription: data.metaDescription,
         isBlock:
           typeof data.isBlock === "string"
             ? data.isBlock === "true"
@@ -201,17 +452,16 @@ export const productService = {
             ? data.imageUrl
             : existing.imageUrl,
       };
-      const cleanedData = { ...normalizedData };
-      delete cleanedData.brandId;
-      delete cleanedData.categoryId;
       // 🔹 ساخت آبجکت آپدیت نهایی
       const updateData: any = {
         name: normalizedData.name,
-        sku: normalizedData.sku,
         description: normalizedData.description,
         isBlock: normalizedData.isBlock,
         imageUrl: normalizedData.imageUrl,
         slug,
+        shortDescription: normalizedData.shortDescription,
+        metaTitle: normalizedData.metaTitle,
+        metaDescription: normalizedData.metaDescription,
         // ✅ ارتباط‌ها با connect
         brand: normalizedData.brandId
           ? { connect: { id: normalizedData.brandId } }
@@ -226,11 +476,32 @@ export const productService = {
       delete updateData.categoryId;
 
       // 🔹 اجرای آپدیت
-      const updated = await prisma.product.update({
-        where: { id },
-        data: updateData,
+      const updated = await prisma.$transaction(async (tx) => {
+        // 1. آپدیت خود محصول
+        const product = await tx.product.update({
+          where: { id },
+          data: updateData,
+        });
+
+        // 2. آپدیت Attributeهای محصول
+        if (data.attributes) {
+          await tx.productAttribute.deleteMany({
+            where: { productId: id },
+          });
+
+          if (data.attributes.length) {
+            await tx.productAttribute.createMany({
+              data: data.attributes.map((attr) => ({
+                productId: id,
+                valueId: attr.valueId,
+              })),
+            });
+          }
+        }
+
+        return product;
       });
-      console.log("🧩 Final updateData going to Prisma:", updated);
+
       return updated;
     } catch (error) {
       // خطای P2025 = محصول پیدا نشد
@@ -239,7 +510,7 @@ export const productService = {
         error.code === "P2025"
       ) {
         throw new NotFoundError(
-          `Cannot update: Product with ID ${id} not found.`
+          `Cannot update: Product with ID ${id} not found.`,
         );
       }
 
@@ -278,7 +549,7 @@ export const productService = {
         error.code === "P2025"
       ) {
         throw new NotFoundError(
-          `Cannot delete: Product with ID ${id} not found.`
+          `Cannot delete: Product with ID ${id} not found.`,
         );
       }
       throw error;
@@ -296,7 +567,7 @@ export const productService = {
 
     if (product.isBlock === isBlock) {
       throw new BadRequestError(
-        isBlock ? "محصول از قبل بلاک است." : "محصول از قبل فعال است."
+        isBlock ? "محصول از قبل بلاک است." : "محصول از قبل فعال است.",
       );
     }
 
@@ -311,5 +582,250 @@ export const productService = {
     });
 
     return updated;
+  },
+
+  async getFilteredProducts(filters: {
+    categorySlug?: string;
+    brand?: number | number[];
+    discount?: any;
+    available?: any;
+    page?: any;
+    limit?: any;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    isBlock?: boolean;
+  }) {
+    const categorySlug = filters.categorySlug;
+    /* ========================
+   ✅ NORMALIZE
+  ======================== */
+    const parseBoolean = (v: any): boolean | undefined => {
+      if (Array.isArray(v)) v = v[0];
+
+      if (v === "1" || v === 1 || v === true || v === "true" || v === "on") {
+        return true;
+      }
+
+      if (v === "0" || v === 0 || v === false || v === "false") {
+        return false;
+      }
+
+      return undefined;
+    };
+
+    const brandIds = filters.brand
+      ? Array.isArray(filters.brand)
+        ? filters.brand.map(Number).filter(Boolean)
+        : [Number(filters.brand)]
+      : undefined;
+
+    const hasDiscount = parseBoolean(filters.discount);
+    const inStock = parseBoolean(filters.available);
+
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 12;
+
+    const minPrice =
+      filters.minPrice !== undefined && !isNaN(Number(filters.minPrice))
+        ? Number(filters.minPrice)
+        : undefined;
+
+    const maxPrice =
+      filters.maxPrice !== undefined && !isNaN(Number(filters.maxPrice))
+        ? Number(filters.maxPrice)
+        : undefined;
+
+    /* ======================== */
+    let category: {
+      id: number;
+      name: string;
+    } | null = null;
+
+    let categoryIds: number[] | undefined;
+
+    if (categorySlug) {
+      category = await prisma.category.findUnique({
+        where: { slug: categorySlug },
+        select: { id: true, name: true },
+      });
+
+      if (!category) {
+        throw new NotFoundError("Category not found");
+      }
+
+      categoryIds = await categoryService.getAllSubCategoryIds(category.id);
+    }
+
+    /* ========================
+   ✅ PRODUCT WHERE
+   (فقط فیلترهای سطح Product: category, brand, isBlock)
+   ⚠️ توجه: فیلترهای available/discount/price دیگر اینجا اعمال
+   نمی‌شوند، چون باید روی displayVariant/effectivePrice/discountPercent
+   (خروجی decorateProduct) اعمال شوند، نه روی واریانت‌های خام Prisma.
+  ======================== */
+    const where: Prisma.ProductWhereInput = {
+      isBlock: filters.isBlock !== undefined ? filters.isBlock : false,
+    };
+
+    if (categoryIds) {
+      where.categoryId = {
+        in: categoryIds,
+      };
+    }
+    if (brandIds?.length) {
+      where.brandId = { in: brandIds };
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        brand: true,
+        category: true,
+
+        attributes: {
+          include: {
+            value: {
+              include: {
+                attribute: true,
+              },
+            },
+          },
+        },
+
+        variants: {
+          include: {
+            images: true,
+
+            attributes: {
+              include: {
+                value: {
+                  include: {
+                    attribute: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // ✅ decorate: displayVariant, effectivePrice, displayPrice,
+    // displayDiscountPrice, discountPercent, attributesSummary,
+    // requiresSelection ساخته می‌شوند
+    const prepared = products.map(decorateProduct);
+
+    /* ========================
+   ✅ FILTERS ON DECORATED PRODUCTS
+   این فیلترها دقیقاً همان مقادیری را بررسی می‌کنند که در کارت
+   محصول نمایش داده می‌شوند.
+  ======================== */
+    let filtered = prepared;
+
+    // 1. Available filter — فقط displayVariant بررسی می‌شود
+    if (inStock) {
+      filtered = filtered.filter(
+        (p: any) => p.displayVariant && p.displayVariant.stock > 0,
+      );
+    }
+
+    // 2. Discount filter — بر اساس فیلدهای محاسبه‌شده تخفیف
+    if (hasDiscount) {
+      filtered = filtered.filter(
+        (p: any) => p.discountPercent > 0 || p.displayDiscountPrice !== null,
+      );
+    }
+
+    // 3. Price filter — بر اساس effectivePrice (همان قیمتی که در کارت
+    // نمایش داده می‌شود)، نه price/discountPrice خام واریانت
+    if (minPrice !== undefined) {
+      filtered = filtered.filter((p: any) => p.effectivePrice >= minPrice);
+    }
+    if (maxPrice !== undefined) {
+      filtered = filtered.filter((p: any) => p.effectivePrice <= maxPrice);
+    }
+
+    /* ========================
+   ✅ SORT
+   بعد از فیلتر، روی filtered اجرا می‌شود
+  ======================== */
+    const sort = normalizeSort(filters.sort);
+    filtered = sortProducts(filtered, sort);
+
+    /* ========================
+   ✅ PAGINATION
+  ======================== */
+    const total = filtered.length;
+    const { skip, take } = getPagination(page, limit);
+
+    return {
+      category,
+      products: filtered.slice(skip, skip + take),
+      pagination: buildPaginationMeta(total, page, limit),
+    };
+  },
+  // در productService اضافه کن:
+  async getLatestProducts(limit = 8) {
+    const result = await this.getFilteredProducts({
+      page: 1,
+      limit,
+      sort: "latest",
+      isBlock: false,
+    });
+
+    return result.products;
+  },
+  async getSimilarProducts(productId: number, limit = 8) {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        categoryId: true,
+        brandId: true,
+        attributes: { select: { valueId: true } },
+      },
+    });
+
+    if (!product)
+      throw new NotFoundError(`Product with ID ${productId} not found.`);
+
+    const attributeValueIds = product.attributes.map((a) => a.valueId);
+
+    const candidates = await prisma.product.findMany({
+      where: { id: { not: productId }, isBlock: false },
+      include: {
+        brand: true,
+        category: true,
+        variants: {
+          include: {
+            images: true,
+            attributes: {
+              include: { value: { include: { attribute: true } } },
+            },
+          },
+        },
+        attributes: {
+          include: { value: { include: { attribute: true } } }, // ← این خط اضافه شد
+        },
+      },
+    });
+
+    const scored = candidates
+      .map((p) => {
+        let score = 0;
+        if (p.categoryId === product.categoryId) score += 3;
+        if (p.brandId === product.brandId) score += 2;
+        const sharedAttrs = p.attributes.filter((a) =>
+          attributeValueIds.includes(a.value.id),
+        ).length;
+        score += sharedAttrs;
+        return { product: p, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((item) => decorateProduct(item.product));
+
+    return scored;
   },
 };

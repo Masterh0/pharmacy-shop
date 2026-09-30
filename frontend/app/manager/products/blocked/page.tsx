@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -62,7 +62,7 @@ export default function AdminBlockedProductsPage() {
   ============================= */
   const search = useMemo(
     () => (searchParams.size ? `?${searchParams.toString()}` : ""),
-    [searchParams]
+    [searchParams],
   );
 
   const { data, isLoading, isError, error } = useQuery({

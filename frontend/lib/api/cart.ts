@@ -1,9 +1,9 @@
 import api from "@/lib/axios";
-import type { CartItem } from "@/lib/types/cart";
+import type { Cart, CartItem } from "@/lib/types/cart";
 
 export const cartApi = {
   /** 🛒 دریافت سبد خرید جاری کاربر (بر اساس userId یا sessionId) */
-  async get(): Promise<CartItem> {
+  async get(): Promise<Cart> {
     const { data } = await api.get("/cart");
     return data;
   },
@@ -21,9 +21,11 @@ export const cartApi = {
   /** 🔄 بروزرسانی تعداد آیتم خاص (اختیاری) */
   async updateItemQuantity(
     itemId: number,
-    quantity: number
+    quantity: number,
   ): Promise<CartItem> {
-    const { data } = await api.put(`/cart/item/${itemId}/quantity`, { quantity });
+    const { data } = await api.put(`/cart/item/${itemId}/quantity`, {
+      quantity,
+    });
     return data;
   },
 

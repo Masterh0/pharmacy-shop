@@ -51,9 +51,25 @@ export const wishlistService = {
               name: true,
               slug: true,
               imageUrl: true,
-              price: true,
-              soldCount: true,
-              wishlistCount: true,
+
+              variants: {
+                select: {
+                  id: true,
+                  price: true,
+                  discountPrice: true,
+                  stock: true,
+
+                  images: {
+                    where: {
+                      isPrimary: true,
+                    },
+                    take: 1,
+                  },
+                },
+                orderBy: {
+                  id: "asc",
+                },
+              },
             },
           },
         },
@@ -119,9 +135,9 @@ export const wishlistService = {
     options: {
       page?: number;
       limit?: number;
-      sortBy?: "createdAt" | "price" | "soldCount";
+      sortBy?: "createdAt" | "soldCount";
       sortOrder?: "asc" | "desc";
-    } = {}
+    } = {},
   ) {
     const {
       page = 1,
@@ -153,7 +169,6 @@ export const wishlistService = {
               name: true,
               slug: true,
               imageUrl: true,
-              price: true,
               soldCount: true,
               wishlistCount: true,
               isBlock: true,
@@ -169,8 +184,6 @@ export const wishlistService = {
                   price: true,
                   discountPrice: true,
                   stock: true,
-                  packageQuantity: true,
-                  packageType: true,
                 },
               },
               brand: {
@@ -220,7 +233,7 @@ export const wishlistService = {
    */
   async checkMultipleProducts(
     userId: number,
-    productIds: number[]
+    productIds: number[],
   ): Promise<{ productId: number; isInWishlist: boolean }[]> {
     const wishlistItems = await prisma.wishlist.findMany({
       where: {
@@ -235,7 +248,7 @@ export const wishlistService = {
     });
 
     const wishlistProductIds = new Set(
-      wishlistItems.map((item) => item.productId)
+      wishlistItems.map((item) => item.productId),
     );
 
     return productIds.map((productId) => ({
@@ -279,7 +292,7 @@ export const wishlistService = {
               decrement: 1,
             },
           },
-        })
+        }),
       ),
     ]);
 

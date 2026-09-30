@@ -1,17 +1,13 @@
 import { prisma } from "../config/db";
+import { OrderStatus, PaymentMethod, PaymentStatus } from "@prisma/client";
+import { calcShippingFee } from "../lib/shipping";
 import {
-  OrderStatus,
-  PaymentMethod,
-  PaymentStatus,
-} from "@prisma/client";
-
-/**
- * Order Service
- * - createOrder: ایجاد سفارش در حالت PENDING
- * - verifyPayment: شبیه‌سازی پرداخت موفق (mock)
- * - cancelOrder: لغو سفارش قبل از پرداخت
- * - getUserOrders / getOrderById
- */
+  InsufficientStockError,
+  BlockedProductError,
+  EmptyCartError,
+  InvalidAddressError,
+  OrderError,
+} from "../errors/OrderErrors";
 export const orderService = {
   // ---------------------------------------------------------------------------
   // CREATE ORDER (PENDING)
@@ -19,92 +15,135 @@ export const orderService = {
   async createOrder(options: {
     userId: number;
     addressId: number;
-    shippingCost: number;
+    paymentMethod?: PaymentMethod;
   }) {
-    const { userId, addressId, shippingCost } = options;
+    const {
+      userId,
+      addressId,
+      paymentMethod = PaymentMethod.GATEWAY,
+    } = options;
 
-    // 1️⃣ دریافت سبد
+    const address = await prisma.address.findUnique({
+      where: { id: addressId },
+    });
+    if (!address || address.userId !== userId) throw new InvalidAddressError();
+
+    // هزینه ارسال بر اساس آدرس
+    const shippingFee = calcShippingFee(address.province, address.city);
+
     const cart = await prisma.cart.findFirst({
       where: { userId },
       include: {
         items: {
           include: {
-            product: true,
-            variant: true,
+            variant: {
+              include: {
+                images: true,
+                attributes: {
+                  include: { value: { include: { attribute: true } } },
+                },
+              },
+            },
+            product: { include: { brand: true, category: true } },
           },
         },
       },
     });
 
-    if (!cart || cart.items.length === 0) {
-      throw new Error("سبد خرید خالی است");
-    }
+    if (!cart || cart.items.length === 0) throw new EmptyCartError();
 
-    // 2️⃣ بررسی بلاک بودن محصولات
-    const blocked = cart.items.filter((i) => i.product.isBlock);
+    // بررسی بلاک
+    const blocked = cart.items.filter((i) => i.product?.isBlock);
     if (blocked.length) {
-      throw new Error(
-        `محصولات غیرفعال: ${blocked.map((i) => i.product.name).join(", ")}`
-      );
+      throw new BlockedProductError(blocked.map((i) => i.product!.name));
     }
-
-    // 3️⃣ soft stock check
-    for (const item of cart.items) {
-      if (item.variant.stock < item.quantity) {
-        throw new Error(
-          `موجودی ${item.product.name} کافی نیست (موجودی: ${item.variant.stock})`
-        );
-      }
-    }
-
-    // 4️⃣ محاسبه قیمت‌ها
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum + Number(item.variant.price) * item.quantity,
-      0
-    );
+    const originalTotal = cart.items.reduce((sum, item) => {
+      return sum + Number(item.variant.price) * item.quantity;
+    }, 0);
+    // بررسی قیمت و موجودی
+    // محاسبه مبالغ — همه سمت سرور
+    const subtotal = cart.items.reduce((sum, item) => {
+      return sum + Number(item.variant.price) * item.quantity;
+    }, 0);
 
     const discountTotal = cart.items.reduce((sum, item) => {
       const price = Number(item.variant.price);
+
       const discounted =
-        item.variant.discountPrice &&
-        Number(item.variant.discountPrice) > 0
+        item.variant.discountPrice && Number(item.variant.discountPrice) > 0
           ? Number(item.variant.discountPrice)
           : price;
+
       return sum + (price - discounted) * item.quantity;
     }, 0);
 
-    const finalTotal = subtotal + shippingCost - discountTotal;
+    const finalTotal = subtotal - discountTotal + shippingFee;
     const trackingCode = `ORD-${Date.now()}-${userId}`;
 
-    // 5️⃣ Transaction
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           userId,
           addressId,
+          shippingFullName: address.fullName,
+          shippingPhone: address.phone,
+          shippingProvince: address.province,
+          shippingCity: address.city,
+          shippingPostalCode: address.postalCode,
+          shippingNotes: address.notes,
+          shippingAddress: address.street,
           subtotal,
+
           discountTotal,
-          shippingFee: shippingCost,
+          shippingFee,
           finalTotal,
           trackingCode,
           status: OrderStatus.PENDING,
         },
       });
 
-      // order items
       for (const item of cart.items) {
+        if (!item.product)
+          throw new OrderError("محصول حذف شده است.", "PRODUCT_DELETED");
+        if (!item.variant)
+          throw new OrderError("این تنوع دیگر موجود نیست.", "VARIANT_DELETED");
+        if (item.variant.stock < item.quantity) {
+          throw new InsufficientStockError(
+            item.product.name,
+            item.variant.stock,
+          );
+        }
+
         const unitPrice =
-          item.variant.discountPrice &&
-          Number(item.variant.discountPrice) > 0
+          item.variant.discountPrice && Number(item.variant.discountPrice) > 0
             ? Number(item.variant.discountPrice)
             : Number(item.variant.price);
+
+        const variantName = item.variant.attributes.length
+          ? item.variant.attributes.map((va) => va.value.value).join(" / ")
+          : null;
+
+        // snapshot کامل — بدون وابستگی به جداول دیگر
+        const variantAttributesSummary = item.variant.attributes.length
+          ? item.variant.attributes
+              .map((va) => `${va.value.attribute.name}: ${va.value.value}`)
+              .join(" | ")
+          : null;
 
         await tx.orderItem.create({
           data: {
             orderId: newOrder.id,
             productId: item.productId,
             variantId: item.variantId,
+            sku: item.variant.sku ?? "",
             quantity: item.quantity,
+            productName: item.product!.name,
+            variantName,
+            variantAttributesSummary,
+            brandName: item.product!.brand?.name ?? null,
+            categoryName: item.product!.category?.name ?? null,
+            imageUrl:
+              item.variant.images[0]?.url ?? item.product!.imageUrl ?? null,
             unitPrice,
             totalPrice: unitPrice * item.quantity,
           },
@@ -155,6 +194,12 @@ export const orderService = {
 
       // hard stock check + decrement
       for (const item of order.orderItems) {
+        if (!item.variantId || !item.productId) {
+          // محصول/واریانت حذف شده — نباید برای سفارش PENDING پیش بیاد، اما برای اطمینان skip می‌کنیم
+          console.warn(`OrderItem ${item.id} فاقد productId/variantId است`);
+          continue;
+        }
+
         const variant = await tx.productVariant.findUnique({
           where: { id: item.variantId },
           select: { stock: true },

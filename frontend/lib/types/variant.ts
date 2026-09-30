@@ -1,13 +1,55 @@
+// lib/types/variant.ts
+
+export interface ProductImage {
+  id: number;
+
+  url: string;
+
+  altText?: string | null;
+
+  displayOrder: number;
+
+  isPrimary: boolean;
+}
+
+export interface VariantAttribute {
+  valueId: number;
+
+  value: {
+    id: number;
+
+    value: string;
+
+    attribute: {
+      id: number;
+
+      name: string;
+
+      slug: string;
+    };
+  };
+}
+
 export interface ProductVariant {
   id: number;
+
   productId: number;
-  packageQuantity: number;
-  packageType?: string | null;
-  price: string; // Decimal در Prisma → string در JSON
-  discountPrice?: string | null; // Decimal در Prisma → string در JSON
+
+  sku?: string | null;
+
+  barcode?: string | null;
+
+  purchasePrice?: string | null;
+
+  price: string;
+
+  discountPrice?: string | null;
+
   stock: number;
+
   expiryDate?: string | null;
-  flavor?: string | null; // فیلد flavor از schema
-  createdAt?: string;
-  updatedAt?: string;
+
+  images?: ProductImage[];
+
+  attributes?: VariantAttribute[];
 }

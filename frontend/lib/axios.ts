@@ -1,120 +1,219 @@
-import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import axios, {
+  AxiosError,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+} from "axios";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL || "https://pharmacy-bakend.liara.run/",
   withCredentials: true,
 });
 
-type FailedRequest = {
-  resolve: (value: unknown) => void;
-  reject: (reason?: unknown) => void;
-  request: AxiosRequestConfig;
+type RetryConfig = AxiosRequestConfig & {
+  _retry?: boolean;
 };
 
-let isRefreshing = false;
-let failedQueue: FailedRequest[] = [];
+type UnauthorizedReason = "SESSION_EXPIRED" | "LOGOUT";
 
-const processQueue = (error: unknown) => {
-  failedQueue.forEach((p) => {
-    if (error) p.reject(error);
-    else p.resolve(api(p.request));
-  });
-  failedQueue = [];
+type UnauthorizedHandler = (reason: UnauthorizedReason) => void;
+
+let onUnauthorized: UnauthorizedHandler | null = null;
+
+export const setUnauthorizedHandler = (handler: UnauthorizedHandler | null) => {
+  onUnauthorized = handler;
 };
+let onRefreshSuccess: (() => void) | null = null;
+
+export const setRefreshSuccessHandler = (fn: (() => void) | null) => {
+  onRefreshSuccess = fn;
+};
+/**
+ * فقط یک refresh در کل برنامه می‌تواند در حال انجام باشد.
+ */
+let refreshPromise: Promise<void> | null = null;
+
+/**
+ * برای جاهایی مثل cart:
+ * اگر refresh در حال انجام است، صبر کن تا تمام شود.
+ */
+export const waitForAuthRefresh = async () => {
+  if (refreshPromise) {
+    await refreshPromise;
+  }
+};
+
+const isAuthRoute = (url: string) => {
+  return (
+    url.includes("/auth/login") ||
+    url.includes("/auth/register") ||
+    url.includes("/auth/refresh") ||
+    url.includes("/auth/logout") ||
+    url.includes("/auth/forgot-password")
+  );
+};
+const isClientError = (status?: number) => {
+  return !!status && status >= 400 && status < 500;
+};
+
+const isServerError = (status?: number) => {
+  return !!status && status >= 500;
+};
+const doRefresh = async () => {
+  if (!refreshPromise) {
+    refreshPromise = api
+      .post("/auth/refresh")
+      .then(() => {
+        onRefreshSuccess?.();
+      })
+      .catch((error) => {
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+};
+
+/**
+ * اگر refresh در حال انجام است، requestهای جدید
+ * قبل از ارسال صبر می‌کنند.
+ */
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  const url = config.url ?? "";
+
+  // خود refresh نباید منتظر خودش بماند
+  if (url.includes("/auth/refresh")) {
+    return config;
+  }
+
+  if (refreshPromise) {
+    try {
+      await refreshPromise;
+    } catch {
+      // اگر refresh شکست خورد، request اصلی
+      // توسط response interceptor تعیین تکلیف می‌شود.
+    }
+  }
+
+  return config;
+});
 
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
 
-  async (err: AxiosError) => {
-    const originalReq = err.config as AxiosRequestConfig & { _retry?: boolean };
-    const status = err.response?.status;
-    const url = originalReq?.url ?? "";
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetryConfig | undefined;
 
-    /* ---------------------------
-     * ✅ 1️⃣ 400 / 422 = ارورهای فرم و بیزینس
-     * --------------------------- */
-    if (status === 400 || status === 422) {
-      // این‌ها را لاگ نمی‌کنیم چون در UI هندل می‌شوند
-      return Promise.reject(err);
+    if (!originalRequest) {
+      return Promise.reject(error);
     }
 
-    /* ---------------------------
-     * ✅ 2️⃣ 401 → تلاش برای رفرش توکن
-     * --------------------------- */
-    // فقط اگر درخواست اصلی خودش لاگین یا رفرش نبوده وارد پروسه رفرش شو
-    if (
-      status === 401 &&
-      !originalReq._retry &&
-      !url.includes("/auth/login") &&
-      !url.includes("/auth/refresh")
-    ) {
-      originalReq._retry = true;
+    const status = error.response?.status;
+    const url = originalRequest.url ?? "";
 
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject, request: originalReq });
-        });
-      }
+    // -------------------------
+    // 400 / 422
+    // -------------------------
 
-      isRefreshing = true;
+    if (status === 400 || status === 422) {
+      return Promise.reject(error);
+    }
+
+    // -------------------------
+    // 401
+    // -------------------------
+
+    if (status === 401 && !originalRequest._retry && !isAuthRoute(url)) {
+      originalRequest._retry = true;
 
       try {
-        await api.post("/auth/refresh");
+        await doRefresh();
 
-        isRefreshing = false;
-        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
 
-        return api(originalReq);
-      } catch (e) {
-        isRefreshing = false;
-        processQueue(e);
+        onUnauthorized?.("SESSION_EXPIRED");
 
-        // ✅ جلوگیری از لوپ: فقط اگر در صفحه لاگین نیستیم ریدایرکت کن
-        if (
-          typeof window !== "undefined" &&
-          !window.location.pathname.includes("/login")
-        ) {
-          window.location.replace("/login");
-        }
-
-        return Promise.reject(e);
+        return Promise.reject(refreshError);
       }
     }
 
-    /* ---------------------------
-     * ✅ 3️⃣ مدیریت لاگ‌ها (جلوگیری از اسپم کنسول)
-     * --------------------------- */
+    // -------------------------
+    // 401 refresh
+    // -------------------------
 
-    // ارورهای ۴۰۱ روی این روت‌ها طبیعی هستند و نباید کنسول را قرمز کنند:
-    // 1. refresh: سشن کاربر تمام شده.
-    // 2. me: کاربر کلا لاگین نیست (مهمان).
-    // 3. login: رمز عبور اشتباه است.
+    if (status === 401 && url.includes("/auth/refresh")) {
+      return Promise.reject(error);
+    }
+
+    // -------------------------
+    // 401 auth routes
+    // -------------------------
+
     if (
       status === 401 &&
-      (url.includes("/auth/refresh") ||
-        url.includes("/auth/me") ||
-        url.includes("/auth/login"))
+      (url.includes("/auth/me") ||
+        url.includes("/auth/login") ||
+        url.includes("/auth/register"))
     ) {
-      return Promise.reject(err);
+      return Promise.reject(error);
     }
+
+    // -------------------------
+    // Business errors
+    // -------------------------
+
     const hasBusinessError =
-      err.response?.data &&
-      typeof err.response.data === "object" &&
-      "error" in err.response.data;
+      error.response?.data &&
+      typeof error.response.data === "object" &&
+      "error" in error.response.data;
 
     if (hasBusinessError) {
-      return Promise.reject(err);
+      return Promise.reject(error);
     }
 
-    // فقط خطاهای واقعی و غیرمنتظره (مثل ۵۰۰ یا قطعی نت) لاگ شوند
+    // -------------------------
+    // 404
+    // -------------------------
+
+    if (status === 404) {
+      console.error("[API 404]", {
+        url,
+        message: error.message,
+      });
+
+      return Promise.reject(error);
+    }
+
+    // -------------------------
+    // 500+
+    // -------------------------
+
+    if (status && status >= 500) {
+      console.error("[API SERVER ERROR]", {
+        url,
+        status,
+        message: error.message,
+      });
+
+      return Promise.reject(error);
+    }
+
+    // -------------------------
+    // Network / unknown
+    // -------------------------
+
     console.error("[API ERROR]", {
       url,
       status,
-      message: err.message,
+      message: error.message,
     });
 
-    return Promise.reject(err);
-  }
+    return Promise.reject(error);
+  },
 );
 
 export default api;

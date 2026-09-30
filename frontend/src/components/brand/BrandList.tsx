@@ -59,11 +59,6 @@ export default function BrandList() {
                   onError: (err) => {
                     const errorMessage = handleApiError(err);
 
-                    // 🔍 لاگ کامل برای تست و دیباگ
-                    console.group("🧩 Error Debug Info");
-                    console.log("Full error:", err);
-                    console.log("Extracted error message:", errorMessage);
-                    console.groupEnd();
 
                     toast.dismiss(`delete-${b.id}`);
 

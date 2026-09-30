@@ -18,7 +18,6 @@ export function authLog(label: string, data?: any) {
   logs.push(entry);
   localStorage.setItem("AUTH_DEBUG_LOGS", JSON.stringify(logs));
 
-  console.log(`🧠 AUTH LOG → ${label}`, data);
 }
 
 export function readAuthLogs() {

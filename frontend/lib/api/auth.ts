@@ -70,6 +70,29 @@ export interface ChangePasswordInput {
   currentPassword?: string; // برای کسانی که پسورد دارند اجباری است
   newPassword: string;
 }
+export interface RequestPasswordResetOtpInput {
+  phone: string;
+}
+
+export interface PasswordResetOtpResponse {
+  message: string;
+  expiresAt?: string;
+  remainingMs?: number;
+}
+
+export interface VerifyPasswordResetOtpResponse {
+  message: string;
+  resetToken: string;
+}
+
+export interface ResetPasswordInput {
+  resetToken: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
 // ----------------------
 // ثبت‌نام + OTP
 // ----------------------
@@ -89,7 +112,7 @@ export const verifyRegisterOtp = async (data: VerifyOtpInput) => {
 // ----------------------
 export const loginWithPassword = async (
   identifier: string,
-  password: string
+  password: string,
 ) => {
   // اینجا دستی آبجکت رو میسازیم تا توی LoginPage راحت باشیم
   const res = await api.post<AuthResponse>("/auth/login", {
@@ -150,6 +173,7 @@ export const logout = async () => {
   return res.data;
 };
 export const me = async () => {
+  console.count("me() called");
   const res = await api.get<AuthResponse>("/auth/me", {});
   return res.data;
 };
@@ -163,5 +187,33 @@ export const updateProfile = async (data: UpdateProfileInput) => {
 // ----------------------
 export const changePassword = async (data: ChangePasswordInput) => {
   const res = await api.put<{ message: string }>("/auth/change-password", data);
+  return res.data;
+};
+export const requestPasswordResetOtp = async (
+  data: RequestPasswordResetOtpInput,
+) => {
+  const res = await api.post<PasswordResetOtpResponse>(
+    "/auth/forgot-password/request",
+    data,
+  );
+
+  return res.data;
+};
+
+export const verifyPasswordResetOtp = async (data: VerifyOtpInput) => {
+  const res = await api.post<VerifyPasswordResetOtpResponse>(
+    "/auth/forgot-password/verify",
+    data,
+  );
+
+  return res.data;
+};
+
+export const resetPassword = async (data: ResetPasswordInput) => {
+  const res = await api.post<ResetPasswordResponse>(
+    "/auth/forgot-password/reset",
+    data,
+  );
+
   return res.data;
 };

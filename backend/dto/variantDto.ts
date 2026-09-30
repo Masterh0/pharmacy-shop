@@ -1,14 +1,25 @@
+export interface ExistingImageDTO {
+  id: number;
+  url: string;
+  displayOrder: number;
+  isPrimary: boolean;
+}
+
 export interface CreateVariantDTO {
   productId: number;
-  packageQuantity: number;
-  packageType?: string;
+  sku?: string;
+  barcode?: string;
+  purchasePrice?: number;
   price: number;
   discountPrice?: number;
   stock: number;
   expiryDate?: string;
-  flavor?: string;
+
+  attributes?: number[];
+
   images?: string[];
-  existingImages?: string[]; // ✅ optional
+
+  existingImages?: ExistingImageDTO[]; // ✅ آرایه
 }
 
 export interface UpdateVariantDTO extends Partial<CreateVariantDTO> {}

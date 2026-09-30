@@ -1,25 +1,15 @@
 // src/controllers/productController.ts
 import { Request, Response, NextFunction } from "express";
 import { productService } from "../services/productService";
-import { prisma } from "../config/db";
 
 // ✅ همه کاربران (بدون احراز هویت)
 export const getAll = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const products = await prisma.product.findMany({
-      where: { isBlock: false }, // فقط محصولات فعال
-      include: {
-        variants: {
-          orderBy: { id: "asc" },
-          take: 1,
-        },
-      },
-      orderBy: { id: "desc" },
-    });
+    const products = await productService.getAllActiveProducts();
 
     res.status(200).json({ data: products });
   } catch (err) {
@@ -31,7 +21,7 @@ export const getAll = async (
 export const getById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -46,28 +36,61 @@ export const getById = async (
 export const create = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const imageUrl = req.file
-      ? `/uploads/${req.file.filename}` // ✅ مسیر نسبی
+    const files = req.files as
+      | Record<string, Express.Multer.File[]>
+      | undefined;
+
+    // عکس اصلی محصول
+    const imageUrl = files?.["image"]?.[0]
+      ? `/uploads/${files["image"][0].filename}`
       : undefined;
 
-    const payload = req.body;
-
-    if (typeof payload.variant === "string") {
-      payload.variant = JSON.parse(payload.variant);
+    const payload = { ...req.body };
+    
+    if (typeof payload.attributes === "string") {
+      try {
+        payload.attributes = JSON.parse(payload.attributes);
+      } catch {
+        return res.status(400).json({
+          message: "فرمت attributes نادرست است",
+        });
+      }
+    }
+    // parse واریانت‌ها از JSON string
+    if (typeof payload.variants === "string") {
+      try {
+        payload.variants = JSON.parse(payload.variants);
+      } catch {
+        return res.status(400).json({ message: "فرمت واریانت‌ها نادرست است" });
+      }
     }
 
-    const product = await productService.create({
-      ...payload,
-      imageUrl,
-    });
+    // تزریق عکس‌ها به هر واریانت بر اساس ایندکس
+    if (Array.isArray(payload.variants)) {
+      payload.variants = payload.variants.map((variant: any, index: number) => {
+        const variantFiles = files?.[`variantImages_${index}`] ?? [];
 
-    res.status(201).json({
-      status: "success",
-      data: product,
-    });
+        console.log(
+          `📸 واریانت ${index}: ${variantFiles.length} فایل دریافت شد`,
+        );
+
+        const images = variantFiles.map((f, i) => ({
+          url: `/uploads/${f.filename}`,
+          altText: variant.flavor ?? "",
+          displayOrder: i,
+          isPrimary: i === 0,
+        }));
+
+        return { ...variant, images };
+      });
+    }
+
+    const product = await productService.create({ ...payload, imageUrl });
+
+    res.status(201).json({ status: "success", data: product });
   } catch (error) {
     next(error);
   }
@@ -77,7 +100,7 @@ export const create = async (
 export const update = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -101,8 +124,22 @@ export const update = async (
     } else {
       imageUrl = existingProduct.imageUrl; // حفظ عکس قبلی
     }
+    const payload = { ...req.body };
 
-    const updateData = { ...req.body, imageUrl };
+    if (typeof payload.attributes === "string") {
+      try {
+        payload.attributes = JSON.parse(payload.attributes);
+      } catch {
+        return res.status(400).json({
+          message: "فرمت attributes نادرست است",
+        });
+      }
+    }
+
+    const updateData = {
+      ...payload,
+      imageUrl,
+    };
     const result = await productService.update(id, updateData);
 
     return res.status(200).json({
@@ -110,6 +147,8 @@ export const update = async (
       data: result,
     });
   } catch (error) {
+    console.error("Update product error:", error);
+
     next(error);
   }
 };
@@ -118,7 +157,7 @@ export const update = async (
 export const remove = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -133,7 +172,7 @@ export const remove = async (
 export const increaseViewCount = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params;
@@ -148,7 +187,7 @@ export const increaseViewCount = async (
 export const blockProduct = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const id = Number(req.params.id);
@@ -173,24 +212,34 @@ export const blockProduct = async (
 export const getAllForAdmin = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        variants: {
-          orderBy: { id: "asc" },
-          take: 1,
-        },
-      },
-      orderBy: [
-        { isBlock: "asc" },
-        { id: "desc" },
-      ],
-    });
+    const products = await productService.getAllProductsForAdmin();
 
     res.status(200).json({ data: products });
   } catch (err) {
     next(err);
   }
+};
+export const getFilteredProducts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await productService.getFilteredProducts(req.query);
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// product.controller.ts
+export const getSimilarProducts = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const limit = Number(req.query.limit) || 8;
+  const products = await productService.getSimilarProducts(id, limit);
+  res.json({ success: true, data: products });
 };

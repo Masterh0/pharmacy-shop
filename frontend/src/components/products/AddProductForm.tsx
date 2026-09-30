@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useForm,
   useFieldArray,
@@ -20,12 +20,13 @@ import { useCategories } from "@/lib/hooks/useCategories";
 import { Product } from "@/lib/types/product";
 import { CategorySelectSearch } from "@/src/components/inputs/CategorySelectSearch";
 import { ImageUploader } from "../inputs/ImageUploader";
-import { packageTypeOptions } from "@/src/constants/productOptions";
-import Select from "react-select";
 import { numberToPersianText } from "@/lib/utils/numberToText";
 import { RichTextEditor } from "../inputs/RichTextEditor";
 import { MultiImageUploader } from "../inputs/MultiImageUploader";
-
+import VariantAttributeSelector from "./VariantAttributeSelector";
+import ProductAttributeSelector from "./ProductAttributeSelector";
+import { useAutoSaveDraft } from "@/lib/hooks/useAutoSaveDraft";
+import { SearchableSelect } from "@/src/components/ui/SearchableSelect";
 /* --------------------------------------------------------- */
 /* ✅ فرم بیسیک + پشتیبانی از Error UI و Toast */
 /* --------------------------------------------------------- */
@@ -47,7 +48,10 @@ export default function AddProductForm({
   const form = useForm<CreateProductDTO>({
     resolver: zodResolver(productSchema),
   });
-
+  const { loadDraft, clearDraft, discardDraft } = useAutoSaveDraft(
+    form,
+    mode === "add", // فقط در حالت add فعال باشد
+  );
   const {
     control,
     register,
@@ -56,23 +60,29 @@ export default function AddProductForm({
     reset,
     formState: { errors },
   } = form;
-
+  const draftLoadedRef = useRef(false);
   // 🔁 مقداردهی اولیه برای حالت ویرایش
   useEffect(() => {
     if (mode === "edit" && initialData) {
       reset({
         name: initialData.name,
-        sku: initialData.sku ?? "",
+        slug: initialData.slug ?? "",
         description: initialData.description ?? "",
+        shortDescription: initialData.shortDescription ?? "",
+        metaTitle: initialData.metaTitle ?? "",
+        metaDescription: initialData.metaDescription ?? "",
         brandId: initialData.brandId,
         categoryId: initialData.categoryId,
         isBlock: initialData.isBlock ?? false,
-        imageUrl: undefined,
+        image: undefined,
         variants:
           initialData.variants.length > 0
             ? initialData.variants.map((v) => ({
-                packageQuantity: v.packageQuantity,
-                packageType: v.packageType || "",
+                sku: v.sku ?? "",
+                barcode: v.barcode ?? "",
+                purchasePrice: v.purchasePrice
+                  ? Number(v.purchasePrice)
+                  : undefined,
                 price: Number(v.price),
                 discountPrice: v.discountPrice
                   ? Number(v.discountPrice)
@@ -81,38 +91,59 @@ export default function AddProductForm({
                 expiryDate: v.expiryDate
                   ? v.expiryDate.split("T")[0]
                   : undefined,
+
+                // عکس‌های جدید فعلاً خالی
+                images: [],
+
+                // ویژگی‌های واریانت
+                attributes: v.attributes ?? [],
               }))
             : [
                 {
-                  packageQuantity: 1,
-                  packageType: "",
-                  price: "",
+                  sku: "",
+                  barcode: "",
+                  purchasePrice: undefined,
+                  price: 0,
+                  discountPrice: 0,
                   stock: 0,
-                  discountPrice: "",
-                  expiryDate: undefined,
+                  expiryDate: "",
+                  images: [],
+                  attributes: [],
                 },
               ],
       });
     } else {
-      reset({
-        name: "",
-        sku: "",
-        description: "",
-        brandId: undefined,
-        categoryId: undefined,
-        imageUrl: undefined,
-        variants: [
-          {
-            packageQuantity: 1,
-            packageType: "",
-            price: 0,
-            discountPrice: 0,
-            expiryDate: "",
-            stock: 0,
-            flavor: "",
-          },
-        ],
-      });
+      if (draftLoadedRef.current) return;
+      draftLoadedRef.current = true;
+
+      const draft = loadDraft();
+      if (draft) {
+        reset(draft);
+        toast.info("پیش‌نویس قبلی بازیابی شد.");
+      } else {
+        reset({
+          name: "",
+          description: "",
+          slug: "",
+          shortDescription: "",
+          brandId: undefined,
+          categoryId: undefined,
+          image: undefined,
+          variants: [
+            {
+              sku: "",
+              barcode: "",
+              purchasePrice: undefined,
+              price: 0,
+              discountPrice: 0,
+              stock: 0,
+              expiryDate: "",
+              images: [],
+              attributes: [],
+            },
+          ],
+        });
+      }
     }
   }, [mode, initialData, reset]);
 
@@ -122,9 +153,11 @@ export default function AddProductForm({
   });
   const [priceTexts, setPriceTexts] = useState<string[]>([]);
   const [discountTexts, setDiscountTexts] = useState<string[]>([]);
+  const [purchasePrice, setpurchasePrice] = useState<string[]>([]);
   useEffect(() => {
     setPriceTexts(Array(fields.length).fill(""));
     setDiscountTexts(Array(fields.length).fill(""));
+    setpurchasePrice(Array(fields.length).fill(""));
   }, [fields.length]);
   // 🚀 درخواست API
   const mutation = useMutation({
@@ -136,21 +169,60 @@ export default function AddProductForm({
       return await productApi.create(data);
     },
     onSuccess: () => {
-      toast.success(
-        mode === "edit"
-          ? "✅ محصول با موفقیت ویرایش شد"
-          : "✅ محصول با موفقیت ثبت شد"
-      );
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("✅ محصول با موفقیت ثبت شد");
+
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+
       if (mode === "add") {
-        reset();
+        clearDraft();
+
+        reset({
+          name: "",
+          slug: "",
+          description: "",
+          shortDescription: "",
+          metaTitle: "",
+          metaDescription: "",
+          brandId: undefined,
+          categoryId: undefined,
+          isBlock: false,
+          image: undefined,
+          attributes: [],
+          variants: [
+            {
+              sku: "",
+              barcode: "",
+              purchasePrice: undefined,
+              price: 0,
+              discountPrice: 0,
+              stock: 0,
+              expiryDate: "",
+              images: [],
+              attributes: [],
+            },
+          ],
+        });
+
+        setPriceTexts([""]);
+        setDiscountTexts([""]);
+        setpurchasePrice([""]);
         setPreview(null);
       }
     },
-    onError: () => toast.error("❌ خطا در ارسال داده"),
+    onError: (error: any) => {
+      console.error("❌ PRODUCT MUTATION ERROR:", error);
+
+      const message =
+        error?.response?.data?.message || error?.message || "خطا در ارسال داده";
+
+      toast.error(message);
+    },
   });
 
   const onSubmit = (data: CreateProductDTO) => {
+
     if (!data.variants?.length) {
       toast.error("حداقل یک واریانت باید ثبت شود");
       return;
@@ -166,7 +238,51 @@ export default function AddProductForm({
         className="w-[808px] bg-white border border-[#EDEDED] rounded-[16px] p-8 flex flex-col gap-8 font-vazir text-[#434343]"
       >
         {/* تصویر محصول */}
-        <ImageUploader name="imageUrl" />
+        {mode === "add" && (
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("پیش‌نویس حذف شود؟")) {
+                clearDraft();
+                reset({
+                  name: "",
+                  description: "",
+                  shortDescription: "",
+                  metaTitle: "",
+                  metaDescription: "",
+                  brandId: undefined,
+                  categoryId: undefined,
+                  image: undefined,
+                  attributes: [],
+                  variants: [
+                    {
+                      sku: "",
+                      barcode: "",
+                      purchasePrice: undefined,
+                      price: 0,
+                      discountPrice: 0,
+                      stock: 0,
+                      expiryDate: "",
+                      images: [],
+                      attributes: [],
+                    },
+                  ],
+                });
+              }
+            }}
+            className="text-red-500 text-[14px] px-4 py-2 rounded-[8px] border border-red-300 hover:bg-red-50"
+          >
+            حذف پیش‌نویس
+          </button>
+        )}
+        <div className="space-y-2">
+          <ImageUploader name="image" label="تصویر اصلی محصول" />
+          {errors.image && (
+            <p className="text-xs text-red-500">
+              {errors.image.message as string}
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-8">
           {/* ----- نام محصول ----- */}
@@ -178,34 +294,66 @@ export default function AddProductForm({
               }`}
             />
           </FormField>
-
-          {/* ----- کد SKU ----- */}
-          <FormField label="کد محصول (SKU)" error={errors.sku?.message}>
+          <FormField label="Slug" error={errors.slug?.message}>
             <input
-              {...register("sku")}
+              {...register("slug", {
+                required: "Slug الزامی است",
+                pattern: {
+                  value: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+                  message:
+                    "Slug فقط باید شامل حروف انگلیسی، عدد و خط تیره باشد",
+                },
+              })}
+              onChange={(e) => {
+                const value = e.target.value
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")
+                  .replace(/[^a-z0-9-]/g, "")
+                  .replace(/-+/g, "-")
+                  .replace(/^-+|-+$/g, "");
+
+                setValue("slug", value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
+              dir="ltr"
+              placeholder="magnesium-citrate-200mg"
               className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.sku ? "border-red-500" : "border-[#D6D6D6]"
+                errors.slug ? "border-red-500" : "border-[#D6D6D6]"
+              }`}
+            />
+
+            <p className="text-xs text-gray-400 mt-1" dir="rtl">
+              فقط حروف انگلیسی، عدد و خط تیره مجاز است.
+            </p>
+          </FormField>
+          <FormField
+            label="توضیح کوتاه"
+            error={errors.shortDescription?.message}
+          >
+            <textarea
+              rows={4}
+              {...register("shortDescription")}
+              className={`w-full border px-3 py-2 rounded-[8px] ${
+                errors.shortDescription ? "border-red-500" : "border-[#D6D6D6]"
               }`}
             />
           </FormField>
-
           {/* ----- برند ----- */}
           <FormField label="برند" error={errors.brandId?.message}>
-            <select
-              {...register("brandId", {
-                setValueAs: (v) => (v === "" ? undefined : Number(v)),
-              })}
-              className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                errors.brandId ? "border-red-500" : "border-[#D6D6D6]"
-              }`}
-            >
-              <option value="">انتخاب کنید</option>
-              {brands?.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <Controller
+              name="brandId"
+              control={control}
+              render={({ field }) => (
+                <SearchableSelect
+                  options={brands ?? []}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={!!errors.brandId}
+                />
+              )}
+            />
           </FormField>
 
           {/* ----- دسته‌بندی ----- */}
@@ -226,6 +374,29 @@ export default function AddProductForm({
         {/* توضیحات */}
         <FormField label="توضیحات" error={errors.description?.message}>
           <RichTextEditor control={control} name="description" />
+          <div className="grid grid-cols-2 gap-8">
+            <FormField label="Meta Title" error={errors.metaTitle?.message}>
+              <input
+                {...register("metaTitle")}
+                className={`w-full h-[40px] border px-3 rounded-[8px] ${
+                  errors.metaTitle ? "border-red-500" : "border-[#D6D6D6]"
+                }`}
+              />
+            </FormField>
+            <FormField
+              label="Meta Description"
+              error={errors.metaDescription?.message}
+            >
+              <textarea
+                rows={4}
+                {...register("metaDescription")}
+                className={`w-full border px-3 py-2 rounded-[8px] ${
+                  errors.metaDescription ? "border-red-500" : "border-[#D6D6D6]"
+                }`}
+              />
+            </FormField>
+          </div>
+          <ProductAttributeSelector />
         </FormField>
 
         {/* واریانت‌ها */}
@@ -240,64 +411,59 @@ export default function AddProductForm({
               className="border border-[#D6D6D6] bg-gray-50 rounded-[12px] p-5 flex flex-col gap-5"
             >
               <div className="grid grid-cols-2 gap-x-10 gap-y-5">
-                {/* تعداد در بسته */}
-                <FormField
-                  label="تعداد در بسته"
-                  error={errors.variants?.[i]?.packageQuantity?.message}
-                >
-                  <input
-                    type="number"
-                    {...register(`variants.${i}.packageQuantity`, {
-                      valueAsNumber: true,
-                    })}
-                    className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                      errors.variants?.[i]?.packageQuantity
-                        ? "border-red-500"
-                        : "border-[#D6D6D6]"
-                    }`}
-                  />
-                </FormField>
-
-                {/* نوع بسته‌بندی */}
-                <FormField
-                  label="نوع بسته‌بندی"
-                  error={errors.variants?.[i]?.packageType?.message}
-                >
-                  <Controller
-                    name={`variants.${i}.packageType`}
-                    control={control}
-                    render={({ field }) => {
-                      type OptionType = { value: string; label: string };
-                      return (
-                        <Select<OptionType>
-                          options={packageTypeOptions}
-                          placeholder="انتخاب نوع بسته"
-                          isSearchable
-                          value={
-                            packageTypeOptions.find(
-                              (opt) => opt.value === field.value
-                            ) || null
-                          }
-                          onChange={(opt) =>
-                            field.onChange(opt ? opt.value : "")
-                          }
-                          styles={{
-                            control: (base) => ({
-                              ...base,
-                              minHeight: "40px",
-                              borderRadius: "8px",
-                              borderColor: errors.variants?.[i]?.packageType
-                                ? "#EF4444"
-                                : "#D6D6D6",
-                            }),
-                          }}
-                        />
-                      );
-                    }}
-                  />
-                </FormField>
-
                 {/* قیمت */}
+                <FormField label="SKU">
+                  <input {...register(`variants.${i}.sku`)} />
+                </FormField>
+                <FormField label="بارکد">
+                  <input {...register(`variants.${i}.barcode`)} />
+                </FormField>
+                <FormField
+                  label="قیمت خرید"
+                  error={errors.variants?.[i]?.purchasePrice?.message}
+                >
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      {...register(`variants.${i}.purchasePrice`)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/,/g, "");
+
+                        // فقط عدد
+                        if (!/^\d*$/.test(raw)) {
+                          e.target.value = e.target.value.replace(
+                            /[^\d,]/g,
+                            "",
+                          );
+                          return;
+                        }
+
+                        // فرمت سه رقم سه رقم
+                        const formatted = raw.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ",",
+                        );
+                        e.target.value = formatted;
+
+                        // نمایش به حروف
+                        const newText = numberToPersianText(formatted);
+                        setpurchasePrice((prev) =>
+                          prev.map((t, idx) => (idx === i ? newText : t)),
+                        );
+                      }}
+                      className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
+                        errors.variants?.[i]?.purchasePrice
+                          ? "border-red-500"
+                          : "border-[#D6D6D6]"
+                      }`}
+                    />
+                    {purchasePrice[i] && (
+                      <p className="text-xs mt-1 text-gray-600">
+                        {purchasePrice[i]}
+                      </p>
+                    )}
+                  </div>
+                </FormField>
                 <FormField
                   label="قیمت (تومان)"
                   error={errors.variants?.[i]?.price?.message}
@@ -313,7 +479,7 @@ export default function AddProductForm({
                         if (!/^\d*$/.test(raw)) {
                           e.target.value = e.target.value.replace(
                             /[^\d,]/g,
-                            ""
+                            "",
                           );
                           return;
                         }
@@ -321,14 +487,14 @@ export default function AddProductForm({
                         // فرمت سه رقم سه رقم
                         const formatted = raw.replace(
                           /\B(?=(\d{3})+(?!\d))/g,
-                          ","
+                          ",",
                         );
                         e.target.value = formatted;
 
                         // نمایش به حروف
                         const newText = numberToPersianText(formatted);
                         setPriceTexts((prev) =>
-                          prev.map((t, idx) => (idx === i ? newText : t))
+                          prev.map((t, idx) => (idx === i ? newText : t)),
                         );
                       }}
                       className={`w-full h-[40px] border px-3 rounded-[8px] text-[13px] ${
@@ -345,6 +511,50 @@ export default function AddProductForm({
                   </div>
                 </FormField>
 
+                {/* قیمت با تخفیف */}
+                <FormField
+                  label="قیمت با تخفیف (تومان)"
+                  error={errors.variants?.[i]?.discountPrice?.message}
+                >
+                  <div className="flex flex-col">
+                    <input
+                      type="text"
+                      {...register(`variants.${i}.discountPrice`)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/,/g, "");
+                        if (!/^\d*$/.test(raw)) {
+                          e.target.value = e.target.value.replace(
+                            /[^\d,]/g,
+                            "",
+                          );
+                          return;
+                        }
+
+                        const formatted = raw.replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ",",
+                        );
+                        e.target.value = formatted;
+
+                        // نمایش به حروف
+                        const newText = numberToPersianText(formatted);
+                        setDiscountTexts((prev) =>
+                          prev.map((t, idx) => (idx === i ? newText : t)),
+                        );
+                      }}
+                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
+                        errors.variants?.[i]?.discountPrice
+                          ? "border-red-500"
+                          : "border-[#D6D6D6]"
+                      }`}
+                    />
+                    {discountTexts[i] && (
+                      <p className="text-xs mt-1 text-gray-600">
+                        {discountTexts[i]}
+                      </p>
+                    )}
+                  </div>
+                </FormField>
                 {/* موجودی */}
                 <FormField
                   label="موجودی"
@@ -363,65 +573,6 @@ export default function AddProductForm({
                   />
                 </FormField>
 
-                {/* قیمت با تخفیف */}
-                <FormField
-                  label="قیمت با تخفیف (تومان)"
-                  error={errors.variants?.[i]?.discountPrice?.message}
-                >
-                  <div className="flex flex-col">
-                    <input
-                      type="text"
-                      {...register(`variants.${i}.discountPrice`)}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/,/g, "");
-                        if (!/^\d*$/.test(raw)) {
-                          e.target.value = e.target.value.replace(
-                            /[^\d,]/g,
-                            ""
-                          );
-                          return;
-                        }
-
-                        const formatted = raw.replace(
-                          /\B(?=(\d{3})+(?!\d))/g,
-                          ","
-                        );
-                        e.target.value = formatted;
-
-                        // نمایش به حروف
-                        const newText = numberToPersianText(formatted);
-                        setDiscountTexts((prev) =>
-                          prev.map((t, idx) => (idx === i ? newText : t))
-                        );
-                      }}
-                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                        errors.variants?.[i]?.discountPrice
-                          ? "border-red-500"
-                          : "border-[#D6D6D6]"
-                      }`}
-                    />
-                    {discountTexts[i] && (
-                      <p className="text-xs mt-1 text-gray-600">
-                        {discountTexts[i]}
-                      </p>
-                    )}
-                  </div>
-                  <FormField
-                    label="طعم"
-                    error={errors.variants?.[i]?.flavor?.message}
-                  >
-                    <input
-                      type="text"
-                      {...register(`variants.${i}.flavor`)}
-                      className={`w-full h-[40px] border px-3 text-[13px] rounded-[8px] ${
-                        errors.variants?.[i]?.flavor
-                          ? "border-red-500"
-                          : "border-[#D6D6D6]"
-                      }`}
-                      placeholder="مثلاً شکلاتی، وانیلی..."
-                    />
-                  </FormField>
-                </FormField>
                 {/* تاریخ انقضا */}
                 <FormField
                   label="تاریخ انقضا"
@@ -436,20 +587,25 @@ export default function AddProductForm({
                         : "border-[#D6D6D6]"
                     }`}
                   />
-                  <Controller
-                    name={`variants.${i}.images`}
-                    control={control}
-                    render={({ field }) => (
-                      <MultiImageUploader
-                        images={field.value || []}
-                        onChange={field.onChange}
-                        maxFiles={10}
-                      />
-                    )}
-                  />
+                  <div className="mt-5">
+                    <Controller
+                      name={`variants.${i}.images`}
+                      control={control}
+                      render={({ field }) => (
+                        <MultiImageUploader
+                          images={field.value || []}
+                          onChange={field.onChange}
+                          maxFiles={10}
+                          existingImages={
+                            initialData?.variants?.[i]?.images ?? []
+                          }
+                        />
+                      )}
+                    />
+                  </div>
                 </FormField>
               </div>
-
+              <VariantAttributeSelector control={control} index={i} />
               <button
                 type="button"
                 onClick={() => remove(i)}
@@ -464,12 +620,23 @@ export default function AddProductForm({
             type="button"
             onClick={() =>
               append({
-                packageQuantity: 1,
-                packageType: "",
-                price: 0, // ✅ رشته خالی
-                discountPrice: 0, // ✅ رشته خالی
+                sku: "",
+
+                barcode: "",
+
+                purchasePrice: undefined,
+
+                price: 0,
+
+                discountPrice: 0,
+
                 stock: 0,
-                expiryDate: undefined,
+
+                expiryDate: "",
+
+                images: [],
+
+                attributes: [],
               })
             }
             className="text-[#00B4D8] text-[14px] self-start hover:underline"
@@ -479,17 +646,17 @@ export default function AddProductForm({
         </div>
 
         {/* دکمه */}
-        <div className="flex justify-end mt-3">
+        <div className="flex justify-between items-center mt-3">
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="bg-[#00B4D8] hover:bg-[#009DC1] transition text-white text-[14px] font-medium px-8 py-2 rounded-[8px]"
+            className="bg-[#00B4D8] hover:bg-[#009DC1] transition text-white text-[14px] font-medium px-8 py-2 rounded-[8px] mr-auto"
           >
             {mutation.isPending
               ? "در حال ارسال..."
               : mode === "edit"
-              ? "ثبت تغییرات"
-              : "ثبت محصول"}
+                ? "ثبت تغییرات"
+                : "ثبت محصول"}
           </button>
         </div>
       </form>

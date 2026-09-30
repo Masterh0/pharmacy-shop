@@ -2,10 +2,9 @@
 
 import { Search, ChevronLeft, Folder, Tag } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useSearchQuery } from "@/lib/hooks/useSearchQuery"; // فرض بر این است که این هوک اینجا قرار دارد
+import { useSearchQuery } from "@/lib/hooks/useSearchQuery";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-// import Image from "next/image";
 
 export default function HeaderSearch() {
   const [value, setValue] = useState("");
@@ -13,18 +12,38 @@ export default function HeaderSearch() {
   const boxRef = useRef<HTMLDivElement>(null);
   const productsScrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const scrollStartX = useRef(0);
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!productsScrollRef.current) return;
+
+    setIsDragging(true);
+    dragStartX.current = e.clientX;
+    scrollStartX.current = productsScrollRef.current.scrollLeft;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !productsScrollRef.current) return;
+
+    const distance = e.clientX - dragStartX.current;
+
+    productsScrollRef.current.scrollLeft = scrollStartX.current - distance;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
   // از این هوک استفاده می‌شود
   const { data, isLoading } = useSearchQuery(value);
 
   // 🐛 خطوط console.log برای عیب‌یابی
-  useEffect(() => {
-    console.log("HeaderSearch - Current Value:", value);
-    console.log("HeaderSearch - Is Open:", isOpen);
-    console.log("HeaderSearch - Is Loading:", isLoading);
-    console.log("HeaderSearch - Data (from useSearchQuery):", data);
-  }, [value, isOpen, isLoading, data]);
-
+  useEffect(() => {}, [value, isOpen, isLoading, data]);
 
   /* ---------------------------------------------------
      بستن Dropdown با کلیک بیرون و کنترل اسکرول بدنه
@@ -102,46 +121,42 @@ export default function HeaderSearch() {
     uniqueCategories.length > 0 ||
     uniqueBrands.length > 0;
 
-  // 🐛 console.log برای وضعیت نهایی نتایج
-  useEffect(() => {
-    console.log("HeaderSearch - Has Results:", hasResults);
-    if (hasResults) {
-      console.log("HeaderSearch - Unique Products Count:", uniqueProducts.length);
-      console.log("HeaderSearch - Unique Categories Count:", uniqueCategories.length);
-      console.log("HeaderSearch - Unique Brands Count:", uniqueBrands.length);
-    }
-  }, [hasResults, uniqueProducts.length, uniqueCategories.length, uniqueBrands.length]);
 
   /* ---------------------------------------------------
      رندر
   --------------------------------------------------- */
   return (
-    <div dir="rtl" className="flex justify-center flex-1 relative" ref={boxRef}>
-      {/* Search Box */}
+    <div
+      dir="rtl"
+      className="flex justify-center flex-1 w-full lg:w-auto relative"
+      ref={boxRef}
+    >
+      {/* Search Box (Responsive: Full width on mobile, 596px on desktop) */}
       <div
         className="
           flex flex-row-reverse items-center justify-between
-          w-[596px] h-[48px]
-          px-6 py-[11px]
-          border border-[#D6D6D6] rounded-[16px] bg-white
-          focus-within:border-[#00B4D8] transition-all // تغییر رنگ Border در حالت فوکوس
+          w-full lg:w-[596px] h-[38px] sm:h-[42px] lg:h-[48px]
+          px-2.5 sm:px-4 lg:px-6 py-[6px] lg:py-[11px]
+          border border-[#D6D6D6] bg-white
+          rounded-full lg:rounded-[16px]
+          focus-within:border-[#00B4D8] transition-all min-w-0
         "
       >
         <Search
-          className="w-[24px] h-[24px] text-[#00B4D8] cursor-pointer"
+          className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px] lg:w-[24px] lg:h-[24px] text-[#AFAFAF] lg:text-[#00B4D8] cursor-pointer shrink-0"
           onClick={handleSearch}
         />
 
         <input
           type="text"
-          placeholder="جستجو در داروخانه بهوندی..."
+          placeholder="جستجو در داروخانه..."
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           className="
-            flex-1 bg-transparent outline-none
-            text-gray-900 placeholder:text-[#00B4D8]
-            text-[14px]
+            flex-1 min-w-0 bg-transparent outline-none text-right px-1.5 sm:px-2
+            text-gray-900 placeholder:text-[#AFAFAF] lg:placeholder:text-[#00B4D8]
+            text-[12px] sm:text-[13px] lg:text-[14px] truncate
           "
         />
       </div>
@@ -150,8 +165,10 @@ export default function HeaderSearch() {
       {isOpen && (
         <div
           className="
-            absolute top-[56px] z-50 w-[596px] max-h-[450px]
-            bg-white border border-gray-200 rounded-xl
+            absolute top-[56px] z-50 
+            w-full lg:w-[596px] max-h-[450px]
+            bg-white border border-gray-200 
+            rounded-2xl lg:rounded-xl
             shadow-xl p-4
             overflow-y-auto
             animate-in slide-in-from-top-4 duration-300
@@ -186,51 +203,82 @@ export default function HeaderSearch() {
               {/* PRODUCTS */}
               {uniqueProducts.length > 0 && (
                 <div className="mb-4 border-b border-gray-100 pb-4">
-                    <div className="text-sm text-gray-700 font-medium mb-2 flex items-center gap-2">
-                        <Tag className="w-4 h-4 text-gray-500" />
-                        محصولات
-                    </div>
+                  <div className="text-sm text-gray-700 font-medium mb-2 flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-gray-500" />
+                    محصولات
+                  </div>
 
                   <div
                     ref={productsScrollRef}
                     onWheel={handleProductsWheel}
-                    className="
-                      flex gap-3 overflow-x-auto py-2 scrollbar-hide
-                    "
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                    className={`
+    flex gap-3 overflow-x-auto py-2
+    select-none
+    ${isDragging ? "cursor-grabbing" : "cursor-grab"}
+  `}
                   >
-                    {uniqueProducts.map((p) => (
-                      <Link
-                        key={p.id}
-                        href={`/product/${p.slug}?id=${p.id}`}
-                        onClick={() => setValue("")}
-                        className="
-                          min-w-[140px] max-w-[140px]
-                          bg-white border border-gray-200 rounded-lg
-                          p-2 flex flex-col gap-2
-                          hover:shadow-md hover:border-[#00B4D8] transition-all
-                        "
-                      >
-                        <img
-                          src={getImage(p.imageUrl)}
-                          className="w-full h-[110px] object-cover rounded-md"
-                          alt={p.name}
-                        />
+                    {uniqueProducts.map((p) => {
+                      const variant = p.variants?.[0];
+                      const hasDiscount =
+                        variant?.discountPrice &&
+                        variant.discountPrice < variant.price;
 
-                        <div className="text-xs text-gray-800 line-clamp-2 min-h-[36px]">
-                          {p.name}
-                        </div>
+                      return (
+                        <Link
+                          key={p.id}
+                          href={`/product/${p.id}-${p.slug}`}
+                          onClick={() => setValue("")}
+                          className="
+                            min-w-[140px] max-w-[140px]
+                            bg-white border border-gray-200 rounded-lg
+                            p-2 flex flex-col gap-2
+                            hover:shadow-md hover:border-[#00B4D8] transition-all
+                          "
+                        >
+                          <img
+                            src={getImage(p.imageUrl)}
+                            className="w-full h-[110px] object-cover rounded-md"
+                            alt={p.name}
+                          />
 
-                        {/* نمایش قیمت */}
-                        {p.variants?.[0] && (
-                          <div className="text-xs text-blue-600 font-bold mt-auto">
-                            {Number(
-                              p.variants[0].discountPrice ?? p.variants[0].price
-                            ).toLocaleString("fa-IR")}{" "}
-                            تومان
+                          <div className="text-xs text-gray-800 line-clamp-2 min-h-[36px]">
+                            {p.name}
                           </div>
-                        )}
-                      </Link>
-                    ))}
+
+                          {/* نمایش قیمت همراه با پشتیبانی از تخفیف */}
+                          {variant && (
+                            <div className="flex flex-col mt-auto items-start">
+                              {hasDiscount ? (
+                                <>
+                                  <span className="text-[16px] text-red-400 line-through">
+                                    {Number(variant.price).toLocaleString(
+                                      "fa-IR",
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-blue-600 font-bold mt-0.5">
+                                    {Number(
+                                      variant.discountPrice,
+                                    ).toLocaleString("fa-IR")}{" "}
+                                    تومان
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-blue-600 font-bold mt-auto pt-4">
+                                  {Number(variant.price).toLocaleString(
+                                    "fa-IR",
+                                  )}{" "}
+                                  تومان
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -275,7 +323,7 @@ export default function HeaderSearch() {
                     {uniqueBrands.map((b) => (
                       <Link
                         key={b.slug}
-                        href={`/brand/${b.slug}`}
+                        href={`/brands/${b.slug}`}
                         onClick={() => setValue("")}
                         className="
                           flex items-center justify-between p-2

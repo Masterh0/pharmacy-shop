@@ -11,6 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "paths": {
@@ -19,6 +21,12 @@
       "@types/*": ["src/types/*"]
     }
   },
-  "include": ["index.ts", "dto/**/*.ts", "src/**/*.ts", "src/types/**/*.d.ts"],  // ← این خط اضافه شده
+  "include": [
+    "index.ts",
+    "dto/**/*.ts",
+    "src/**/*.ts",
+    "src/types/**/*.d.ts",
+    "types/**/*"
+, "src/dto/Updateattributevalue.ts"  ], // ← این خط اضافه شده
   "exclude": ["node_modules", "dist"]
 }

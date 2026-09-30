@@ -1,13 +1,9 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-
+import type { Brand } from "@/lib/types/brand";
 /* ---------- Types ---------- */
-type Brand = {
-  id: number;
-  name: string;
-};
 
 /* ---------- Constants ---------- */
 const MIN = 0;
@@ -39,11 +35,13 @@ function ToggleSwitch({
 /* ---------- Props ---------- */
 type Props = {
   brands: Brand[];
+  onApply?: () => void;
 };
 
-export default function ProductsFilterBox({ brands }: Props) {
+export default function ProductsFilterBox({ brands, onApply }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   /* =================================================
    ✅ URL → READ (Source of Truth)
@@ -65,6 +63,8 @@ export default function ProductsFilterBox({ brands }: Props) {
     available: inStock,
   });
 
+  const [brandSearch, setBrandSearch] = useState("");
+
   /* sync draft when URL changes */
   useEffect(() => {
     setDraft({
@@ -80,34 +80,59 @@ export default function ProductsFilterBox({ brands }: Props) {
    ✅ Accordion state
   ================================================= */
   const [open, setOpen] = useState({
-    brand: true,
+    brand: false,
     price: false,
   });
+
+  /* =================================================
+   ✅ Filter brands by search
+  ================================================= */
+  const filteredBrands = brands.filter((b) =>
+    b.name.toLowerCase().includes(brandSearch.toLowerCase()),
+  );
 
   /* =================================================
    ✅ helper → WRITE URL (ONLY ON APPLY)
   ================================================= */
   const applyFilters = () => {
+    const q = searchParams.get("q");
+    const currentLimit = searchParams.get("limit") || "12";
+
     const params = new URLSearchParams();
+
+    if (q) params.set("q", q);
     params.set("page", "1");
+    params.set("limit", currentLimit);
 
     draft.brands.forEach((b) => params.append("brand", b));
-    draft.discount && params.set("discount", "1");
-    draft.available && params.set("available", "1");
-
+    if (draft.discount) params.set("discount", "1");
+    if (draft.available) params.set("available", "1");
     params.set("minPrice", String(draft.minPrice));
     params.set("maxPrice", String(draft.maxPrice));
 
-    router.push(`?${params.toString()}`, { scroll: false });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    onApply?.();
   };
 
-  const clearFilters = () => router.push("?");
+  const clearFilters = () => {
+    const q = searchParams.get("q");
+    const currentLimit = searchParams.get("limit") || "12";
+
+    const params = new URLSearchParams();
+
+    if (q) params.set("q", q);
+    params.set("page", "1");
+    params.set("limit", currentLimit);
+
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    onApply?.();
+  };
 
   /* =================================================
    ✅ render
   ================================================= */
   return (
-    <aside className="sticky top-[96px] self-start w-[288px] shrink-0 mt-12 rounded-xl border border-[#D6D6D6] bg-white p-4 flex flex-col gap-4">
+    <aside className="lg:sticky lg:top-[96px] lg:self-start w-full lg:w-[288px] lg:shrink-0 lg:mt-12 rounded-xl border border-[#D6D6D6] bg-white p-4 flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[#D6D6D6] pb-3">
         <span className="text-[16px] font-medium text-[#242424]">فیلترها</span>
@@ -127,36 +152,50 @@ export default function ProductsFilterBox({ brands }: Props) {
         >
           برند
           <span
-            className={`transition-transform ${
-              open.brand ? "rotate-180" : ""
-            }`}
+            className={`transition-transform ${open.brand ? "rotate-180" : ""}`}
           >
             ▼
           </span>
         </button>
 
         {open.brand && (
-          <div className="px-3 pb-3 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-[#00B4D8]/40">
-            {brands.map((brand) => (
-              <label
-                key={brand.id}
-                className="flex items-center gap-2 py-1 text-[13px]"
-              >
-                <input
-                  type="checkbox"
-                  checked={draft.brands.includes(String(brand.id))}
-                  onChange={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      brands: d.brands.includes(String(brand.id))
-                        ? d.brands.filter((b) => b !== String(brand.id))
-                        : [...d.brands, String(brand.id)],
-                    }))
-                  }
-                />
-                {brand.name}
-              </label>
-            ))}
+          <div className="px-3 pb-3">
+            <input
+              type="text"
+              placeholder="جستجوی برند..."
+              value={brandSearch}
+              onChange={(e) => setBrandSearch(e.target.value)}
+              className="w-full px-3 py-2 mb-2 text-[13px] border border-[#E5E5E5] rounded-md focus:outline-none focus:border-[#00B4D8]"
+            />
+            <div className="max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-[#00B4D8]/40">
+              {filteredBrands.map((brand) => (
+                <label
+                  key={brand.id}
+                  className="flex items-center gap-2 py-1 text-[13px] cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={draft.brands.includes(String(brand.id))}
+                    onChange={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        brands: d.brands.includes(String(brand.id))
+                          ? d.brands.filter((b) => b !== String(brand.id))
+                          : [...d.brands, String(brand.id)],
+                      }))
+                    }
+                  />
+                  <div className="flex items-center justify-between w-full">
+                    <span>
+                      {brand.name} ({brand.count ?? 0})
+                    </span>
+                  </div>
+                </label>
+              ))}
+              {filteredBrands.length === 0 && (
+                <p className="text-[12px] text-gray-400 py-2">برندی یافت نشد</p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -187,9 +226,7 @@ export default function ProductsFilterBox({ brands }: Props) {
         >
           محدوده قیمت
           <span
-            className={`transition-transform ${
-              open.price ? "rotate-180" : ""
-            }`}
+            className={`transition-transform ${open.price ? "rotate-180" : ""}`}
           >
             ▼
           </span>

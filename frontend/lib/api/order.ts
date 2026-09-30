@@ -18,14 +18,14 @@ export const orderApi = {
   },
 
   /** 🔍 دریافت جزئیات یک سفارش خاص */
-  async getById(orderId: number): Promise<Order> {
+  async getById(orderId: number): Promise<{ order: Order }> {
     const { data } = await api.get(`/orders/${orderId}`);
-    return data;
+    return { order: data }; // wrap کن
   },
 
   /** ❌ کنسل کردن سفارش */
   async cancel(
-    orderId: number
+    orderId: number,
   ): Promise<{ success: boolean; message: string }> {
     const { data } = await api.patch(`/orders/${orderId}/cancel`);
     return data;

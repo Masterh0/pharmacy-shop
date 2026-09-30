@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Eye, EyeSlash } from "iconsax-react";
 import AuthLayout from "../authComponents/AuthLayout";
@@ -10,13 +10,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import BackButton from "../authComponents/BackButton";
 import { useAuth } from "@/lib/context/AuthContext";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { cartApi } from "@/lib/api/cart";
+import Image from "next/image";
 
 export default function SignupClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/";
   const { user, isLoading, refreshUser } = useAuth();
-
+  const queryClient = useQueryClient();
+  const isCompletingAuth = useRef(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -32,10 +36,11 @@ export default function SignupClient() {
   const [otp, setOtp] = useState("");
   const [userPhone, setUserPhone] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const guestItemCountRef = useRef(0);
 
   // ✅ چک ریدایرکت اگر قبلاً لاگین کرده
   useEffect(() => {
-    if (!isLoading && user) {
+    if (!isLoading && user && !isCompletingAuth.current) {
       const target = user.role === "ADMIN" ? "/admin/dashboard" : returnUrl;
       router.replace(target);
     }
@@ -74,15 +79,40 @@ export default function SignupClient() {
   const verifyOtpMutation = useMutation({
     mutationFn: verifyRegisterOtp,
     onSuccess: async (res) => {
-      await refreshUser(); // بروزرسانی اطلاعات کاربر
-      toast.success("ثبت‌نام با موفقیت انجام شد ✅");
+      try {
+        isCompletingAuth.current = true;
+        await refreshUser();
 
-      // ✅ ریدایرکت به مسیر مورد نظر
-      const target = res.user.role === "ADMIN" ? "/admin/dashboard" : returnUrl;
-      router.replace(target);
+        const finalCart = await cartApi.get();
+        queryClient.setQueryData(["cart"], finalCart);
+
+        if (guestItemCountRef.current > 0) {
+          toast.success(
+            `${guestItemCountRef.current} محصول از سبد مهمان به حساب شما اضافه شد 🛒`,
+            { id: "register-cart-merge" },
+          );
+        }
+
+        toast.success("ثبت‌نام با موفقیت انجام شد ✅");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const target =
+          res.user.role === "ADMIN" ? "/admin/dashboard" : returnUrl;
+        router.replace(target);
+      } catch (error) {
+        console.error("🔥 REGISTER CART SYNC ERROR:", error);
+        toast.success("ثبت‌نام با موفقیت انجام شد ✅");
+        const target =
+          res.user.role === "ADMIN" ? "/admin/dashboard" : returnUrl;
+        router.replace(target);
+      }
     },
     onError: (err: any) => {
-      const message = err?.response?.data?.error || "کد نادرست است";
+      isCompletingAuth.current = false;
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        "کد نادرست است";
       toast.error(message);
     },
   });
@@ -97,22 +127,38 @@ export default function SignupClient() {
   }
 
   // ✅ اگر لاگین کرده، چیزی نمایش نده (در حال ریدایرکت)
-  if (user) return null;
+  if (user && !isCompletingAuth.current) return null;
 
   // ✅ ارسال فرم ثبت‌نام
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (formData.password !== formData.confirmPassword) {
       toast.error("رمز عبور و تأیید یکسان نیست");
       return;
     }
 
-    registerMutation.mutate({
-      name: formData.name.trim(),
-      phone: formData.phone,
-      password: formData.password,
-      email: formData.email || undefined,
-    });
+    try {
+      const guestCart = await cartApi.get();
+      const guestItemCount =
+        guestCart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+      guestItemCountRef.current = guestItemCount;
+
+      registerMutation.mutate({
+        name: formData.name.trim(),
+        phone: formData.phone,
+        password: formData.password,
+        email: formData.email || undefined,
+      });
+    } catch (error) {
+      console.error("❌ GUEST CART BEFORE REGISTER ERROR:", error);
+      registerMutation.mutate({
+        name: formData.name.trim(),
+        phone: formData.phone,
+        password: formData.password,
+        email: formData.email || undefined,
+      });
+    }
   };
 
   // ✅ ارسال OTP
@@ -139,23 +185,75 @@ export default function SignupClient() {
     <AuthLayout>
       <BackButton fallback="/" />
 
-      {/* Title */}
-      <div className="absolute flex flex-col justify-center items-center gap-[12px] w-[359px] left-[64px] top-[54px]">
-        <h1 className="text-[40px] font-[700] text-[#171717] leading-[44px]">
+      {/* Header / Titles Mobile + Desktop */}
+      <div
+        className="
+    relative
+    mt-10
+    mb-6
+    flex
+    w-full
+    flex-col
+    items-center
+    justify-center
+    gap-[12px]
+    px-4
+
+    md:absolute
+    md:left-[64px]
+    md:top-[54px]
+    md:mt-0
+    md:mb-0
+    md:w-[359px]
+    md:px-0
+  "
+      >
+        {/* Mobile Logo */}
+        <div className="mb-4 flex flex-col items-center gap-2 md:hidden">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-orange-100">
+            <div className="text-2xl">🐛</div>
+          </div>
+
+          <h2 className="text-xl font-bold text-[#0086a8]">
+            داروخانه دکتر بهوندی
+          </h2>
+
+          <span className="text-sm text-gray-500">ورود | ثبت نام</span>
+        </div>
+
+        {/* Desktop Title */}
+        <h1 className="hidden text-[40px] font-[700] leading-[44px] text-[#171717] md:block">
           {step === "register" ? "ثبت‌نام" : "تأیید کد"}
         </h1>
-        <p className="text-[18px] text-[#656565] leading-[27px] text-center">
+
+        <p className="hidden text-center text-[18px] leading-[27px] text-[#656565] md:block">
           {step === "register"
-            ? "برای ایجاد حساب جدید اطلاعات خود را وارد کنید."
+            ? ".برای ایجاد حساب جدید اطلاعات خود را وارد کنید"
             : `کد ارسال‌شده به شماره ${userPhone} را وارد کنید.`}
         </p>
       </div>
 
       {/* === مرحله اول: اطلاعات کاربر === */}
       {step === "register" && (
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={handleSubmit}
+          className="
+    relative
+    flex
+    w-full
+    flex-col
+    items-center
+    gap-4
+    px-4
+
+    md:absolute
+    md:inset-0
+    md:block
+    md:px-0
+  "
+        >
           {/* Name field */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[160px]">
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[160px]">
             <label className="text-[14px] text-[#656565]">
               نام و نام خانوادگی
             </label>
@@ -165,14 +263,14 @@ export default function SignupClient() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className="w-full h-[40px] border border-[#656565] rounded-[8px] px-[8px] text-right text-[14px] focus:ring-2 focus:ring-[#00B4D8]"
+              className="w-full h-[40px] md:h-[40px] border border-[#656565] rounded-[8px] px-[8px] text-right text-[14px] focus:ring-2 focus:ring-[#00B4D8]"
               placeholder="نام خود را وارد کنید"
               required
             />
           </div>
 
           {/* Phone field */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[230px]">
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[230px]">
             <label className="text-[14px] text-[#656565]">شماره تماس</label>
             <input
               type="tel"
@@ -183,12 +281,12 @@ export default function SignupClient() {
               pattern="^09\d{9}$"
               required
               className="w-full h-[40px] border border-[#656565] rounded-[8px] px-[8px] text-right text-[14px] focus:ring-2 focus:ring-[#00B4D8]"
-              placeholder="09123456789"
+              placeholder="0912xxx6789"
             />
           </div>
 
           {/* Email */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[300px]">
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[300px]">
             <label className="text-[14px] text-[#656565]">
               ایمیل (اختیاری)
             </label>
@@ -204,8 +302,10 @@ export default function SignupClient() {
           </div>
 
           {/* Password */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[370px]">
-            <label className="text-[14px] text-[#656565]">رمز عبور</label>
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[370px]">
+            <label className="text-right text-[12px] leading-[18px] text-[#656565] md:text-[11px] md:leading-[16px]">
+              رمز عبور (اختیاری) حداقل ۶ کارکتر، حداقل ۱ حرف انگلیسی و ۱ عدد
+            </label>
             <div className="relative w-full">
               <input
                 type={showPassword ? "text" : "password"}
@@ -231,7 +331,7 @@ export default function SignupClient() {
           </div>
 
           {/* Confirm password */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[440px]">
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[440px]">
             <label className="text-[14px] text-[#656565]">تأیید رمز عبور</label>
             <div className="relative w-full">
               <input
@@ -261,14 +361,14 @@ export default function SignupClient() {
           <button
             type="submit"
             disabled={registerMutation.isPending}
-            className="absolute left-[99px] top-[515px] w-[288px] h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[14px] font-[500] disabled:opacity-50"
+            className="relative md:absolute mt-4 md:mt-0 w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[515px] h-[44px] md:h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[16px] md:text-[14px] font-[500] disabled:opacity-50"
           >
-            {registerMutation.isPending ? "در حال ارسال..." : "ثبت‌نام"}
+            {registerMutation.isPending ? "در حال ارسال..." : "ثبت‌نام در سایت"}
           </button>
 
           {/* Footer */}
-          <div className="absolute flex flex-col items-center gap-[8px] w-[288px] left-[99px] top-[570px] text-center">
-            <p className="text-[12px] text-[#171717]">
+          <div className="relative md:absolute flex flex-col items-center gap-[8px] w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[570px] text-center mt-2 md:mt-0">
+            <p className="text-[14px] md:text-[12px] text-[#171717]">
               اگر اکانت دارید{" "}
               <Link
                 href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
@@ -277,21 +377,19 @@ export default function SignupClient() {
                 اینجا کلیک کنید
               </Link>
             </p>
-            <Link
-              href={`/login/otp?returnUrl=${encodeURIComponent(returnUrl)}`}
-              className="text-[12px] text-[#3C8F7C] hover:underline"
-            >
-              ورود با شماره تماس
-            </Link>
+            
           </div>
         </form>
       )}
 
       {/* === مرحله دوم: وارد کردن OTP === */}
       {step === "otp" && (
-        <form onSubmit={handleVerifyOtp} className="relative">
+        <form
+          onSubmit={handleVerifyOtp}
+          className="w-full flex flex-col items-center gap-4 px-4 md:px-0 md:block"
+        >
           {/* OTP Input */}
-          <div className="absolute flex flex-col gap-[4px] items-end w-[288px] left-[99px] top-[200px]">
+          <div className="relative md:absolute flex flex-col gap-[4px] items-end w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[200px]">
             <label className="text-[14px] text-[#656565]">
               کد تأیید 6 رقمی
             </label>
@@ -300,16 +398,16 @@ export default function SignupClient() {
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
               maxLength={6}
-              className="w-full h-[40px] border border-[#656565] rounded-[8px] px-[8px] text-center text-[18px] tracking-widest focus:ring-2 focus:ring-[#00B4D8]"
+              className="w-full h-[44px] md:h-[40px] border border-[#656565] rounded-[8px] px-[8px] text-center text-[18px] tracking-widest focus:ring-2 focus:ring-[#00B4D8]"
               placeholder="● ● ● ● ● ●"
               required
             />
           </div>
 
           {/* Countdown / Resend */}
-          <div className="absolute left-[99px] top-[260px] w-[288px] text-center">
+          <div className="relative md:absolute w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[260px] text-center mt-2 md:mt-0">
             {countdown > 0 ? (
-              <p className="text-[12px] text-[#656565] mt-2">
+              <p className="text-[14px] md:text-[12px] text-[#656565] mt-2">
                 ارسال مجدد کد تا <span className="font-bold">{countdown}</span>{" "}
                 ثانیه دیگر
               </p>
@@ -318,7 +416,7 @@ export default function SignupClient() {
                 type="button"
                 onClick={handleResendOtp}
                 disabled={registerMutation.isPending}
-                className="text-[12px] text-[#00B4D8] hover:underline disabled:opacity-50"
+                className="text-[14px] md:text-[12px] text-[#00B4D8] hover:underline disabled:opacity-50"
               >
                 ارسال مجدد کد
               </button>
@@ -329,7 +427,7 @@ export default function SignupClient() {
           <button
             type="submit"
             disabled={verifyOtpMutation.isPending || otp.length !== 6}
-            className="absolute left-[99px] top-[310px] w-[288px] h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[14px] font-[500] disabled:opacity-50"
+            className="relative md:absolute w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[310px] h-[44px] md:h-[40px] bg-[#00B4D8] text-white rounded-[8px] text-[16px] md:text-[14px] font-[500] disabled:opacity-50 mt-4 md:mt-0"
           >
             {verifyOtpMutation.isPending ? "در حال تأیید..." : "تأیید کد"}
           </button>
@@ -341,7 +439,7 @@ export default function SignupClient() {
               setStep("register");
               setOtp("");
             }}
-            className="absolute left-[99px] top-[365px] w-[288px] text-[12px] text-[#656565] hover:text-[#00B4D8]"
+            className="relative md:absolute w-full max-w-[360px] md:w-[288px] md:left-[99px] md:top-[365px] text-[14px] md:text-[12px] text-[#656565] hover:text-[#00B4D8] mt-2 md:mt-0"
           >
             تغییر شماره تماس
           </button>

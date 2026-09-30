@@ -32,8 +32,8 @@ export function useOrders() {
   /** 🧩 Mutation برای ساخت سفارش جدید */
   const createOrder = useMutation({
     mutationFn: orderApi.create,
-    onSuccess: (newOrder: Order) => {
-      toast.success("سفارش با موفقیت ثبت شد 🎉");
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
     onError: (err: any) => {

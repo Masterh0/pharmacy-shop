@@ -1,10 +1,9 @@
 // backend/src/controllers/wishlistController.ts
 
-import { Request, Response } from 'express';
-import { wishlistService } from '../services/wishlistService';
+import { Request, Response } from "express";
+import { wishlistService } from "../services/wishlistService";
 
 // Type برای Request با user احراز هویت شده
-
 
 export const wishlistController = {
   /**
@@ -19,25 +18,25 @@ export const wishlistController = {
       if (!productId || isNaN(Number(productId))) {
         return res.status(400).json({
           success: false,
-          message: 'شناسه محصول الزامی است',
+          message: "شناسه محصول الزامی است",
         });
       }
 
       const wishlistItem = await wishlistService.addToWishlist(
         userId,
-        Number(productId)
+        Number(productId),
       );
 
       return res.status(201).json({
         success: true,
-        message: 'محصول به لیست علاقه‌مندی‌ها اضافه شد',
+        message: "محصول به لیست علاقه‌مندی‌ها اضافه شد",
         data: wishlistItem,
       });
     } catch (error: any) {
-      console.error('Add to wishlist error:', error);
+      console.error("Add to wishlist error:", error);
       return res.status(400).json({
         success: false,
-        message: error.message || 'خطا در افزودن به لیست علاقه‌مندی‌ها',
+        message: error.message || "خطا در افزودن به لیست علاقه‌مندی‌ها",
       });
     }
   },
@@ -54,13 +53,13 @@ export const wishlistController = {
       if (!productId || isNaN(Number(productId))) {
         return res.status(400).json({
           success: false,
-          message: 'شناسه محصول نامعتبر است',
+          message: "شناسه محصول نامعتبر است",
         });
       }
 
       const result = await wishlistService.removeFromWishlist(
         userId,
-        Number(productId)
+        Number(productId),
       );
 
       return res.json({
@@ -68,10 +67,10 @@ export const wishlistController = {
         message: result.message,
       });
     } catch (error: any) {
-      console.error('Remove from wishlist error:', error);
+      console.error("Remove from wishlist error:", error);
       return res.status(400).json({
         success: false,
-        message: error.message || 'خطا در حذف از لیست علاقه‌مندی‌ها',
+        message: error.message || "خطا در حذف از لیست علاقه‌مندی‌ها",
       });
     }
   },
@@ -84,21 +83,19 @@ export const wishlistController = {
     try {
       const userId = req.user!.id;
       const {
-        page = '1',
-        limit = '20',
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
+        page = "1",
+        limit = "20",
+        sortBy = "createdAt",
+        sortOrder = "desc",
       } = req.query;
 
-      const validSortBy = ['createdAt', 'price', 'soldCount'].includes(
-        sortBy as string
-      )
-        ? (sortBy as 'createdAt' | 'price' | 'soldCount')
-        : 'createdAt';
+      const validSortBy = ["createdAt", "soldCount"].includes(sortBy as string)
+        ? (sortBy as "createdAt" | "soldCount")
+        : "createdAt";
 
-      const validSortOrder = ['asc', 'desc'].includes(sortOrder as string)
-        ? (sortOrder as 'asc' | 'desc')
-        : 'desc';
+      const validSortOrder = ["asc", "desc"].includes(sortOrder as string)
+        ? (sortOrder as "asc" | "desc")
+        : "desc";
 
       const result = await wishlistService.getUserWishlist(userId, {
         page: Number(page),
@@ -112,10 +109,10 @@ export const wishlistController = {
         data: result,
       });
     } catch (error: any) {
-      console.error('Get wishlist error:', error);
+      console.error("Get wishlist error:", error);
       return res.status(500).json({
         success: false,
-        message: 'خطا در دریافت لیست علاقه‌مندی‌ها',
+        message: "خطا در دریافت لیست علاقه‌مندی‌ها",
       });
     }
   },
@@ -132,13 +129,13 @@ export const wishlistController = {
       if (!productId || isNaN(Number(productId))) {
         return res.status(400).json({
           success: false,
-          message: 'شناسه محصول نامعتبر است',
+          message: "شناسه محصول نامعتبر است",
         });
       }
 
       const isInWishlist = await wishlistService.isInWishlist(
         userId,
-        Number(productId)
+        Number(productId),
       );
 
       return res.json({
@@ -149,10 +146,10 @@ export const wishlistController = {
         },
       });
     } catch (error: any) {
-      console.error('Check wishlist error:', error);
+      console.error("Check wishlist error:", error);
       return res.status(500).json({
         success: false,
-        message: 'خطا در بررسی وضعیت محصول',
+        message: "خطا در بررسی وضعیت محصول",
       });
     }
   },
@@ -169,24 +166,24 @@ export const wishlistController = {
       if (!Array.isArray(productIds) || productIds.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'لیست شناسه محصولات الزامی است',
+          message: "لیست شناسه محصولات الزامی است",
         });
       }
 
-      const validProductIds = productIds.filter(
-        (id) => !isNaN(Number(id))
-      ).map(Number);
+      const validProductIds = productIds
+        .filter((id) => !isNaN(Number(id)))
+        .map(Number);
 
       if (validProductIds.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'شناسه‌های محصول نامعتبر هستند',
+          message: "شناسه‌های محصول نامعتبر هستند",
         });
       }
 
       const result = await wishlistService.checkMultipleProducts(
         userId,
-        validProductIds
+        validProductIds,
       );
 
       return res.json({
@@ -194,10 +191,10 @@ export const wishlistController = {
         data: result,
       });
     } catch (error: any) {
-      console.error('Check multiple wishlist error:', error);
+      console.error("Check multiple wishlist error:", error);
       return res.status(500).json({
         success: false,
-        message: 'خطا در بررسی وضعیت محصولات',
+        message: "خطا در بررسی وضعیت محصولات",
       });
     }
   },
@@ -216,10 +213,10 @@ export const wishlistController = {
         data: { count },
       });
     } catch (error: any) {
-      console.error('Get wishlist count error:', error);
+      console.error("Get wishlist count error:", error);
       return res.status(500).json({
         success: false,
-        message: 'خطا در دریافت تعداد آیتم‌ها',
+        message: "خطا در دریافت تعداد آیتم‌ها",
       });
     }
   },
@@ -238,10 +235,10 @@ export const wishlistController = {
         message: result.message,
       });
     } catch (error: any) {
-      console.error('Clear wishlist error:', error);
+      console.error("Clear wishlist error:", error);
       return res.status(500).json({
         success: false,
-        message: 'خطا در پاک کردن لیست علاقه‌مندی‌ها',
+        message: "خطا در پاک کردن لیست علاقه‌مندی‌ها",
       });
     }
   },

@@ -11,5 +11,11 @@
   },
   "run": {
     "command": "npm start"
-  }
+  },
+  "disks": [
+    {
+      "name": "product-images",
+      "mountTo": "/app/uploads"
+    }
+  ]
 }

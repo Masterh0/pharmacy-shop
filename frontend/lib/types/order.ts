@@ -21,31 +21,35 @@ export type RefundStatus = "NONE" | "PARTIALLY_REFUNDED" | "REFUNDED";
 export interface OrderItem {
   id: number;
   orderId: number;
-  productId: number;
-  variantId: number;
+  productId: number | null;
+  variantId: number | null;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
 
-  product: {
+  // snapshot fields (مستقیم روی OrderItem ذخیره شده)
+  productName: string;
+  brandName?: string | null;
+  categoryName?: string | null;
+  imageUrl?: string | null;
+  sku?: string | null;
+  variantAttributesSummary?: string | null;
+
+  // روابط (ممکنه null باشن اگه محصول حذف شده)
+  product?: {
     id: number;
     name: string;
-    slug: string;
-    image: string;
-    brand?: {
-      name: string;
-    };
-    category?: {
-      name: string;
-    };
-  };
+    slug?: string;
+    imageUrl?: string | null;
+    brand?: { name: string };
+    category?: { name: string };
+  } | null;
 
-  variant: {
+  variant?: {
     id: number;
-    flavor?: string;
-    size?: string;
-    packageQuantity?: number;
-  };
+    sku?: string | null;
+    stock?: number;
+  } | null;
 }
 
 /* =======================
@@ -59,6 +63,8 @@ export interface OrderAddress {
   city: string;
   addressLine: string;
   postalCode: string;
+  street?: string;
+  notes?: string;
 }
 
 /* =======================
@@ -77,7 +83,8 @@ export interface OrderUser {
 export interface OrderShipment {
   id: number;
   status: string;
-  trackingNumber?: string;
+  trackingNumber?: string | null;
+  deliveredAt?: string | null;
 }
 
 /* =======================
@@ -85,8 +92,8 @@ export interface OrderShipment {
 ======================= */
 export interface Order {
   id: number;
-  userId: number;
-  addressId: number;
+  userId: number | null;
+  addressId: number | null;
 
   status: OrderStatus;
 
@@ -97,65 +104,20 @@ export interface Order {
   shippingFee: number;
   finalTotal: number;
 
-  discountCode?: string;
-}
-export interface OrderAddress {
-  id: number;
-  fullName: string;
-  phone: string;
-  province: string;
-  city: string;
-  addressLine: string;
-  postalCode: string;
-}
+  discountCode?: string | null;
+  trackingCode?: string | null;
 
-/* =======================
-   User
-======================= */
-export interface OrderUser {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-}
-
-/* =======================
-   Shipment
-======================= */
-export interface OrderShipment {
-  id: number;
-  status: string;
-  trackingNumber?: string;
-}
-
-/* =======================
-   Order
-======================= */
-export interface Order {
-  id: number;
-  userId: number;
-  addressId: number;
-
-  status: OrderStatus;
-
-  /** 💰 Pricing */
-  subtotal: number;
-  discountTotal: number;
-  taxAmount: number;
-  shippingFee: number;
-  finalTotal: number;
-
-  discountCode?: string;
-  trackingCode?: string;
+  /** 🗒️ Admin */
+  adminNotes?: string | null;
 
   /** 💳 Payment */
-  paidAt?: string;
+  paidAt?: string | null;
 
   /** 💸 Refund */
   refundStatus: RefundStatus;
   refundedAmount: number;
-  refundedAt?: string;
-  refundNote?: string;
+  refundedAt?: string | null;
+  refundNote?: string | null;
 
   /** 🕒 Timestamps */
   createdAt: string;
@@ -163,7 +125,20 @@ export interface Order {
 
   /** 📦 Relations */
   orderItems: OrderItem[];
-  address?: OrderAddress;
-  user?: OrderUser;
-  shipment?: OrderShipment;
+  address?: OrderAddress | null;
+  user?: OrderUser | null;
+  shipment?: OrderShipment | null;
+}
+
+/* =======================
+   API Response Types
+======================= */
+export interface OrdersApiResponse {
+  orders: Order[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

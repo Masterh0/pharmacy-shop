@@ -15,7 +15,8 @@ import searchRoutes from "./src/routes/searchRoutes";
 import orderAdminRoutes from "./src/routes/admin/order.routes";
 import wishlistRoutes from "./src/routes/wishlistRoutes";
 import refundRoutes from "./src/routes/refundRoutes";
-
+import attributesRoutes from "./src/routes/attributesRoutes";
+import "reflect-metadata";
 import { notFoundMiddleware } from "./src/middlewares/notFoundMiddleware"; // برای مدیریت مسیرهای ناموجود 404
 import { errorMiddleware } from "./src/middlewares/errorMiddleware"; // میان‌افزار مرکزی مدیریت خطا
 
@@ -24,13 +25,23 @@ import orderRoutes from "./src/routes/orderRoutes";
 import authRoutes from "./src/routes/authRoutes";
 
 import path from "path";
+import cron from "node-cron";
+import { cleanupExpiredOtps } from "./src/jobs/otpCleanup";
 const app = express();
 // ✅ سرو فایل‌های استاتیک از این مسیر
-app.use("/uploads", express.static(path.join(__dirname, "./uploads")));
+app.use(
+  "/uploads",
+  express.static(
+    process.env.NODE_ENV === "production"
+      ? "/app/uploads"
+      : path.join(process.cwd(), "uploads"),
+  ),
+);
 const allowedOrigins = [
   "http://localhost:3000",
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-];
+  "http://127.0.0.1:3000",
+  /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+].filter(Boolean);
 
 /**
  * تنظیمات CORS برای سازگاری با تمام مرورگرها
@@ -87,8 +98,13 @@ app.use("/orders", orderRoutes);
 app.use("/admin/orders", orderAdminRoutes);
 app.use("/wishlist", wishlistRoutes);
 app.use("/refund", refundRoutes);
+app.use("/attributes", attributesRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 // -----------------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+cron.schedule("0 3 * * *", () => {
+  cleanupExpiredOtps();
+});
